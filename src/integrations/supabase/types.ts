@@ -14,7 +14,230 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      dossiers: {
+        Row: {
+          client_email: string | null
+          client_nom: string | null
+          client_token: string
+          created_at: string
+          id: string
+          nom: string
+          pennylane_company_id: string | null
+        }
+        Insert: {
+          client_email?: string | null
+          client_nom?: string | null
+          client_token?: string
+          created_at?: string
+          id?: string
+          nom: string
+          pennylane_company_id?: string | null
+        }
+        Update: {
+          client_email?: string | null
+          client_nom?: string | null
+          client_token?: string
+          created_at?: string
+          id?: string
+          nom?: string
+          pennylane_company_id?: string | null
+        }
+        Relationships: []
+      }
+      factures: {
+        Row: {
+          created_at: string
+          date: string
+          dossier_id: string
+          fournisseur: string
+          id: string
+          libelle_ecriture: string
+          libelle_generique: string
+          numero: string
+          pennylane_invoice_id: string | null
+          pennylane_reponse: string | null
+          regle_appliquee: string | null
+          statut: string
+          total_ht: number
+          total_ttc: number
+          total_tva: number
+          valide_le: string | null
+          valide_par: string | null
+        }
+        Insert: {
+          created_at?: string
+          date: string
+          dossier_id: string
+          fournisseur: string
+          id?: string
+          libelle_ecriture: string
+          libelle_generique: string
+          numero: string
+          pennylane_invoice_id?: string | null
+          pennylane_reponse?: string | null
+          regle_appliquee?: string | null
+          statut?: string
+          total_ht: number
+          total_ttc: number
+          total_tva: number
+          valide_le?: string | null
+          valide_par?: string | null
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          dossier_id?: string
+          fournisseur?: string
+          id?: string
+          libelle_ecriture?: string
+          libelle_generique?: string
+          numero?: string
+          pennylane_invoice_id?: string | null
+          pennylane_reponse?: string | null
+          regle_appliquee?: string | null
+          statut?: string
+          total_ht?: number
+          total_ttc?: number
+          total_tva?: number
+          valide_le?: string | null
+          valide_par?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "factures_dossier_id_fkey"
+            columns: ["dossier_id"]
+            isOneToOne: false
+            referencedRelation: "dossiers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      journal: {
+        Row: {
+          auteur: string
+          created_at: string
+          dossier_id: string
+          id: string
+          message: string
+        }
+        Insert: {
+          auteur: string
+          created_at?: string
+          dossier_id: string
+          id?: string
+          message: string
+        }
+        Update: {
+          auteur?: string
+          created_at?: string
+          dossier_id?: string
+          id?: string
+          message?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "journal_dossier_id_fkey"
+            columns: ["dossier_id"]
+            isOneToOne: false
+            referencedRelation: "dossiers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lignes: {
+        Row: {
+          compte: string
+          compte_libelle: string
+          facture_id: string
+          ht: number
+          id: string
+          libelle: string
+          nature: string | null
+          periode_mois: number | null
+          position: number
+          taux_tva: number
+        }
+        Insert: {
+          compte: string
+          compte_libelle?: string
+          facture_id: string
+          ht: number
+          id?: string
+          libelle: string
+          nature?: string | null
+          periode_mois?: number | null
+          position?: number
+          taux_tva?: number
+        }
+        Update: {
+          compte?: string
+          compte_libelle?: string
+          facture_id?: string
+          ht?: number
+          id?: string
+          libelle?: string
+          nature?: string | null
+          periode_mois?: number | null
+          position?: number
+          taux_tva?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lignes_facture_id_fkey"
+            columns: ["facture_id"]
+            isOneToOne: false
+            referencedRelation: "factures"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pieces_manquantes: {
+        Row: {
+          action: string
+          commentaire_client: string | null
+          date: string
+          dossier_id: string
+          fichier_path: string | null
+          id: string
+          libelle: string
+          montant: number
+          recu_le: string | null
+          statut: string
+        }
+        Insert: {
+          action: string
+          commentaire_client?: string | null
+          date: string
+          dossier_id: string
+          fichier_path?: string | null
+          id?: string
+          libelle: string
+          montant: number
+          recu_le?: string | null
+          statut?: string
+        }
+        Update: {
+          action?: string
+          commentaire_client?: string | null
+          date?: string
+          dossier_id?: string
+          fichier_path?: string | null
+          id?: string
+          libelle?: string
+          montant?: number
+          recu_le?: string | null
+          statut?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pieces_manquantes_dossier_id_fkey"
+            columns: ["dossier_id"]
+            isOneToOne: false
+            referencedRelation: "dossiers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
