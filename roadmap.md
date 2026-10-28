@@ -10,3 +10,4 @@
 - [ ] Importer les factures fournisseurs 2026 depuis Pennylane + visionneuse de pièce à droite + ligne dette fournisseur TTC (401)
 - [ ] Fonction d'écriture Pennylane en bêta, désactivée (aucune écriture réelle)
 - [ ] Étudier : extension Chrome affichée dans Pennylane ; expliquer où se fait la connexion MCP
+- [ ] Comptes : plan comptable Pennylane du dossier, sinon PCG 2025
