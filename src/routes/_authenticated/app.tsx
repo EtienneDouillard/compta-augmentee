@@ -100,7 +100,8 @@ function AppPage() {
       libelle_ecriture: f.libelleEcriture,
       ...(valider ? { statut: "validee", valide_par: u.user?.id ?? null, valide_le: new Date().toISOString() } : {}),
     }).eq("id", f.id);
-    await Promise.all(f.lignes.map((l) => supabase.from("lignes").update({ compte: l.compte, libelle: l.libelle, ht: l.ht, tva_montant: l.tvaMontant ?? null }).eq("id", l.id)));
+    await supabase.from("lignes").delete().eq("facture_id", f.id);
+    await supabase.from("lignes").insert(f.lignes.map((l, position) => ({ facture_id: f.id, position, compte: l.compte, compte_libelle: l.compteLibelle, libelle: l.libelle, ht: l.ht, taux_tva: l.tauxTva, tva_montant: l.tvaMontant ?? null, nature: l.nature ?? null, periode_mois: l.periodeMois ?? null })));
     await supabase.from("journal").insert({
       dossier_id: dossierId!, auteur: email || "Collaborateur",
       message: valider ? `Ventilation validée : ${f.fournisseur} ${f.numero} (${f.lignes.length} lignes, ${eur(f.totalTtc)} TTC)` : `Ventilation modifiée : ${f.fournisseur} ${f.numero}`,
