@@ -11,3 +11,7 @@
 - **Livre de lecture** : récit du dossier, écrit après le travail de saisie. Il explique ce qui se passe, les coûts, le coût de gestion et les points importants (vision contrôleur de gestion).
 - **Pièce manquante** : transaction bancaire sans justificatif (ex. Weezevent 25 €, OpenRouter 186,51 €, Anthropic 90 €).
 - **Échange client** : fil de discussion avec le client pour récupérer les pièces manquantes.
+- **Plan de comptes du dossier** : les comptes propres à chaque dossier. La ventilation utilise les comptes du dossier, jamais un plan générique (exemple : immobilier, avec loyer, charges locatives et taxe d'ordures ménagères).
+- **Matrice fournisseur** : la règle de ventilation enregistrée pour un fournisseur dans un dossier, rejouée chaque mois.
+- **Récap client** : un e-mail court qui ouvre un échange client. Un agent présente les actions à faire une par une, au lieu de 60 notifications.
+- **Autorisation d'accès** : le client autorise une fois le cabinet à aller chercher ses factures sur ses outils (Uber, OVH, Anthropic…). Le cabinet le refait ensuite chaque mois.
