@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import type { Database } from "@/integrations/supabase/types";
 import data from "@/data/pennylane-factures-2026.json";
 import { eclater, PIECE_ATELIER_NUMERIQUE, type LignePiece } from "./eclatement";
 
@@ -27,11 +28,11 @@ export async function importerFacturesPennylane(dossierId: string) {
     const aRemplacer = (rows ?? []).filter((r) => r.statut !== "validee");
     if (aRemplacer.length) {
       await supabase.from("lignes").delete().in("facture_id", aRemplacer.map((r) => r.id));
-      const lignes = aRemplacer.flatMap((r) => {
+      const lignes: Database["public"]["Tables"]["lignes"]["Insert"][] = aRemplacer.flatMap((r): Database["public"]["Tables"]["lignes"]["Insert"][] => {
         const src = lot.find((x) => x.pennylane_invoice_id === r.pennylane_invoice_id);
         // Pièces déjà lues : on éclate depuis les lignes de la facture plutôt que l'écriture Pennylane.
         const piece = src && PIECES_LUES[src.pennylane_invoice_id];
-        if (src && piece) return eclater(piece, src.date).map(({ id: _id, compteLibelle, tauxTva, tvaMontant, periodeMois, ...l }, position) => ({ ...l, compte_libelle: compteLibelle, taux_tva: tauxTva, tva_montant: tvaMontant, periode_mois: periodeMois ?? null, facture_id: r.id, position }));
+        if (src && piece) return eclater(piece, src.date).map(({ id: _id, compteLibelle, tauxTva, tvaMontant, periodeMois, ...l }, position) => ({ ...l, compte_libelle: compteLibelle, taux_tva: tauxTva, tva_montant: tvaMontant, periode_mois: periodeMois ?? null, nature: l.nature ?? null, facture_id: r.id, position }));
         return (src?.lignes ?? []).map((l, position) => ({ ...l, facture_id: r.id, position }));
       });
       if (lignes.length) {

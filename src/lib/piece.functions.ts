@@ -16,7 +16,7 @@ export const lireLignesPiece = createServerFn({ method: "POST" })
     const mime = blob.type || (data.piecePath.toLowerCase().endsWith(".pdf") ? "application/pdf" : "image/png");
     const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
-      headers: { Authorization: `Bearer ${process.env.LOVABLE_API_KEY}`, "Content-Type": "application/json" },
+      headers: { Authorization: `Bearer ${process.env["LOVABLE_API_KEY"]}`, "Content-Type": "application/json" },
       body: JSON.stringify({
         model: "google/gemini-3.8-flash",
         messages: [
