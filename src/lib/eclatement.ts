@@ -16,7 +16,8 @@ export type LignePiece = {
   fin?: string;
 };
 
-type Regle = { mots: RegExp; compte: string; libelle: string; nature: Ligne["nature"] };
+type Nature = NonNullable<Ligne["nature"]>;
+type Regle = { mots: RegExp; compte: string; libelle: string; nature: Nature };
 
 // L'ordre compte : la garantie / licence passe avant le matériel (« garantie ordinateur »).
 export const REGLES: Regle[] = [
