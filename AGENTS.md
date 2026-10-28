@@ -14,3 +14,4 @@
 - Ventilation math and rules live in `src/lib/ventilation.ts`, tested in `src/test/ventilation.test.ts`, so UI and future Pennylane writes share one source of truth.
 - Pennylane data is imported read-only from a snapshot in `src/data/pennylane-factures-2026.json` (built from the Pennylane MCP), because the app has no Pennylane token yet.
 - Writing to Pennylane lives only in `src/lib/pennylane-write.beta.ts` behind `PENNYLANE_ECRITURE_ACTIVE = false`, because the team is still iterating and Pennylane data must not change.
+- Splitting an invoice by nature (one account per invoice line, multi-month services cut between expense and 486) lives in `src/lib/eclatement.ts`, tested in `src/test/eclatement.test.ts`; invoice lines are read from the uploaded document by AI in `src/lib/piece.functions.ts`, because Pennylane does not expose invoice line details or PDFs.
