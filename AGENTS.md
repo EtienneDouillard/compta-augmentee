@@ -12,3 +12,5 @@
 - Data lives in Lovable Cloud tables (dossiers, factures, lignes, pieces_manquantes, journal); cabinet staff = any signed-in user (prototype), because Phase 1 has a single cabinet.
 - The client portal `/client/$token` is public and authorised only by the dossier's secret `client_token`, checked in server functions (`src/lib/client-portal.functions.ts`), because clients have no account.
 - Ventilation math and rules live in `src/lib/ventilation.ts`, tested in `src/test/ventilation.test.ts`, so UI and future Pennylane writes share one source of truth.
+- Pennylane data is imported read-only from a snapshot in `src/data/pennylane-factures-2026.json` (built from the Pennylane MCP), because the app has no Pennylane token yet.
+- Writing to Pennylane lives only in `src/lib/pennylane-write.beta.ts` behind `PENNYLANE_ECRITURE_ACTIVE = false`, because the team is still iterating and Pennylane data must not change.

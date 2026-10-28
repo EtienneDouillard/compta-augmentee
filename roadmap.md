@@ -7,3 +7,7 @@
 - [ ] Import des vraies factures du dossier Pennylane — même blocage
 - [ ] Autorisation d'accès aux outils du client (Anthropic, OpenRouter…) — Phase 2
 - [ ] Serveur MCP de l'app pour Claude
+- [x] Importer les factures fournisseurs 2026 depuis Pennylane + visionneuse de pièce à droite + ligne dette fournisseur TTC (401)
+- [x] Fonction d'écriture Pennylane en bêta, désactivée (aucune écriture réelle)
+- [ ] Étudier : extension Chrome affichée dans Pennylane ; expliquer où se fait la connexion MCP
+- [x] Comptes : plan comptable Pennylane du dossier, sinon PCG 2025
