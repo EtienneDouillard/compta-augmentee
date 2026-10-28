@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { alertes, controle, meriteEclatement, totaux } from "./ventilation";
-import { factures } from "./demo-data";
+import { alertes, controle, meriteEclatement, totaux } from "@/lib/ventilation";
+import { factures } from "@/lib/demo-data";
 
 describe("ventilation", () => {
   it("chaque facture de démo retombe sur ses totaux HT/TVA/TTC", () => {
