@@ -8,6 +8,13 @@
       "when": 1793201811280,
       "tag": "0000_init_comptabilite_augmentee",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1793202355563,
+      "tag": "0001_pennylane_import_columns",
+      "breakpoints": true
     }
   ]
 }

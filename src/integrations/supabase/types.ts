@@ -46,16 +46,21 @@ export type Database = {
       }
       factures: {
         Row: {
+          compte_fournisseur: string | null
           created_at: string
           date: string
+          devise: string
           dossier_id: string
           fournisseur: string
           id: string
           libelle_ecriture: string
           libelle_generique: string
+          lignes_importees: boolean
           numero: string
           pennylane_invoice_id: string | null
           pennylane_reponse: string | null
+          pennylane_url: string | null
+          piece_path: string | null
           regle_appliquee: string | null
           statut: string
           total_ht: number
@@ -65,16 +70,21 @@ export type Database = {
           valide_par: string | null
         }
         Insert: {
+          compte_fournisseur?: string | null
           created_at?: string
           date: string
+          devise?: string
           dossier_id: string
           fournisseur: string
           id?: string
           libelle_ecriture: string
           libelle_generique: string
+          lignes_importees?: boolean
           numero: string
           pennylane_invoice_id?: string | null
           pennylane_reponse?: string | null
+          pennylane_url?: string | null
+          piece_path?: string | null
           regle_appliquee?: string | null
           statut?: string
           total_ht: number
@@ -84,16 +94,21 @@ export type Database = {
           valide_par?: string | null
         }
         Update: {
+          compte_fournisseur?: string | null
           created_at?: string
           date?: string
+          devise?: string
           dossier_id?: string
           fournisseur?: string
           id?: string
           libelle_ecriture?: string
           libelle_generique?: string
+          lignes_importees?: boolean
           numero?: string
           pennylane_invoice_id?: string | null
           pennylane_reponse?: string | null
+          pennylane_url?: string | null
+          piece_path?: string | null
           regle_appliquee?: string | null
           statut?: string
           total_ht?: number
@@ -156,6 +171,7 @@ export type Database = {
           periode_mois: number | null
           position: number
           taux_tva: number
+          tva_montant: number | null
         }
         Insert: {
           compte: string
@@ -168,6 +184,7 @@ export type Database = {
           periode_mois?: number | null
           position?: number
           taux_tva?: number
+          tva_montant?: number | null
         }
         Update: {
           compte?: string
@@ -180,6 +197,7 @@ export type Database = {
           periode_mois?: number | null
           position?: number
           taux_tva?: number
+          tva_montant?: number | null
         }
         Relationships: [
           {
