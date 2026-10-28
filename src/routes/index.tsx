@@ -23,7 +23,7 @@ type Onglet = "ventilation" | "livre" | "client";
 function Index() {
   const [onglet, setOnglet] = useState<Onglet>("ventilation");
   const [factures, setFactures] = useState(initial);
-  const [selId, setSelId] = useState(initial[0].id);
+  const [selId, setSelId] = useState(initial[0]!.id);
   const [valides, setValides] = useState<string[]>([]);
   const sel = factures.find((f) => f.id === selId)!;
 
@@ -201,7 +201,7 @@ function Client() {
           <p className="text-xs text-muted-foreground">Action {faits.length + 1} / {piecesManquantes.length}</p>
           <p className="mt-1 font-medium">{reste[0].libelle} — {eur(reste[0].montant)}</p>
           <p className="text-sm text-muted-foreground">{new Date(reste[0].date).toLocaleDateString("fr-FR")}</p>
-          <button onClick={() => setFaits((f) => [...f, reste[0].id])} className="mt-4 flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm text-primary-foreground">
+          <button onClick={() => setFaits((f) => [...f, reste[0]!.id])} className="mt-4 flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm text-primary-foreground">
             {reste[0].action.startsWith("Autoriser") ? <Plug className="h-4 w-4" /> : <Send className="h-4 w-4" />} {reste[0].action}
           </button>
         </div>

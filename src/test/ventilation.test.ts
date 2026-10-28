@@ -8,7 +8,8 @@ describe("ventilation", () => {
   });
 
   it("détecte un écart de totaux", () => {
-    const f = { ...factures[0], totalHt: factures[0].totalHt + 10 };
+    const f0 = factures[0]!;
+    const f = { ...f0, totalHt: f0.totalHt + 10 };
     expect(controle(f).ok).toBe(false);
     expect(controle(f).ecartHt).toBe(-10);
   });
