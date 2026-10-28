@@ -18,7 +18,7 @@ export const lireLignesPiece = createServerFn({ method: "POST" })
       method: "POST",
       headers: { Authorization: `Bearer ${process.env.LOVABLE_API_KEY}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "google/gemini-3.8-flash",
         messages: [
           { role: "system", content: "Tu lis des factures fournisseurs françaises. Extrais chaque ligne de désignation telle qu'imprimée (toutes les pages), sans regrouper. Pour une prestation sur une période, renseigne debut et fin (AAAA-MM-JJ)." },
           { role: "user", content: [{ type: "text", text: "Extrais les lignes de cette facture." }, { type: "image_url", image_url: { url: `data:${mime};base64,${btoa(bin)}` } }] },
