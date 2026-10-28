@@ -5,6 +5,8 @@ import { importerFacturesPennylane, NB_FACTURES_PENNYLANE } from "@/lib/pennylan
 import { envoyerVentilation, PENNYLANE_ECRITURE_ACTIVE } from "@/lib/pennylane-write.beta";
 import { supabase } from "@/integrations/supabase/client";
 import { alertes, controle, ecriture, eur, round2, tvaLigne, type Facture, type Ligne } from "@/lib/ventilation";
+import { eclater } from "@/lib/eclatement";
+import { lireLignesPiece } from "@/lib/piece.functions";
 
 export const Route = createFileRoute("/_authenticated/app")({
   head: () => ({
@@ -175,6 +177,7 @@ function Ventilation({ f, dirty, onChange, onSave }: { f: FactureDB; dirty: bool
   const setLigne = (id: string, patch: Partial<Ligne>) => onChange({ ...f, lignes: f.lignes.map((l) => (l.id === id ? { ...l, ...patch, ...(patch.ht !== undefined ? { tvaMontant: round2(patch.ht * l.tauxTva) } : {}) } : l)) });
   const ec = ecriture(f, f.compte_fournisseur ?? "401");
   const [beta, setBeta] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
   const run = async (v: boolean) => { setBusy(true); await onSave(v); setBusy(false); };
 
   return (
@@ -229,6 +232,19 @@ function Ventilation({ f, dirty, onChange, onSave }: { f: FactureDB; dirty: bool
         </tbody>
       </table>
       {!f.lignes_importees && <p className="mt-3 text-sm text-muted-foreground">Lignes pas encore importées de Pennylane pour cette facture : ajoutez la pièce à droite pour la ventiler.</p>}
+      <div className="mt-4 flex flex-wrap items-center gap-3">
+        <button disabled={busy || valide || !f.piece_path} title={f.piece_path ? "Lit chaque ligne de la pièce et propose un compte par nature" : "Ajoutez d'abord la pièce à droite"} onClick={async () => {
+          setBusy(true); setInfo("Lecture de la pièce…");
+          try {
+            const { lignes } = await lireLignesPiece({ data: { piecePath: f.piece_path! } });
+            if (!lignes.length) throw new Error("Aucune ligne lue sur la pièce");
+            onChange({ ...f, lignes: eclater(lignes, f.date) });
+            setInfo(`${lignes.length} lignes lues sur la pièce, éclatées par nature. Vérifiez puis enregistrez.`);
+          } catch (e) { setInfo(e instanceof Error ? e.message : "Lecture impossible"); }
+          setBusy(false);
+        }} className="flex items-center gap-1 rounded-lg border border-primary px-3 py-2 text-sm text-primary disabled:opacity-50"><Split className="h-4 w-4" /> Éclater depuis la pièce</button>
+        {info && <span className="text-xs text-muted-foreground">{info}</span>}
+      </div>
       {al.length > 0 && <ul className="mt-4 space-y-1 text-sm text-destructive">{al.map((a) => <li key={a}>⚠ {a}</li>)}</ul>}
       <div className="mt-6 flex flex-wrap items-center justify-end gap-3">
         {valide && <span className="text-sm text-success">Validée le {new Date(f.valide_le!).toLocaleString("fr-FR")} · prête pour Pennylane</span>}
