@@ -38,3 +38,19 @@ describe("ventilation", () => {
     ).toHaveLength(0);
   });
 });
+
+import { ecriture as _ecriture } from "@/lib/ventilation";
+describe("écriture avec dette fournisseur", () => {
+  it("crédite le 401 du TTC et s'équilibre", () => {
+    const f = { id: "x", numero: "1", fournisseur: "NOW COWORKING", date: "2026-10-12", totalHt: 1200, totalTva: 240, totalTtc: 1440, libelleGenerique: "", libelleEcriture: "",
+      lignes: [{ id: "a", compte: "6132", compteLibelle: "", libelle: "Loyer", ht: 1000, tauxTva: 0.2 }, { id: "b", compte: "614", compteLibelle: "", libelle: "Charges", ht: 200, tauxTva: 0.2 }] };
+    const e = _ecriture(f, "401100037");
+    expect(e.lignes.at(-1)).toMatchObject({ compte: "401100037", credit: 1440 });
+    expect(e.equilibree).toBe(true);
+  });
+  it("utilise la TVA réelle de la pièce quand elle est fournie", () => {
+    const f = { id: "x", numero: "1", fournisseur: "A", date: "2026-01-01", totalHt: 10, totalTva: 0.33, totalTtc: 10.33, libelleGenerique: "", libelleEcriture: "",
+      lignes: [{ id: "a", compte: "6257", compteLibelle: "", libelle: "", ht: 10, tauxTva: 0.033, tvaMontant: 0.33 }] };
+    expect(_ecriture(f).equilibree).toBe(true);
+  });
+});

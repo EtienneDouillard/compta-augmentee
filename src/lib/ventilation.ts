@@ -7,6 +7,8 @@ export type Ligne = {
   tauxTva: number; // 0.2, 0.1, 0.055, 0
   nature?: "charge" | "immobilisation" | "charge_etalee";
   periodeMois?: number;
+  /** Montant de TVA réel issu de la pièce (prioritaire sur ht × taux). */
+  tvaMontant?: number;
 };
 
 export type Facture = {
@@ -28,7 +30,7 @@ export const SEUIL_IMMOBILISATION_HT = 500;
 export const round2 = (n: number) => Math.round(n * 100) / 100;
 
 export function tvaLigne(l: Ligne) {
-  return round2(l.ht * l.tauxTva);
+  return l.tvaMontant ?? round2(l.ht * l.tauxTva);
 }
 
 export function totaux(lignes: Ligne[]) {
@@ -71,3 +73,14 @@ export function alertes(lignes: Ligne[]) {
 
 export const eur = (n: number) =>
   n.toLocaleString("fr-FR", { style: "currency", currency: "EUR" });
+
+/** Écriture d'achat complète : débits charges + TVA, crédit dette fournisseur TTC (401). */
+export function ecriture(f: Facture, compteFournisseur = "401") {
+  const t = totaux(f.lignes);
+  const debits = f.lignes.map((l) => ({ compte: l.compte, libelle: l.libelle, debit: l.ht, credit: 0 }));
+  if (t.tva) debits.push({ compte: "44566", libelle: "TVA déductible", debit: t.tva, credit: 0 });
+  const credit = { compte: compteFournisseur, libelle: `Dette fournisseur ${f.fournisseur}`, debit: 0, credit: f.totalTtc };
+  const lignes = [...debits, credit];
+  const totalDebit = round2(debits.reduce((s, l) => s + l.debit, 0));
+  return { lignes, totalDebit, totalCredit: f.totalTtc, equilibree: Math.abs(totalDebit - f.totalTtc) <= 0.01 };
+}
