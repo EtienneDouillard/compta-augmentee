@@ -14,6 +14,8 @@ import { envoyerPennylane, getSaisie, lireFacture, rejeterSaisie, validerSaisie 
 import { formatDate, formatEUR } from "@/lib/session";
 import { alertes, controle, ecriture, round2, tvaLigne, type Facture, type Ligne } from "@/lib/ventilation";
 import { InfoTip } from "@/components/Aide";
+import { compteAuxiliaire } from "@/lib/compte-fournisseur";
+import { compteFournisseurPennylane } from "@/lib/compte-fournisseur.functions";
 
 type State = Awaited<ReturnType<typeof getSaisie>>;
 type Saisie = NonNullable<State["saisie"]>;
