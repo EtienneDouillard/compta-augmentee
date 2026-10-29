@@ -178,8 +178,7 @@ function Espace() {
                     {remaining > 1 && pendingGroups.length > 1 ? ", réparties chez " : ", chez "}
                     {counterparts(pendingGroups)}
                   </h2>
-                  <p className="mt-2 max-w-2xl text-primary-foreground/85">{SOUS_TITRES.accueil}</p>
-                  {next && (
+                                    {next && (
                     <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-3">
                       <Link
                         to="/espace/$supplier"
@@ -194,15 +193,20 @@ function Espace() {
                       </span>
                     </div>
                   )}
+                  {all.length > 0 && (() => { const done = all.length - remaining; const pct = Math.round((done / all.length) * 100); return (
+                    <div className="mt-6">
+                      <p className="text-sm font-semibold text-mint">✅ {done}/{all.length} traités</p>
+                      <div role="progressbar" aria-label="Avancement" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} className="mt-1.5 h-2 overflow-hidden rounded-full bg-primary-foreground/20">
+                        <div className="h-full rounded-full bg-mint" style={{ width: `${pct}%` }} />
+                      </div>
+                    </div>); })()}
                 </div>
               </section>
             )}
-            <MonthlyChart txs={all} className="h-full" />
-            </div>
-
-            <div className="mt-6 grid items-stretch gap-4 lg:grid-cols-2">
-              <Nudge done={all.length - remaining} total={all.length} className="h-full" />
+            <div className="flex flex-col gap-4">
+              <MonthlyChart txs={all} className="flex-1" />
               {dossierId && <SourcesSummary dossierId={dossierId} suppliers={[...new Set(all.filter((t) => t.direction === "out").map((t) => t.supplier))]} />}
+            </div>
             </div>
 
             {steps.length > 0 && (
