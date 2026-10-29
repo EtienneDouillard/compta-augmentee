@@ -1,4 +1,6 @@
 # Roadmap
+- [ ] Collecte des factures : identifier la méthode depuis une URL, mémoriser la configuration et contrôler les pièces
+- [ ] Collecte mensuelle : réception e-mail / connexions fournisseur / compagnon Chrome — services et autorisations à configurer
 - [x] Corriger la configuration Claude et vérifier une conversation réelle
 - [x] Relier l'assistant aux actions du dossier avec confirmation et contrôle des droits
 - [x] Prototype : ventilation, livre de lecture, échange client
