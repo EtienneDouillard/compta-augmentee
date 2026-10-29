@@ -129,7 +129,7 @@ export function InvoiceSourceSetup({ dossierId, supplier, onFiles, guessUrl, lab
     {!started && <div className="space-y-2">
       <label htmlFor="invoice-source-url" className="font-semibold">Site du fournisseur</label>
       <div className="flex flex-wrap gap-2">
-        <Input id="invoice-source-url" className="flex-1" type="url" placeholder="https://…" value={url} onChange={e => setUrl(e.target.value)} />
+        <Input id="invoice-source-url" className="flex-1" type="url" placeholder={guessing ? "🔎 Claude cherche le site…" : "https://…"} value={url} onChange={e => setUrl(e.target.value)} />
         <Button variant="outline" disabled={searching || !url} onClick={runResearch}>{searching ? <><Loader2 className="animate-spin" />Claude cherche…</> : <><Search />Trouver la meilleure solution</>}</Button>
       </div>
     </div>}
