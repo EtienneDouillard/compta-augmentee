@@ -13,6 +13,7 @@ import { STATE_LABEL, TYPE_NON_VALABLE, ecartPaiement } from "@/lib/saisie";
 import { envoyerPennylane, getSaisie, lireFacture, rejeterSaisie, validerSaisie } from "@/lib/saisie.functions";
 import { formatDate, formatEUR } from "@/lib/session";
 import { alertes, controle, ecriture, round2, tvaLigne, type Facture, type Ligne } from "@/lib/ventilation";
+import { compteAuxiliaire } from "@/lib/compte-fournisseur";
 
 type State = Awaited<ReturnType<typeof getSaisie>>;
 type Saisie = NonNullable<State["saisie"]>;
@@ -333,9 +334,9 @@ function Checks({ facture, paiement }: { facture: Facture; paiement: number }) {
   );
 }
 
-// The full purchase entry, always visible: expense lines, deductible VAT (44562 / 44566) and supplier debt (401).
+// The full purchase entry, always visible: expense lines, deductible VAT (44562 / 44566) and supplier debt (401 + name).
 function EntryPreview({ facture }: { facture: Facture }) {
-  const e = ecriture(facture);
+  const e = ecriture(facture, compteAuxiliaire(facture.fournisseur));
   return (
     <section className="rounded-xl border p-3 text-sm" aria-label="Écriture d'achat">
       <h3 className="font-semibold">Écriture d'achat {e.equilibree ? "(équilibrée)" : "(déséquilibrée)"}</h3>
