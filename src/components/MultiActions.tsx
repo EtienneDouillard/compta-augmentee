@@ -229,7 +229,7 @@ function DepotRow({
   return (
     <li className="flex flex-wrap items-center gap-3 px-3 py-2 text-sm">
       <span className="w-24">{formatDate(tx.date)}</span>
-      <span className="min-w-0 flex-1 truncate font-mono text-muted-foreground">{tx.label}</span>
+      <span className="min-w-0 flex-1 truncate font-mono text-muted-foreground" title={tx.label}>{tx.label}</span>
       <span className="font-bold tabular-nums">{formatEUR(Math.abs(Number(tx.amount)))}</span>
       <Button size="sm" variant="outline" disabled={busy} onClick={() => input.current?.click()}>
         <FolderOpen /> Ajouter

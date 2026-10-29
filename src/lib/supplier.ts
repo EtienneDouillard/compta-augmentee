@@ -38,6 +38,8 @@ const NOISE = new Set([
   "PAYMENTS", "ACHAT", "FACTURE", "FAC", "INST", "INSTANTANE", "EUROPE", "EU", "FR", "FRANCE",
   "SARL", "SAS", "SASU", "SA", "EURL", "MKTP", "MARKETPLACE", "COM", "WWW", "RETRAIT", "DAB",
   "X", "REF", "ECH", "DATE",
+  // Stages of one purchase: "Maison Richoux acompte" and "Maison Richoux solde" are the same supplier (Simon, 29/10/2026).
+  "ACOMPTE", "ACPTE", "ACOMPTES", "SOLDE", "AVOIR", "ECHEANCE", "ECHEANCES", "ARRHES",
 ]);
 // Small words kept inside a name ("Tech et Cie"), never at its start or end.
 const LINKS = new Set(["ET", "DE", "DU", "DES", "LA", "LE", "LES", "D", "L"]);

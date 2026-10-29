@@ -291,6 +291,9 @@ function Espace() {
               if (!list.length) return null;
               const todo = list.reduce((n, g) => n + todoCount(g), 0);
               const Icon = d === "out" ? ShoppingBag : ReceiptText;
+              // Simon: every supplier (or every customer) of the section ticked at once.
+              const open = list.filter((g) => g.state !== "done");
+              const sectionPicked = open.length > 0 && open.every((g) => picked.has(g.key));
               return (
                 <section key={d} className="mt-8">
                   <div className="flex flex-wrap items-end justify-between gap-2">
@@ -303,7 +306,18 @@ function Espace() {
                     </h2>
                     <SousTitre className="sm:pl-[52px]">{d === "out" ? SOUS_TITRES.achats : SOUS_TITRES.ventes}</SousTitre>
                     </div>
-                    <span className="text-sm text-muted-foreground">
+                    <span className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
+                      {open.length > 0 && !me.data?.preview && (
+                        <label className="flex cursor-pointer items-center gap-2 rounded-full border bg-card px-3 py-1.5 font-semibold text-primary">
+                          <Checkbox checked={sectionPicked}
+                            onCheckedChange={(v) => setPicked((p) => {
+                              const n = new Set(p);
+                              open.forEach((g) => (v === true ? n.add(g.key) : n.delete(g.key)));
+                              return n;
+                            })} />
+                          Tout cocher ({d === "out" ? "fournisseurs" : "clients"})
+                        </label>
+                      )}
                       {todo} à transmettre · {list.length} {d === "out" ? "fournisseur" : "client"}{list.length > 1 ? "s" : ""}
                     </span>
                   </div>
@@ -363,7 +377,7 @@ function SupplierCard({ g, site, picked, onPick }: { g: SupplierGroup; site: str
       <SupplierAvatar name={g.name} site={site} />
       <div className="min-w-0 flex-1">
         {/* Simon: the full name, wrapped if needed, never cut. */}
-        <div className="break-words text-lg font-bold leading-snug text-primary">{g.name}</div>
+        <div className="break-words text-lg font-bold leading-snug text-primary" title={g.name}>{g.name}</div>
         <div className="text-sm text-muted-foreground">
           {g.txs.length} {noun}{g.txs.length > 1 ? "s" : ""} · <span className="font-semibold text-foreground">{formatEUR(g.total)}</span>
         </div>
@@ -397,8 +411,8 @@ function SupplierRow({ g, site, picked, onPick }: { g: SupplierGroup; site: stri
       <Link to="/espace/$supplier" params={{ supplier: g.key }} className="group flex min-w-0 flex-1 items-center gap-3 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
         <SupplierAvatar name={g.name} site={site} className="h-9 w-9 text-sm" />
         <span className="min-w-0 flex-1">
-          <span className="block break-words font-bold text-primary">{g.name}</span>
-          <span className="block truncate text-sm text-muted-foreground">{paymentDates(g)}</span>
+          <span className="block break-words font-bold text-primary" title={g.name}>{g.name}</span>
+          <span className="block truncate text-sm text-muted-foreground" title={paymentDates(g)}>{paymentDates(g)}</span>
         </span>
         <span className="text-right text-sm">
           <span className="block font-bold tabular-nums">{formatEUR(left || g.total)}</span>

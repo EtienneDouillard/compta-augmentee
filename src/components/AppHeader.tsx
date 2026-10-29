@@ -48,7 +48,7 @@ function ClientBar({ onSignOut }: { onSignOut: () => void }) {
           <Link to="/espace" aria-label="Accueil" className="flex shrink-0 items-center gap-3 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
             <Monogram name={cabinet.name} logoUrl={cabinet.logoUrl} />
             <div className="min-w-0">
-              <div className="truncate font-bold leading-tight text-primary">{cabinet.name}</div>
+              <div className="truncate font-bold leading-tight text-primary" title={cabinet.name}>{cabinet.name}</div>
               <div className="text-sm text-muted-foreground">Espace client</div>
             </div>
           </Link>

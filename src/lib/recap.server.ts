@@ -55,7 +55,8 @@ export async function preparerRecap(
   if (t.error) throw t.error;
   const lignes = (t.data ?? []) as LigneRecap[];
   const dossier = (d.data as { name: string }).name;
-  const cabinet = (c.data as { name?: string | null } | null)?.name || "Votre cabinet";
+  const saved = (c.data as { name?: string | null } | null)?.name?.trim();
+  const cabinet = saved && saved !== "Votre cabinet" ? saved : "Cabinet CA+";
   const to = [
     ...new Set(((m.data ?? []) as { email: string }[]).map((x) => x.email).filter(Boolean)),
   ];

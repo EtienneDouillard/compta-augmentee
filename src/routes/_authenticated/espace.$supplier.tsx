@@ -358,8 +358,8 @@ function TxRow({ tx, isSale, bilan, selected, onToggle, onFiles }: {
           <span className="sm:hidden">{isSale ? "Encaissé le " : "Payé le "}</span>{formatDate(tx.date)}
         </span>
         <span className="order-3 min-w-0 sm:order-none">
-          <span className="block truncate font-mono text-sm text-muted-foreground">{tx.label}</span>
-          {tx.comment && <span className="block truncate text-sm italic text-muted-foreground">« {tx.comment} »</span>}
+          <span className="block truncate font-mono text-sm text-muted-foreground" title={tx.label}>{tx.label}</span>
+          {tx.comment && <span className="block truncate text-sm italic text-muted-foreground" title={tx.comment}>« {tx.comment} »</span>}
           <BilanLine bilan={bilan} />
         </span>
         <span className="order-1 font-bold tabular-nums sm:order-none sm:text-right">{amount}</span>
