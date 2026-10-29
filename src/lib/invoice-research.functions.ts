@@ -103,7 +103,7 @@ Réponds UNIQUEMENT par l'URL https complète, ou par NONE si tu ne sais pas ave
     const res = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
-      body: JSON.stringify({ model, max_tokens: 100, messages: [{ role: 'user', content: prompt }] }),
+      body: JSON.stringify({ model, max_tokens: 1500, messages: [{ role: 'user', content: prompt }] }),
     });
     if (!res.ok) return { url: null };
     const json = await res.json() as { content: { type: string; text?: string }[] };
