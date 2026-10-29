@@ -20,6 +20,7 @@ import { normalizeSearch } from "@/lib/priority";
 import { McpPanel } from "@/components/McpPanel";
 import { CabinetChat } from "@/components/CabinetChat";
 import { cn } from "@/lib/utils";
+import type { Tab } from "@/components/LinesTable";
 
 export const Route = createFileRoute("/_authenticated/cabinet/")({
   beforeLoad: requireCabinet,
@@ -37,13 +38,16 @@ export const Route = createFileRoute("/_authenticated/cabinet/")({
 });
 
 type SortKey = "name" | "pending" | "sent" | "received" | "progress" | "sync";
+type Filter = "all" | "pending" | "sent" | "received" | "toJustify" | "address" | "members";
+// Each dashboard tile filters the dossiers, and opens them on the matching tab of their lines (Julien, 29/10/2026: « rends tout cliquable »).
+const TILE_TAB: Partial<Record<Filter, Tab>> = { pending: "pending", sent: "waiting", received: "answered", toJustify: "all" };
 
 function Cabinet() {
   const qc = useQueryClient();
   const navigate = useNavigate();
   const [form, setForm] = useState({ name: "", company_id: "", collect_email: "" });
   const [query, setQuery] = useState("");
-  const [filter, setFilter] = useState<"all" | "pending" | "address" | "members">("all");
+  const [filter, setFilter] = useState<Filter>("all");
   const [sort, toggleSort] = useSort<SortKey>({ key: "pending", dir: "desc" });
   const dossiers = useQuery({
     queryKey: ["dossiers"],
@@ -100,6 +104,23 @@ function Cabinet() {
     address: rows.filter((r) => r.missingAddress).length,
     members: rows.filter((r) => r.members === 0).length,
   };
+  const matches = (r: Row, f: Filter) =>
+    f === "pending" ? r.pending > 0 : f === "sent" ? r.sent > 0 : f === "received" ? r.received > 0
+      : f === "toJustify" ? r.toJustify > 0 : f === "address" ? r.missingAddress : f === "members" ? r.members === 0 : true;
+  const SORT_OF: Partial<Record<Filter, SortKey>> = { pending: "pending", sent: "sent", received: "received" };
+  // One dossier concerned: open it straight away; several: filter the list below and scroll to it.
+  function openTile(f: Filter) {
+    const hit = rows.filter((r) => matches(r, f));
+    if (hit.length === 1) {
+      navigate({ to: "/cabinet/$dossierId", params: { dossierId: hit[0]!.d.id }, search: { vue: TILE_TAB[f] }, hash: "lignes" });
+      return;
+    }
+    setFilter(f);
+    const k = SORT_OF[f];
+    if (k && sort.key !== k) toggleSort(k);
+    document.getElementById("liste-dossiers")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+  const vue = TILE_TAB[filter];
 
   const q = normalizeSearch(query);
   const get: Record<SortKey, (r: Row) => string | number> = {
@@ -112,9 +133,7 @@ function Cabinet() {
   };
   const visible = rows
     .filter((r) => !q || normalizeSearch(`${r.d.name} ${r.d.company_id}`).includes(q))
-    .filter((r) =>
-      filter === "pending" ? r.pending > 0 : filter === "address" ? r.missingAddress : filter === "members" ? r.members === 0 : true,
-    )
+    .filter((r) => matches(r, filter))
     .sort(compareBy(get[sort.key], sort.dir));
 
   return (
@@ -132,16 +151,16 @@ function Cabinet() {
         </div>
 
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
-          <Kpi icon={Folder} label="Dossiers" value={String(rows.length)} sub={`${totals.syncedToday} synchronisé${totals.syncedToday > 1 ? "s" : ""} aujourd'hui`} />
-          <Kpi icon={Eye} label="Demandes à valider" value={String(totals.pending)} sub={`dans ${totals.pendingDossiers} dossier${totals.pendingDossiers > 1 ? "s" : ""}`} highlight={totals.pending > 0} />
-          <Kpi icon={Send} label="Envoyées au client" value={String(totals.sent)} sub={`${totals.sent - totals.received} en attente de réponse`} />
-          <Kpi icon={Inbox} label="Réponses reçues" value={String(totals.received)} sub={totals.sent ? `${Math.round((totals.received / totals.sent) * 100)} % des demandes envoyées` : "aucune demande envoyée"} />
-          <Kpi icon={Euro} label="Montant restant à justifier" value={formatEUR(totals.toJustify)} sub="à valider ou en attente du client" className="col-span-2 lg:col-span-1" />
+          <Kpi onClick={() => openTile("all")} icon={Folder} label="Dossiers" value={String(rows.length)} sub={`${totals.syncedToday} synchronisé${totals.syncedToday > 1 ? "s" : ""} aujourd'hui`} />
+          <Kpi onClick={() => openTile("pending")} icon={Eye} label="Demandes à valider" value={String(totals.pending)} sub={`dans ${totals.pendingDossiers} dossier${totals.pendingDossiers > 1 ? "s" : ""}`} highlight={totals.pending > 0} />
+          <Kpi onClick={() => openTile("sent")} icon={Send} label="Envoyées au client" value={String(totals.sent)} sub={`${totals.sent - totals.received} en attente de réponse`} />
+          <Kpi onClick={() => openTile("received")} icon={Inbox} label="Réponses reçues" value={String(totals.received)} sub={totals.sent ? `${Math.round((totals.received / totals.sent) * 100)} % des demandes envoyées` : "aucune demande envoyée"} />
+          <Kpi onClick={() => openTile("toJustify")} icon={Euro} label="Montant restant à justifier" value={formatEUR(totals.toJustify)} sub="à valider ou en attente du client" className="col-span-2 lg:col-span-1" />
         </div>
 
         <McpPanel existing={rows.map((r) => r.d.company_id)} />
 
-        <div className="flex flex-wrap items-center gap-2">
+        <div id="liste-dossiers" className="flex scroll-mt-6 flex-wrap items-center gap-2">
           <label className="relative min-w-[16rem] flex-1 sm:max-w-sm">
             <span className="sr-only">Rechercher un dossier</span>
             <Search aria-hidden className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -149,6 +168,11 @@ function Cabinet() {
           </label>
           <FilterChip size="sm" active={filter === "all"} onClick={() => setFilter("all")} count={counts.all}>Tous</FilterChip>
           <FilterChip size="sm" active={filter === "pending"} onClick={() => setFilter("pending")} count={counts.pending} icon={Eye}>Avec lignes à valider</FilterChip>
+          {(["sent", "received", "toJustify"] as const).includes(filter as "sent") && (
+            <FilterChip size="sm" active onClick={() => setFilter("all")} icon={filter === "sent" ? Send : filter === "received" ? Inbox : Euro}>
+              {filter === "sent" ? "Avec demandes envoyées" : filter === "received" ? "Avec réponses reçues" : "Avec montant à justifier"}
+            </FilterChip>
+          )}
           <FilterChip size="sm" active={filter === "address"} onClick={() => setFilter("address")} count={counts.address} icon={MailWarning}>Adresse manquante</FilterChip>
           <FilterChip size="sm" active={filter === "members"} onClick={() => setFilter("members")} count={counts.members} icon={UserX}>Sans compte client</FilterChip>
         </div>
@@ -175,9 +199,9 @@ function Cabinet() {
                 <tr><td colSpan={8} className="px-3 py-6 text-center text-muted-foreground">{rows.length === 0 ? "Aucun dossier pour l'instant." : "Aucun dossier ne correspond."}</td></tr>
               )}
               {visible.map((r) => (
-                <tr key={r.d.id} className="cursor-pointer hover:bg-pale-2/60" onClick={() => navigate({ to: "/cabinet/$dossierId", params: { dossierId: r.d.id } })}>
+                <tr key={r.d.id} className="cursor-pointer hover:bg-pale-2/60" onClick={() => navigate({ to: "/cabinet/$dossierId", params: { dossierId: r.d.id }, search: { vue }, ...(vue ? { hash: "lignes" } : {}) })}>
                   <td className="px-3 py-2.5">
-                    <Link to="/cabinet/$dossierId" params={{ dossierId: r.d.id }} className="font-bold text-primary hover:underline" onClick={(e) => e.stopPropagation()}>
+                    <Link to="/cabinet/$dossierId" params={{ dossierId: r.d.id }} search={{ vue }} {...(vue ? { hash: "lignes" } : {})} className="font-bold text-primary hover:underline" onClick={(e) => e.stopPropagation()}>
                       {r.d.name}
                     </Link>
                     <div className="flex flex-wrap gap-x-3 text-xs">
@@ -231,11 +255,12 @@ function Cabinet() {
   );
 }
 
-function Kpi({ icon: Icon, label, value, sub, highlight, className }: {
-  icon: LucideIcon; label: string; value: ReactNode; sub: string; highlight?: boolean; className?: string;
+function Kpi({ icon: Icon, label, value, sub, highlight, className, onClick }: {
+  icon: LucideIcon; label: string; value: ReactNode; sub: string; highlight?: boolean; className?: string; onClick: () => void;
 }) {
   return (
-    <div className={cn("rounded-xl border bg-card p-4 shadow-sm", highlight && "border-yellow bg-yellow-soft/40", className)}>
+    <button type="button" onClick={onClick} title={`Voir : ${label}`}
+      className={cn("rounded-xl border bg-card p-4 text-left shadow-sm transition hover:border-primary hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary", highlight && "border-yellow bg-yellow-soft/40", className)}>
       <div className="flex items-center gap-2 text-sm font-semibold text-primary">
         <span className={cn("flex h-7 w-7 items-center justify-center rounded-md", highlight ? "bg-yellow-soft text-yellow-ink" : "bg-pale text-primary")}>
           <Icon className="h-4 w-4" />
@@ -244,6 +269,6 @@ function Kpi({ icon: Icon, label, value, sub, highlight, className }: {
       </div>
       <div className="mt-2 text-2xl font-bold tabular-nums text-primary sm:text-3xl">{value}</div>
       <div className="text-xs text-muted-foreground">{sub}</div>
-    </div>
+    </button>
   );
 }

@@ -205,6 +205,8 @@ function bilanText(b: ReturnType<ReturnType<typeof useDepot>["bilanOf"]>) {
   const doubt = b.fournisseursDouteux.length
     ? ` · fournisseur lu : ${b.fournisseursDouteux.join(", ")}`
     : "";
+  if (b.etat === "non_valable")
+    return `⚠ ${b.nonValables.join(", ")} n'est pas une facture : déposez la facture définitive`;
   if (b.etat === "complet") return `✓ Facture vérifiée${doubt}`;
   if (b.etat === "partiel") return `⚠ Reste ${formatEUR(b.reste)} à justifier${doubt}`;
   if (b.etat === "excedent")

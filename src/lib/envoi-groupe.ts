@@ -3,6 +3,7 @@
 // (écart, compte hors plan, pièce non PDF) n'est jamais envoyée d'office : elle est listée avec sa raison.
 import { blocagesEnvoi } from "@/lib/pennylane-import";
 import { LigneSaisie, typeMedia, type SaisieState } from "@/lib/saisie";
+import { TYPE_NON_VALABLE, type TypeDocument } from "@/lib/type-document";
 import { controle, type Facture } from "@/lib/ventilation";
 
 export const MAX_ENVOI_GROUPE = 50;
@@ -11,6 +12,7 @@ export type PourEnvoi = {
   state: SaisieState;
   pennylaneInvoiceId: string | null;
   fileName: string;
+  typeDocument?: TypeDocument;
   facture: Facture;
 };
 export type EtatEnvoi = { pret: true; aValider: boolean } | { pret: false; raison: string };
@@ -20,6 +22,12 @@ export function etatEnvoi(s: PourEnvoi): EtatEnvoi {
   if (s.state === "rejetee") return { pret: false, raison: "Proposition rejetée." };
   if (s.state === "echec")
     return { pret: false, raison: "Lecture impossible : à relire ou à saisir à la main." };
+  const nonValable = s.typeDocument && TYPE_NON_VALABLE[s.typeDocument];
+  if (nonValable)
+    return {
+      pret: false,
+      raison: `Document lu comme ${nonValable}, pas une facture : à remplacer par la facture définitive.`,
+    };
   if (typeMedia(s.fileName) !== "application/pdf")
     return { pret: false, raison: "Pennylane n'importe que les factures en PDF." };
   if (s.state === "proposee") {

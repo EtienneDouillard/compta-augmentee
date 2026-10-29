@@ -49,3 +49,25 @@ describe("bilan du dépôt", () => {
     expect(bilanDepot(-60, "ORANGE", []).etat).toBe("aucune");
   });
 });
+
+describe("proforma et devis", () => {
+  it("ne compte pas un devis ni une proforma et laisse la demande ouverte", () => {
+    const b = bilanDepot(-60, "REVIEW", [
+      { fournisseur: "REVIEW", totalTtc: 60, typeDocument: "devis" },
+      { fournisseur: "REVIEW", totalTtc: 60, typeDocument: "proforma" },
+    ]);
+    expect(b).toMatchObject({
+      etat: "non_valable",
+      totalLu: 0,
+      reste: 60,
+      nonValables: ["un devis", "une facture proforma"],
+    });
+  });
+  it("compte la facture définitive déposée à côté d'un devis", () => {
+    const b = bilanDepot(-60, "REVIEW", [
+      { fournisseur: "REVIEW", totalTtc: 60, typeDocument: "devis" },
+      { fournisseur: "REVIEW", totalTtc: 60, typeDocument: "facture" },
+    ]);
+    expect(b).toMatchObject({ etat: "complet", nonValables: ["un devis"] });
+  });
+});
