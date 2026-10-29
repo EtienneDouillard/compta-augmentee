@@ -41,7 +41,7 @@ export function RobotChrome({ dossierId, robotUrl, lastRun, onSaveUrl, onFiles }
   void bm; void buildBookmarklet; void useRef;
   // The Chrome extension announces itself on this page (extension/bridge.js).
   useEffect(() => {
-    if (document.documentElement.dataset.caplusRobot) setRobot(true);
+    if (document.documentElement.dataset['caplusRobot']) setRobot(true);
     const on = (e: MessageEvent) => {
       if (e.source !== window || e.data?.source !== 'caplus-robot') return;
       if (e.data.type === 'ready') setRobot(true);
