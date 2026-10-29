@@ -10,7 +10,7 @@
 <!-- LOVABLE:END -->
 
 - This app is Julien's « PBC List » (factures-manquantes repo) merged with « Comptabilité augmentée »: PBC List is the base; the ventilation/livre de lecture screen lives at `/app` on the legacy tables (factures, lignes, pieces_manquantes, journal), cabinet role only, because those features had no equivalent in PBC List.
-- `envoyerPennylane` (saisie.functions.ts) is gated by `PENNYLANE_ECRITURE_ACTIVE`, because Pennylane must not be written until the team allows it.
+- `envoyerPennylane` (saisie.functions.ts) is gated by `PENNYLANE_ECRITURE_ACTIVE` (now on: the team allowed writes on demo dossiers).
 - The client portal `/client/$token` is public and authorised only by the dossier's secret `client_token`, checked in server functions (`src/lib/client-portal.functions.ts`), because clients have no account.
 - Ventilation math and rules live in `src/lib/ventilation.ts`, tested in `src/test/ventilation.test.ts`, so UI and future Pennylane writes share one source of truth.
 - Pennylane data is imported read-only from a snapshot in `src/data/pennylane-factures-2026.json` (built from the Pennylane MCP), because the app has no Pennylane token yet.
