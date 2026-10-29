@@ -18,6 +18,7 @@ import { requireCabinet, formatEUR } from "@/lib/session";
 import { formatSyncDate, isToday } from "@/lib/dates";
 import { normalizeSearch } from "@/lib/priority";
 import { McpPanel } from "@/components/McpPanel";
+import { RecapGroupe } from "@/components/RecapClient";
 import { CabinetChat } from "@/components/CabinetChat";
 import { cn } from "@/lib/utils";
 import type { Tab } from "@/components/LinesTable";
@@ -145,9 +146,12 @@ function Cabinet() {
             <h1 className="text-2xl sm:text-3xl">Dossiers clients</h1>
             <p className="text-sm text-muted-foreground">{rows.length} dossier{rows.length > 1 ? "s" : ""} suivi{rows.length > 1 ? "s" : ""}</p>
           </div>
-          <Button asChild>
-            <a href="#nouveau-dossier"><Plus /> Nouveau dossier</a>
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <RecapGroupe dossierIds={visible.filter((r) => r.sent > r.received).map((r) => r.d.id)} />
+            <Button asChild>
+              <a href="#nouveau-dossier"><Plus /> Nouveau dossier</a>
+            </Button>
+          </div>
         </div>
 
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">

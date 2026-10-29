@@ -15,6 +15,7 @@ import { CabinetChat } from "@/components/CabinetChat";
 import { ClaudeAnalysis } from "@/components/ClaudeAnalysis";
 import { SaisieAugmentee } from "@/components/SaisieAugmentee";
 import { EnvoiGroupe } from "@/components/EnvoiGroupe";
+import { RecapClientPanel } from "@/components/RecapClient";
 import { SourcePill } from "@/components/StatusPill";
 import { createClientAccount } from "@/lib/admin.functions";
 import { syncDossierNow } from "@/lib/sync.functions";
@@ -171,6 +172,7 @@ function DossierPage() {
         <SaisieAugmentee uploadId={saisie} onClose={() => { setSaisie(null); qc.invalidateQueries({ queryKey: ["envoi-groupe", dossierId] }); }} />
         <EnvoiGroupe dossierId={dossierId} onDone={reload} />
         <SkipRulesPanel dossierId={dossierId} txs={txs} onChanged={reload} />
+        <RecapClientPanel dossierId={dossierId} />
 
         <div className="grid gap-5 lg:grid-cols-2">
           <DossierSettings dossier={dossier} onSaved={reload} />
