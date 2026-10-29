@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useServerFn } from '@tanstack/react-start';
-import { Copy, ExternalLink, Globe, Loader2, Save } from 'lucide-react';
+import { Copy, ExternalLink, Globe, Loader2, Save, Search, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,6 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { getInvoiceSource, saveInvoiceSource } from '@/lib/invoice-sources.functions';
 import { sourceGuidance } from '@/lib/invoice-sources';
+import { researchInvoiceSource, type SourceResearch } from '@/lib/invoice-research.functions';
 
 export function InvoiceSourceSetup({ dossierId, supplier }: { dossierId: string; supplier: string }) {
   const load = useServerFn(getInvoiceSource);
@@ -24,6 +25,22 @@ export function InvoiceSourceSetup({ dossierId, supplier }: { dossierId: string;
   const [autoSend, setAutoSend] = useState(false);
   const [busy, setBusy] = useState(false);
   const [guidance, setGuidance] = useState<ReturnType<typeof sourceGuidance> | null>(null);
+  const research = useServerFn(researchInvoiceSource);
+  const [searching, setSearching] = useState(false);
+  const [found, setFound] = useState<SourceResearch | null>(null);
+  async function runResearch() {
+    try { const u = new URL(url); if (u.protocol !== 'https:') throw new Error(); } catch { toast.error('Renseignez une URL HTTPS valide.'); return; }
+    setSearching(true); setFound(null); setGuidance(sourceGuidance(url));
+    try { setFound(await research({ data: { supplier, sourceUrl: url } })); }
+    catch (e) { toast.error(e instanceof Error ? e.message : 'Recherche impossible.'); }
+    finally { setSearching(false); }
+  }
+  function applyResearch(r: SourceResearch) {
+    setMethod(r.recommended); setConfigured(false);
+    setPath([r.billingPath, ...r.options.map(o => `• ${o.title} : ${o.detail}${o.source ? ` (${o.source})` : ''}`)].filter(Boolean).join('\n'));
+    toast.success('Recommandation appliquée. Vérifiez puis enregistrez.');
+  }
+  const methodLabel = { email: 'E-mail vers Pennylane', browser: 'Chemin dans le navigateur', api: 'API', mcp: 'MCP' } as const;
   useEffect(() => {
     if (!query.data) return;
     const s = query.data.source;
@@ -49,10 +66,19 @@ export function InvoiceSourceSetup({ dossierId, supplier }: { dossierId: string;
     {query.data.source && <p role="status" className="text-sm text-muted-foreground">Configuration sauvegardée · {query.data.source.state === 'awaiting_first_invoice' ? 'Première réception à vérifier dans Pennylane' : 'Connexion automatique à configurer'}</p>}
     <div className="space-y-2"><label htmlFor="invoice-source-url" className="font-semibold">Site du fournisseur</label>
       <Input id="invoice-source-url" type="url" placeholder="https://…" value={url} onChange={e => { setUrl(e.target.value); setGuidance(null); }} />
-      <Button variant="outline" onClick={() => { try { const u = new URL(url); if (u.protocol !== 'https:') throw new Error(); setGuidance(sourceGuidance(url)); } catch { toast.error('Renseignez une URL HTTPS valide.'); } }}>Consulter les pistes documentées</Button>
+      <Button variant="outline" disabled={searching || !url} onClick={runResearch}>{searching ? <><Loader2 className="animate-spin" />Claude cherche sur le web…</> : <><Search />Rechercher comment récupérer les factures</>}</Button>
     </div>
     {guidance && <div className="border-l-2 border-primary pl-4 text-sm"><p className="font-semibold">{guidance.label}</p><p className="mt-1 text-muted-foreground">{guidance.note}</p>{guidance.evidence && <a href={guidance.evidence} target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex items-center gap-1 text-primary underline">Documentation officielle <ExternalLink className="h-3 w-3" /></a>}</div>}
-    <fieldset className="space-y-2"><legend className="mb-2 font-semibold">Méthode à mémoriser</legend>
+    {found && <div className="space-y-3 rounded-lg border border-primary/40 bg-secondary/40 p-4 text-sm">
+      <p className="flex items-center gap-2 font-semibold text-primary"><Sparkles className="h-4 w-4" />Préconisation : {methodLabel[found.recommended]}</p>
+      <p>{found.summary}</p>
+      <p className="text-muted-foreground">{found.why}</p>
+      {found.billingPath && <p><span className="font-semibold">Chemin : </span>{found.billingPath}</p>}
+      {found.options.length > 0 && <ul className="space-y-2">{found.options.map((o, i) => <li key={i} className="border-l-2 border-border pl-3"><span className="font-semibold">{o.title}</span> <span className="text-muted-foreground">· {methodLabel[o.method]}</span><p className="text-muted-foreground">{o.detail}</p>{o.source && <a href={o.source} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-primary underline">Source <ExternalLink className="h-3 w-3" /></a>}</li>)}</ul>}
+      {found.warnings.map((w, i) => <p key={i} className="text-destructive">⚠ {w}</p>)}
+      <Button size="sm" onClick={() => applyResearch(found)}>Appliquer cette préconisation</Button>
+    </div>}
+ className="space-y-2"><legend className="mb-2 font-semibold">Méthode à mémoriser</legend>
       {([['email', 'E-mail vers Pennylane'], ['browser', 'Chemin dans le navigateur'], ['api', 'API · connexion à développer'], ['mcp', 'MCP · connexion à développer']] as const).map(([value, label]) => <label key={value} className="flex items-center gap-3 text-sm"><input type="radio" name="invoice-source-method" checked={method === value} onChange={() => { setMethod(value); setConfigured(false); }} />{label}</label>)}
     </fieldset>
     {method === 'email' ? <div className="space-y-3">
