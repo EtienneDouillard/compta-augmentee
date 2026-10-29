@@ -10,7 +10,7 @@
  */
 import { ecriture, type Facture } from "@/lib/ventilation";
 
-export const PENNYLANE_ECRITURE_ACTIVE = false;
+export const PENNYLANE_ECRITURE_ACTIVE = true;
 
 export function chargeUtileVentilation(f: Facture & { pennylane_invoice_id?: string | null; compte_fournisseur?: string | null }) {
   const e = ecriture(f, f.compte_fournisseur ?? "401");

@@ -390,3 +390,29 @@ export const etatDepots = createServerFn({ method: "POST" })
     });
     return { pieces };
   });
+
+// Robot Chrome deposit (server only, called by /api/public/collector after its token check): Claude reads the
+// invoice like a client deposit; when the source allows it, it is then sent to Pennylane exactly like the
+// envoi groupé (same PENNYLANE_ECRITURE_ACTIVE switch, demo dossiers only, nothing that needs a human look).
+export async function traiterDepotRobot(uploadId: string, userId: string, autoSend: boolean) {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const db = supabaseAdmin as any;
+  const { upload, tx } = await loadUpload(db, uploadId);
+  try { await lire(db, upload, tx, userId); } catch (err) { return { lu: false, envoye: false, message: (err as Error).message }; }
+  if (!autoSend) return { lu: true, envoye: false, message: "Lue par Claude." };
+  const { PENNYLANE_ECRITURE_ACTIVE } = await import("./pennylane-write.beta");
+  if (!PENNYLANE_ECRITURE_ACTIVE) return { lu: true, envoye: false, message: ECRITURE_OFF };
+  const { data: d } = await db.from("dossiers").select("company_id").eq("id", upload.dossier_id).maybeSingle();
+  if (!isDemoCompany(String(d?.company_id ?? ""))) return { lu: true, envoye: false, message: "Envoi réservé aux dossiers démo." };
+  const { data: row } = await db.from("saisies").select("id").eq("upload_id", upload.id).maybeSingle();
+  if (!row) return { lu: true, envoye: false, message: "Lecture absente." };
+  const s = await loadSaisie(db, row.id);
+  const v = toView(s)!;
+  const etat = etatEnvoi({ state: v.state, pennylaneInvoiceId: v.pennylaneInvoiceId, fileName: upload.file_name, facture: factureOf(s, v.lignes, v.libelleEcriture) });
+  if (!etat.pret) return { lu: true, envoye: false, message: etat.raison };
+  try {
+    if (etat.aValider) { await valider(db, userId, s, v.lignes, v.libelleEcriture); s.state = "validee"; }
+    const invoiceId = await envoyer(db, userId, s);
+    return { lu: true, envoye: true, message: `Envoyée dans Pennylane (n° ${invoiceId}).` };
+  } catch (err) { return { lu: true, envoye: false, message: (err as Error).message }; }
+}

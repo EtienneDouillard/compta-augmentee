@@ -23,6 +23,7 @@ import { Route as AuthenticatedEspaceIndexRouteImport } from './routes/_authenti
 import { Route as AuthenticatedEspaceSupplierRouteImport } from './routes/_authenticated/espace.$supplier'
 import { Route as AuthenticatedEspaceSourcesRouteImport } from './routes/_authenticated/espace.sources'
 import { Route as AuthenticatedEspaceTermineRouteImport } from './routes/_authenticated/espace.termine'
+import { Route as ApiPublicCollectorRouteImport } from './routes/api/public/collector'
 import { Route as ApiPublicJobsSyncPennylaneRouteImport } from './routes/api/public/jobs/sync-pennylane'
 import { Route as ApiPublicPennylaneMcpCallbackRouteImport } from './routes/api/public/pennylane-mcp/callback'
 
@@ -102,6 +103,11 @@ const AuthenticatedEspaceTermineRoute =
     path: '/espace/termine',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const ApiPublicCollectorRoute = ApiPublicCollectorRouteImport.update({
+  id: '/api/public/collector',
+  path: '/api/public/collector',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicJobsSyncPennylaneRoute =
   ApiPublicJobsSyncPennylaneRouteImport.update({
     id: '/api/public/jobs/sync-pennylane',
@@ -127,6 +133,7 @@ export interface FileRoutesByFullPath {
   '/espace/$supplier': typeof AuthenticatedEspaceSupplierRoute
   '/espace/sources': typeof AuthenticatedEspaceSourcesRoute
   '/espace/termine': typeof AuthenticatedEspaceTermineRoute
+  '/api/public/collector': typeof ApiPublicCollectorRoute
   '/cabinet/': typeof AuthenticatedCabinetIndexRoute
   '/espace/': typeof AuthenticatedEspaceIndexRoute
   '/api/public/jobs/sync-pennylane': typeof ApiPublicJobsSyncPennylaneRoute
@@ -144,6 +151,7 @@ export interface FileRoutesByTo {
   '/espace/$supplier': typeof AuthenticatedEspaceSupplierRoute
   '/espace/sources': typeof AuthenticatedEspaceSourcesRoute
   '/espace/termine': typeof AuthenticatedEspaceTermineRoute
+  '/api/public/collector': typeof ApiPublicCollectorRoute
   '/cabinet': typeof AuthenticatedCabinetIndexRoute
   '/espace': typeof AuthenticatedEspaceIndexRoute
   '/api/public/jobs/sync-pennylane': typeof ApiPublicJobsSyncPennylaneRoute
@@ -163,6 +171,7 @@ export interface FileRoutesById {
   '/_authenticated/espace/$supplier': typeof AuthenticatedEspaceSupplierRoute
   '/_authenticated/espace/sources': typeof AuthenticatedEspaceSourcesRoute
   '/_authenticated/espace/termine': typeof AuthenticatedEspaceTermineRoute
+  '/api/public/collector': typeof ApiPublicCollectorRoute
   '/_authenticated/cabinet/': typeof AuthenticatedCabinetIndexRoute
   '/_authenticated/espace/': typeof AuthenticatedEspaceIndexRoute
   '/api/public/jobs/sync-pennylane': typeof ApiPublicJobsSyncPennylaneRoute
@@ -182,6 +191,7 @@ export interface FileRouteTypes {
     | '/espace/$supplier'
     | '/espace/sources'
     | '/espace/termine'
+    | '/api/public/collector'
     | '/cabinet/'
     | '/espace/'
     | '/api/public/jobs/sync-pennylane'
@@ -199,6 +209,7 @@ export interface FileRouteTypes {
     | '/espace/$supplier'
     | '/espace/sources'
     | '/espace/termine'
+    | '/api/public/collector'
     | '/cabinet'
     | '/espace'
     | '/api/public/jobs/sync-pennylane'
@@ -217,6 +228,7 @@ export interface FileRouteTypes {
     | '/_authenticated/espace/$supplier'
     | '/_authenticated/espace/sources'
     | '/_authenticated/espace/termine'
+    | '/api/public/collector'
     | '/_authenticated/cabinet/'
     | '/_authenticated/espace/'
     | '/api/public/jobs/sync-pennylane'
@@ -229,6 +241,7 @@ export interface RootRouteChildren {
   ConnexionRoute: typeof ConnexionRoute
   CabinetConnexionRoute: typeof CabinetConnexionRoute
   ClientTokenRoute: typeof ClientTokenRoute
+  ApiPublicCollectorRoute: typeof ApiPublicCollectorRoute
   ApiPublicJobsSyncPennylaneRoute: typeof ApiPublicJobsSyncPennylaneRoute
   ApiPublicPennylaneMcpCallbackRoute: typeof ApiPublicPennylaneMcpCallbackRoute
 }
@@ -333,6 +346,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedEspaceTermineRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/api/public/collector': {
+      id: '/api/public/collector'
+      path: '/api/public/collector'
+      fullPath: '/api/public/collector'
+      preLoaderRoute: typeof ApiPublicCollectorRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/jobs/sync-pennylane': {
       id: '/api/public/jobs/sync-pennylane'
       path: '/api/public/jobs/sync-pennylane'
@@ -383,6 +403,7 @@ const rootRouteChildren: RootRouteChildren = {
   ConnexionRoute: ConnexionRoute,
   CabinetConnexionRoute: CabinetConnexionRoute,
   ClientTokenRoute: ClientTokenRoute,
+  ApiPublicCollectorRoute: ApiPublicCollectorRoute,
   ApiPublicJobsSyncPennylaneRoute: ApiPublicJobsSyncPennylaneRoute,
   ApiPublicPennylaneMcpCallbackRoute: ApiPublicPennylaneMcpCallbackRoute,
 }
