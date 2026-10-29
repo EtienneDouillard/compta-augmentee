@@ -35,9 +35,30 @@ export function RobotChrome({ dossierId, robotUrl, lastRun, onSaveUrl, onFiles }
   const [busy, setBusy] = useState(false);
   const [url, setUrl] = useState(robotUrl);
   const [savingUrl, setSavingUrl] = useState(false);
-  // React 19 neutralise les liens javascript: posés en prop : on écrit l'attribut à la main.
-  const favRef = useRef<HTMLAnchorElement>(null);
-  useEffect(() => { if (favRef.current && bm) favRef.current.setAttribute('href', bm); }, [bm]);
+  const [robot, setRobot] = useState(false);
+  const [running, setRunning] = useState(false);
+  const [log, setLog] = useState<string | null>(null);
+  void bm; void buildBookmarklet; void useRef;
+  // The Chrome extension announces itself on this page (extension/bridge.js).
+  useEffect(() => {
+    if (document.documentElement.dataset['caplusRobot']) setRobot(true);
+    const on = (e: MessageEvent) => {
+      if (e.source !== window || e.data?.source !== 'caplus-robot') return;
+      if (e.data.type === 'ready') setRobot(true);
+      if (e.data.type === 'done') { setRunning(false); setLog(e.data.log); toast.success('🤖 Robot terminé'); }
+    };
+    window.addEventListener('message', on);
+    window.postMessage({ source: 'caplus-app', type: 'ping' }, location.origin);
+    return () => window.removeEventListener('message', on);
+  }, []);
+
+  async function runRobot() {
+    if (url !== robotUrl && onSaveUrl) { try { await onSaveUrl(url); } catch { return; } }
+    const t = await getToken();
+    if (!t) return;
+    setRunning(true); setLog(null);
+    window.postMessage({ source: 'caplus-app', type: 'run', token: t }, location.origin);
+  }
 
   async function getToken() {
     if (token) return token;
@@ -79,35 +100,33 @@ export function RobotChrome({ dossierId, robotUrl, lastRun, onSaveUrl, onFiles }
       {onSaveUrl && url !== robotUrl && <Button size="sm" variant="outline" disabled={savingUrl} onClick={saveUrl}>{savingUrl ? <Loader2 className="animate-spin" /> : <Check />}OK</Button>}
       <Tip text="Adresse exacte de la page où se trouvent les factures (ex. Billing → Transaction history). Le favori l'ouvrira pour toi." />
     </div>
-    <ol className="space-y-2">
-      <li className="flex flex-wrap items-center gap-2"><span>1️⃣</span>
-        <Button size="sm" asChild><a href={url} target="_blank" rel="noopener noreferrer"><ExternalLink />Ouvrir mes factures</a></Button>
-        <Tip text="Ouvre la page du fournisseur dans un nouvel onglet. Connecte-toi si besoin, puis télécharge la facture (bouton Invoice / PDF)." /></li>
-      <li className="flex flex-wrap items-center gap-2"><span>2️⃣</span>
+    {robot ? (
+      <div className="flex flex-wrap items-center gap-2">
+        <Button size="lg" disabled={running || busy} onClick={runRobot}>{running ? <Loader2 className="animate-spin" /> : <span aria-hidden>🤖</span>}{running ? 'Le robot travaille…' : 'Lancer le robot'}</Button>
+        <Tip text="Le robot ouvre la page dans ton Chrome, trouve les factures du mois, Claude les vérifie, elles partent dans Pennylane. Il repasse tout seul chaque mois." />
+      </div>
+    ) : (
+      <div className="flex flex-wrap items-center gap-2">
+        <span>1️⃣</span><Button size="lg" onClick={download}><Download />Installer le robot</Button>
+        <Tip text="Une seule fois : dézippe, ouvre chrome://extensions, active « Mode développeur », clique « Charger l'extension non empaquetée » et choisis le dossier. Puis recharge cette page." />
+        <span>2️⃣</span><Button size="lg" variant="outline" onClick={() => location.reload()}>✅ C'est installé</Button>
+      </div>
+    )}
+    {log && <pre role="status" className="whitespace-pre-wrap rounded bg-background p-2 text-xs">{log}</pre>}
+    {lastRun && <p role="status" className="font-semibold text-primary">🕒 {new Date(lastRun.at).toLocaleString('fr-FR')} · {lastRun.message}</p>}
+    <details className="text-xs text-muted-foreground">
+      <summary className="cursor-pointer font-semibold">✋ À la main</summary>
+      <div className="mt-2 flex flex-wrap items-center gap-2">
+        <Button size="sm" variant="outline" asChild><a href={url} target="_blank" rel="noopener noreferrer"><ExternalLink />Ouvrir</a></Button>
         <label
           onDragOver={e => { e.preventDefault(); setOver(true); }} onDragLeave={() => setOver(false)}
           onDrop={e => { e.preventDefault(); setOver(false); send([...e.dataTransfer.files]); }}
-          className={`flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-lg border-2 border-dashed px-4 py-4 font-semibold ${over ? 'border-primary bg-primary/10' : 'border-primary/40 bg-background'}`}>
+          className={`flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-lg border-2 border-dashed px-3 py-2 font-semibold ${over ? 'border-primary bg-primary/10' : 'border-primary/40 bg-background'}`}>
           <Upload className="h-4 w-4" />Glisse la facture ici
           <input type="file" multiple accept="application/pdf,image/jpeg,image/png" className="hidden" onChange={e => { send([...(e.target.files ?? [])]); e.target.value = ''; }} />
         </label>
-        <Tip text="Claude vérifie la facture puis CA+ l'envoie dans Pennylane." /></li>
-    </ol>
-    {lastRun && <p role="status" className="font-semibold text-primary">🕒 {new Date(lastRun.at).toLocaleString('fr-FR')} · {lastRun.message}</p>}
-    <details className="text-xs text-muted-foreground">
-      <summary className="cursor-pointer font-semibold">⚙️ Options avancées</summary>
-      <div className="mt-2 flex flex-wrap items-center gap-2">
-        {bm ? (
-          <a ref={favRef} onClick={e => e.preventDefault()} draggable className="inline-flex cursor-grab items-center gap-1 rounded bg-primary px-2 py-1 font-semibold text-primary-foreground">🤖 CA+ Robot</a>
-        ) : (
-          <Button size="sm" variant="outline" disabled={busy} onClick={makeFavorite}>{busy ? <Loader2 className="animate-spin" /> : <span aria-hidden>🔖</span>}Favori</Button>
-        )}
-        <Tip text="Favori à glisser dans la barre de favoris Chrome (Ctrl+Maj+B), puis à cliquer sur la page des factures." />
-        <Button size="sm" variant="outline" onClick={download}><Download />Extension</Button>
-        <Tip text="Dézippe, ouvre chrome://extensions, active le mode développeur puis « Charger l'extension non empaquetée »." />
-        <Button size="sm" variant="outline" disabled={busy} onClick={copyCode}><Copy />Code robot</Button>
+        <Button size="sm" variant="ghost" disabled={busy} onClick={copyCode}><Copy />Code robot</Button>
         {token && <code className="max-w-full truncate rounded bg-background px-2 py-1 text-xs">{token}</code>}
-        <Tip text="Colle ce code dans l'extension (icône CA+). Il n'est affiché qu'une fois." />
       </div>
     </details>
   </div>;

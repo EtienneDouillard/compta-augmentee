@@ -53,7 +53,7 @@ async function run() {
   const now = new Date(); const months = [now.toISOString().slice(0, 7), new Date(now.getFullYear(), now.getMonth() - 1, 15).toISOString().slice(0, 7)];
   const log = [];
   for (const src of sources) {
-    const tab = await chrome.tabs.create({ url: src.url, active: false });
+    const tab = await chrome.tabs.create({ url: src.url, active: true });
     try {
       await loaded(tab.id); await wait(3000);
       const [{ result: items }] = await chrome.scripting.executeScript({ target: { tabId: tab.id }, func: scan });
