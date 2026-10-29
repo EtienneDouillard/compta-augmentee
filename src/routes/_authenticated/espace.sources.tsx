@@ -32,7 +32,7 @@ function Sources() {
   const configured = (sources.data ?? []).filter((s) => CONFIGURED_STATES.includes(s.state)).length;
   return (
     <div className="min-h-screen bg-background">
-      <AppHeader />
+      <AppHeader space="client" />
       <main className="mx-auto max-w-3xl space-y-5 px-4 py-8">
         <Link to="/espace" className="text-sm text-primary underline">← Retour à l'accueil</Link>
         <h1 className="text-2xl font-bold text-primary">Sources de factures</h1>

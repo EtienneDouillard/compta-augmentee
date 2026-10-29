@@ -2,7 +2,7 @@ import { requireClient } from "@/lib/session";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { HelpChat } from "@/components/HelpChat";
 import { InvoiceSourceSetup } from "@/components/InvoiceSourceSetup";
-import { useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import {
   AlertTriangle, ArrowLeft, ArrowRight, Camera, Check,  CloudUpload, Copy, FileX, FolderOpen, Info, Mail, MailPlus, PartyPopper, Sparkles, Upload,
