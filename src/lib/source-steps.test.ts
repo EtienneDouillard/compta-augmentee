@@ -14,7 +14,7 @@ describe('étapes de configuration', () => {
     expect(cleanSteps([step('a', 'http://miro.com/billing'), step('b', 'https://u:p@miro.com')]).map(s => s.link)).toEqual([null, null]);
   });
   it('garde un lien direct https', () => {
-    expect(cleanSteps([step('a', 'https://miro.com/app/settings/billing')])[0].link).toBe('https://miro.com/app/settings/billing');
+    expect(cleanSteps([step('a', 'https://miro.com/app/settings/billing')])[0]?.link).toBe('https://miro.com/app/settings/billing');
   });
   it('une page derrière connexion reste un bon lien, une page introuvable non', () => {
     expect(linkUsable(403)).toBe(true);

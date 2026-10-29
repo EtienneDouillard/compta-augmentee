@@ -33,3 +33,4 @@
 - [x] Source : une seule solution affichée + configuration pas à pas + vérification de réception
 - [x] Accueil dirigeant : compteur sources configurées / fournisseurs + lien vers un catalogue des sources
 - [ ] Transit des factures sans stockage : récupérer et envoyer directement dans Pennylane (bloqué tant que l écriture Pennylane est désactivée)
+- [ ] Reconnecter GitHub API dans le nouvel espace de travail
