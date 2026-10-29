@@ -12,6 +12,8 @@ import { Label } from "@/components/ui/label";
 import { createCabinetAccount, listCabinetAccounts } from "@/lib/admin.functions";
 import { DEFAULT_CABINET, LOGO_BUCKET, cabinetQuery, useCabinet } from "@/lib/cabinet";
 import { requireCabinet } from "@/lib/session";
+import { getClaudeSettings, saveClaudeSettings } from "@/lib/claude-settings.functions";
+import { CLAUDE_MODELS } from "@/lib/claude-models";
 
 export const Route = createFileRoute("/_authenticated/cabinet/parametres")({
   beforeLoad: requireCabinet,
@@ -183,6 +185,8 @@ function SettingsPage() {
           </div>
         )}
 
+        <ClaudeSettings />
+
         <CabinetAccounts />
       </main>
     </div>
@@ -255,6 +259,63 @@ function CabinetAccounts() {
         <Input type="text" required minLength={8} placeholder="Mot de passe initial (8+)" aria-label="Mot de passe initial" value={password} onChange={(e) => setPassword(e.target.value)} />
         <Button type="submit" disabled={busy}><UserPlus /> Créer l'accès</Button>
       </form>
+    </section>
+  );
+}
+
+// Claude key and model per role: "cabinet" for the firm's actions, "dirigeant" for the client's.
+function ClaudeSettings() {
+  const q = useQuery({ queryKey: ["claude-settings"], queryFn: () => getClaudeSettings() });
+  const [m, setM] = useState({ cabinet: "", client: "" });
+  const [key, setKey] = useState("");
+  const [busy, setBusy] = useState(false);
+  useEffect(() => { if (q.data) setM({ cabinet: q.data.modelCabinet, client: q.data.modelClient }); }, [q.data]);
+  async function save(resetKey = false) {
+    setBusy(true);
+    try {
+      await saveClaudeSettings({ data: { modelCabinet: m.cabinet, modelClient: m.client, apiKey: !resetKey && key ? key : undefined, resetKey } });
+      toast.success(resetKey ? "Clé par défaut rétablie." : "Réglages Claude enregistrés.");
+      setKey(""); await q.refetch();
+    } catch (err) { toast.error((err as Error).message); } finally { setBusy(false); }
+  }
+  const select = (id: string, v: string, on: (v: string) => void) => (
+    <select id={id} value={v} onChange={(e) => on(e.target.value)} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
+      {[...CLAUDE_MODELS.map((x) => x.id), ...(CLAUDE_MODELS.some((x) => x.id === v) || !v ? [] : [v])].map((id) => (
+        <option key={id} value={id}>{CLAUDE_MODELS.find((x) => x.id === id)?.label ?? id}</option>
+      ))}
+    </select>
+  );
+  const src = q.data?.keySource;
+  return (
+    <section id="claude" className="rounded-xl border bg-card p-5 shadow-sm">
+      <h2 className="text-lg">Claude (IA)</h2>
+      {!q.data ? <p className="mt-3 text-sm text-muted-foreground">{q.isError ? "Réglages indisponibles." : "Chargement…"}</p> : (
+        <form onSubmit={(e) => { e.preventDefault(); save(); }} className="mt-3 space-y-4">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-1">
+              <Label htmlFor="m-cab">Modèle pour les actions du cabinet</Label>
+              {select("m-cab", m.cabinet, (v) => setM({ ...m, cabinet: v }))}
+              <p className="text-xs text-muted-foreground">Assistant cabinet, analyse, saisie augmentée.</p>
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="m-cli">Modèle pour les actions du dirigeant</Label>
+              {select("m-cli", m.client, (v) => setM({ ...m, client: v }))}
+              <p className="text-xs text-muted-foreground">Assistant client, contrôle des dépôts, recherche des sources.</p>
+            </div>
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="c-key">Clé API Anthropic</Label>
+            <Input id="c-key" type="password" autoComplete="off" placeholder={src === "custom" ? "Clé personnalisée enregistrée — saisir pour remplacer" : "sk-ant-… (laisser vide pour garder la clé actuelle)"} value={key} onChange={(e) => setKey(e.target.value)} />
+            <p className="text-xs text-muted-foreground">
+              {src === "custom" ? "Une clé saisie ici est utilisée (chiffrée, jamais réaffichée)." : src === "default" ? "Clé par défaut du projet utilisée." : "Aucune clé configurée."} La clé est testée auprès d'Anthropic avant d'être enregistrée.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button type="submit" disabled={busy}><Save /> Enregistrer</Button>
+            {src === "custom" && <Button type="button" variant="ghost" disabled={busy} onClick={() => save(true)}>Revenir à la clé par défaut</Button>}
+          </div>
+        </form>
+      )}
     </section>
   );
 }
