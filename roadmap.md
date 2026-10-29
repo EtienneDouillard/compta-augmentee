@@ -1,5 +1,5 @@
 # Roadmap
-- [ ] Réintégrer la PR #5 (PR #1–#4) : synchro > 1000 lignes, retours Simon/Stéphane/Julien (vue liste, tout cocher, tri, 5e choix, proforma, logos, multi-dossiers…), regroupement fournisseur + tuiles cliquables
+- [x] Réintégrer la PR #5 (PR #1–#4) : appliquée tel quel, 176 tests OK, build OK, écrans vérifiés ; PR #1 à #5 fermées sur GitHub avec commentaire
 - [x] Créer et tester un compte cabinet démo distinct du compte dirigeant
 - [x] Sources : sauvegarder URL, méthode, chemin et adresse Pennylane par fournisseur ; vérifier après rechargement
 - [x] Renseigner l'adresse de collecte fournisseur Pennylane fournie sur le dossier démo
