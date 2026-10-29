@@ -150,8 +150,8 @@ function Espace() {
         ) : (
           <>
             {/* Simon: the whole width is used and the client scrolls less: greeting and summary side by side. */}
-            <div className="grid items-start gap-6 lg:grid-cols-2">
-            <div>
+            <div className="grid items-stretch gap-6 lg:grid-cols-2">
+            <div className="flex flex-col">
             <h1 className="text-2xl sm:text-3xl">Bonjour,</h1>
             {dossier.data?.name && (
               <p className="mt-1 inline-flex max-w-full items-center gap-2 text-sm font-semibold text-muted-foreground">
