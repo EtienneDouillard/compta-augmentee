@@ -1,17 +1,16 @@
-import { createFileRoute, redirect } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
+import { LoginForm } from "@/components/LoginForm";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Comptabilité Augmentée" },
-      { name: "description", content: "Ventilation de factures, livre de lecture et échange client pour cabinets comptables." },
-      { property: "og:title", content: "Comptabilité Augmentée" },
-      { property: "og:description", content: "Ventilation de factures, livre de lecture et échange client." },
+      { title: "Espace client — PBC List" },
+      { name: "description", content: "Connectez-vous pour transmettre vos factures manquantes à votre cabinet." },
+      { property: "og:title", content: "Espace client — PBC List" },
+      { property: "og:description", content: "Transmettez vos factures manquantes à votre cabinet comptable." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
   }),
-  beforeLoad: () => {
-    throw redirect({ to: "/app" });
-  },
+  component: () => <LoginForm space="client" />,
 });

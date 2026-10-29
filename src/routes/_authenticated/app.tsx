@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Check, AlertTriangle, BookOpen, MessageSquare, Split, LogOut, Copy, FileDown, Download, ExternalLink, Upload, FlaskConical } from "lucide-react";
-import { importerFacturesPennylane, NB_FACTURES_PENNYLANE } from "@/lib/pennylane-import";
+import { importerFacturesPennylane, NB_FACTURES_PENNYLANE } from "@/lib/pennylane-snapshot";
 import { envoyerVentilation, PENNYLANE_ECRITURE_ACTIVE } from "@/lib/pennylane-write.beta";
 import { supabase } from "@/integrations/supabase/client";
 import { alertes, controle, ecriture, eur, round2, tvaLigne, type Facture, type Ligne } from "@/lib/ventilation";
@@ -74,7 +74,7 @@ function AppPage() {
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setEmail(data.user?.email ?? ""));
-    supabase.from("dossiers").select("id, nom, client_nom, client_token").order("created_at").then(({ data }) => {
+    supabase.from("dossiers").select("id, nom:name, client_nom, client_token").order("created_at").then(({ data }) => {
       setDossiers(data ?? []);
       if (data?.[0]) setDossierId(data[0].id);
     });
@@ -133,7 +133,7 @@ function AppPage() {
                 </button>
               ))}
             </nav>
-            <button aria-label="Se déconnecter" onClick={async () => { await supabase.auth.signOut(); nav({ to: "/auth" }); }} className="text-muted-foreground"><LogOut className="h-4 w-4" /></button>
+            <button aria-label="Se déconnecter" onClick={async () => { await supabase.auth.signOut(); nav({ to: "/cabinet/connexion" }); }} className="text-muted-foreground"><LogOut className="h-4 w-4" /></button>
           </div>
         </div>
       </header>

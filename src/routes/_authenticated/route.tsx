@@ -3,10 +3,9 @@ import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
-  beforeLoad: async () => {
+  beforeLoad: async ({ location }) => {
     const { data } = await supabase.auth.getUser();
-    if (!data.user) throw redirect({ to: "/auth" });
-    return { user: data.user };
+    if (!data.user) throw redirect({ to: location.pathname.startsWith("/cabinet") ? "/cabinet/connexion" : "/" });
   },
   component: () => <Outlet />,
 });
