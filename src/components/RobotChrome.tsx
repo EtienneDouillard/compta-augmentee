@@ -40,7 +40,12 @@ export function RobotChrome({ dossierId, robotUrl, lastRun, onSaveUrl }: { dossi
 
   return <div className="space-y-3 rounded-lg border border-primary/40 bg-secondary/40 p-4 text-sm">
     <p className="text-base font-bold text-primary">🤖 Robot CA+<Tip text="Chaque mois, le robot ouvre cette page dans votre Chrome (déjà connecté), télécharge la facture, Claude la vérifie et elle part dans Pennylane. Vos mots de passe et cookies ne quittent jamais votre navigateur." /></p>
-    <p className="truncate text-muted-foreground">🔗 <a className="underline" href={robotUrl} target="_blank" rel="noopener noreferrer">{robotUrl}</a></p>
+    <div className="flex flex-wrap items-center gap-2">
+      <span aria-hidden>🔗</span>
+      <Input aria-label="Page des factures" type="url" className="min-w-0 flex-1 bg-background" value={url} onChange={e => setUrl(e.target.value)} />
+      {onSaveUrl && url !== robotUrl && <Button size="sm" variant="outline" disabled={savingUrl} onClick={saveUrl}>{savingUrl ? <Loader2 className="animate-spin" /> : <Check />}OK</Button>}
+      <Tip text="Collez ici l'adresse exacte de la page où se trouvent vos factures (ex. Billing → Transaction history). Le robot l'ouvrira chaque mois." />
+    </div>
     <ol className="space-y-2">
       <li className="flex flex-wrap items-center gap-2"><span>1️⃣</span><Button size="sm" variant="outline" onClick={download}><Download />Extension</Button>
         <Tip text="Dézippez, ouvrez chrome://extensions, activez « Mode développeur », puis « Charger l'extension non empaquetée » et choisissez le dossier." /></li>
