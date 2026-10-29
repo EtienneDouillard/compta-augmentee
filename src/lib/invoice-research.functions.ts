@@ -21,8 +21,8 @@ const Research = z.object({
 /** Claude Sonnet 5.5 searches the web (official help pages, API docs) for how to fetch this supplier's invoices. */
 export const researchInvoiceSource = createServerFn({ method: 'POST' })
   .middleware([requireSupabaseAuth])
-  .inputValidator(d => z.object({ supplier: z.string().trim().min(1).max(200), sourceUrl: z.string().url().max(2000) }).parse(d))
-  .handler(async ({ data }): Promise<SourceResearch> => {
+  .inputValidator(d => z.object({ dossierId: z.string().uuid(), supplier: z.string().trim().min(1).max(200), sourceUrl: z.string().url().max(2000) }).parse(d))
+  .handler(async ({ data, context }): Promise<SourceResearch> => {
     const apiKey = process.env['ANTHROPIC_API_KEY'];
     if (!apiKey) throw new Error('La clé ANTHROPIC_API_KEY manque.');
     const prompt = `Fournisseur : ${data.supplier} (${data.sourceUrl}).
@@ -45,6 +45,15 @@ Termine par UN SEUL bloc JSON (rien après), en français :
     const text = json.content.filter(c => c.type === 'text').map(c => c.text ?? '').join('');
     const match = text.match(/\{[\s\S]*\}\s*$/) ?? text.match(/\{[\s\S]*\}/);
     if (!match) throw new Error('Claude n’a pas renvoyé de recommandation exploitable.');
-    try { return Research.parse(JSON.parse(match[0])); }
+    let parsed: SourceResearch;
+    try { parsed = Research.parse(JSON.parse(match[0])); }
     catch { throw new Error('Recommandation illisible, relancez la recherche.'); }
+    // Persist the research on the supplier's source so it survives reloads and feeds the monthly check.
+    const now = new Date().toISOString();
+    const { data: existing } = await context.supabase.from('invoice_sources').select('id').eq('dossier_id', data.dossierId).eq('supplier', data.supplier).maybeSingle();
+    const res2 = existing
+      ? await context.supabase.from('invoice_sources').update({ research: parsed, researched_at: now, source_url: data.sourceUrl }).eq('id', existing.id)
+      : await context.supabase.from('invoice_sources').insert({ dossier_id: data.dossierId, supplier: data.supplier, source_url: data.sourceUrl, method: parsed.recommended, billing_path: parsed.billingPath, research: parsed, researched_at: now, state: 'needs_setup', created_by: context.userId });
+    if (res2.error) throw new Error(`Recherche faite mais non sauvegardée : ${res2.error.message}`);
+    return parsed;
   });
