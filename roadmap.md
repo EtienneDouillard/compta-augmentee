@@ -15,3 +15,4 @@
 - [ ] Fusion avec factures-manquantes (Julien) — base PBC List + ventilation/livre
 - [ ] Pousser tout le code sur github.com/EtienneDouillard/comptabilit--augment-
 - [ ] Clés à fournir : ANTHROPIC_API_KEY, MCP_TOKEN_ENC_KEY, PENNYLANE_API_TOKEN
+- [ ] Publier l'app après la fusion
