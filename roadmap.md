@@ -16,5 +16,5 @@
 - [x] Pousser tout le code sur github.com/EtienneDouillard/comptabilit--augment-
 - [ ] Clés à fournir : ANTHROPIC_API_KEY, PENNYLANE_API_TOKEN
 - [x] Publier l'app après la fusion
-- [ ] Favicon « CA+ » (augmenté)
+- [x] Favicon « CA+ » (augmenté)
 - [ ] Comptes démo client + dirigeant sur le dossier Démo Hackathon 7, avec données Pennylane
