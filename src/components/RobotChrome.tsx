@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { createCollectorToken } from '@/lib/collector.functions';
 import { buildBookmarklet } from '@/lib/bookmarklet';
+import { findInvoicesPage } from '@/lib/invoice-research.functions';
 import chromeGuide from '@/assets/chrome-extensions-guide.png.asset.json';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
@@ -29,7 +30,7 @@ const Tip = ({ text }: { text: string }) => (
   </TooltipProvider>
 );
 
-export function RobotChrome({ dossierId, robotUrl, lastRun, onSaveUrl, onFiles }: { dossierId: string; robotUrl: string; lastRun?: { at: string; message?: string } | null; onSaveUrl?: (url: string) => Promise<void>; onFiles?: ((files: File[]) => void) | undefined }) {
+export function RobotChrome({ dossierId, supplier, robotUrl, lastRun, onSaveUrl, onFiles }: { dossierId: string; supplier?: string; robotUrl: string; lastRun?: { at: string; message?: string } | null; onSaveUrl?: (url: string) => Promise<void>; onFiles?: ((files: File[]) => void) | undefined }) {
   const [over, setOver] = useState(false);
   const send = (files: File[]) => { if (!files.length) return; if (!onFiles) { toast.error('Dépôt indisponible pour le moment.'); return; } onFiles(files); };
   const mint = useServerFn(createCollectorToken);
@@ -44,6 +45,30 @@ export function RobotChrome({ dossierId, robotUrl, lastRun, onSaveUrl, onFiles }
   const [running, setRunning] = useState(false);
   const [log, setLog] = useState<string | null>(null);
   void bm; void buildBookmarklet; void useRef;
+  // Direct page of ALL invoices, found by Claude. Run by itself when only the home page is known.
+  const find = useServerFn(findInvoicesPage);
+  const [finding, setFinding] = useState(false);
+  const [why, setWhy] = useState<string | null>(null);
+  async function findPage(auto = false) {
+    if (!supplier) return;
+    setFinding(true);
+    try {
+      const r = await find({ data: { supplier, site: url } });
+      setWhy(r.why || null);
+      if (r.url && r.url !== url) {
+        setUrl(r.url);
+        if (onSaveUrl) await onSaveUrl(r.url).catch(() => {});
+        toast.success('🔎 Page des factures trouvée');
+      } else if (!auto) toast.message(r.url ? 'C\'est déjà la bonne page.' : 'Pas trouvée : colle l\'adresse de ta page factures.');
+    } catch { if (!auto) toast.error('Recherche impossible.'); }
+    finally { setFinding(false); }
+  }
+  const tried = useRef(false);
+  useEffect(() => {
+    if (tried.current || !supplier || !url) return;
+    try { const u = new URL(url); if (u.pathname.replace(/\/+$/, '') !== '') return; } catch { return; }
+    tried.current = true; void findPage(true);
+  }, [supplier, url]); // eslint-disable-line react-hooks/exhaustive-deps
   // The Chrome extension announces itself on this page (extension/bridge.js).
   useEffect(() => {
     const v = document.documentElement.dataset['caplusRobot']; if (v) { setRobot(true); setVersion(v === '1' ? null : v); }
@@ -109,12 +134,15 @@ export function RobotChrome({ dossierId, robotUrl, lastRun, onSaveUrl, onFiles }
 
   return <div className="space-y-3 rounded-lg border border-primary/40 bg-secondary/40 p-4 text-sm">
     <p className="text-base font-bold text-primary">🤖 Robot CA+<Tip text="Le favori collecte la facture depuis ta page Chrome déjà connectée, Claude la vérifie et elle part dans Pennylane. Aucun mot de passe ni cookie ne sort de ton navigateur." /></p>
+    <p className="font-semibold">📄 Page de toutes tes factures</p>
     <div className="flex flex-wrap items-center gap-2">
       <span aria-hidden>🔗</span>
       <Input aria-label="Page des factures" type="url" className="min-w-0 flex-1 bg-background" value={url} onChange={e => setUrl(e.target.value)} />
       {onSaveUrl && url !== robotUrl && <Button size="sm" variant="outline" disabled={savingUrl} onClick={saveUrl}>{savingUrl ? <Loader2 className="animate-spin" /> : <Check />}OK</Button>}
-      <Tip text="Adresse exacte de la page où se trouvent les factures (ex. Billing → Transaction history). Le favori l'ouvrira pour toi." />
+      {supplier && <Button size="sm" variant="outline" disabled={finding} onClick={() => findPage()}>{finding ? <Loader2 className="animate-spin" /> : <span aria-hidden>🔎</span>}{finding ? 'Claude cherche…' : 'Trouver'}</Button>}
+      <Tip text="Pas la page d'accueil : la page où sont listées TOUTES tes factures (ex. Compte → Facturation → Factures). Claude la cherche pour toi, tu peux la corriger." />
     </div>
+    {why && <p className="text-xs text-muted-foreground">🔎 Claude : {why}</p>}
     {outdated && <div className="flex flex-wrap items-center gap-2 rounded-md bg-yellow-soft p-2 text-yellow-ink"><span>⬆️ Nouvelle version du robot</span><Button size="sm" variant="outline" onClick={download}><Download />Télécharger</Button><Tip text="Remplace l'ancien dossier par le nouveau, puis clique ↻ sur le robot dans chrome://extensions et recharge cette page." /></div>}
     {robot ? (
       <div className="flex flex-wrap items-center gap-2">

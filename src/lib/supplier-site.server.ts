@@ -56,3 +56,25 @@ export async function prefillSupplierSites(dossierId: string) {
   await db.from("supplier_sites").upsert(rows);
   return rows.length;
 }
+
+/** Claude searches the web for the direct page that lists ALL the customer's invoices (billing history),
+ *  not the home page. Returns the URL and one short French sentence saying where it is. */
+export async function findInvoicesPageClaude(apiKey: string, model: string, supplier: string, site: string): Promise<{ url: string | null; why: string }> {
+  const prompt = `Fournisseur : « ${supplier} », site : ${site}.
+Trouve l'adresse DIRECTE de la page de l'espace client où l'on voit la liste de TOUTES ses factures (historique de facturation / billing / invoices), pas la page d'accueil. Cherche dans l'aide officielle du fournisseur.
+Réponds UNIQUEMENT en JSON : {"url":"https://…","why":"phrase française de 12 mots max disant où est cette page (ex. Compte → Facturation → Factures)"}. Si introuvable : {"url":null,"why":"…"}.`;
+  const res = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: { "x-api-key": apiKey, "anthropic-version": "2023-06-01", "content-type": "application/json" },
+    body: JSON.stringify({ model, max_tokens: 3000, tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 4 }], messages: [{ role: "user", content: prompt }] }),
+  });
+  if (!res.ok) return { url: null, why: "Recherche impossible pour l'instant." };
+  const json = (await res.json()) as { content: { type: string; text?: string }[] };
+  const text = json.content.filter((c) => c.type === "text").map((c) => c.text ?? "").join("");
+  const m = text.match(/\{[\s\S]*\}/g)?.pop();
+  try {
+    const p = JSON.parse(m ?? "{}") as { url?: string | null; why?: string };
+    const u = p.url && /^https:\/\//.test(p.url) ? new URL(p.url).href : null;
+    return { url: u, why: String(p.why ?? "").slice(0, 140) };
+  } catch { return { url: null, why: "" }; }
+}
