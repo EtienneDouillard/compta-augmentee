@@ -169,7 +169,7 @@ function Espace() {
                 {all.length === 0 ? "Aucune facture ne vous est demandée pour le moment." : "Merci pour vos réponses."}
               </p>
             )}
-            <Nudge done={all.length - remaining} total={all.length} />
+            <Nudge done={all.length - remaining} total={all.length} className="flex-1" />
             </div>
 
             {remaining === 0 ? (
@@ -181,9 +181,9 @@ function Espace() {
                 <p className="mt-2 text-primary-foreground/80">Nous n'attendons aucune facture de votre part pour le moment.</p>
               </section>
             ) : (
-              <section className="relative overflow-hidden rounded-3xl bg-primary p-6 text-primary-foreground shadow-xl shadow-primary/20 sm:p-8">
+              <section className="relative flex h-full flex-col overflow-hidden rounded-3xl bg-primary p-6 text-primary-foreground shadow-xl shadow-primary/20 sm:p-8">
                 <div aria-hidden className="pointer-events-none absolute -right-24 -top-24 h-80 w-80 rounded-full border-[56px] border-teal-2/60" />
-                <div className="relative">
+                <div className="relative flex flex-1 flex-col justify-center">
                   {years.length > 0 && (
                     <p className="flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-mint">
                       <CalendarCheck className="h-4 w-4" /> Opérations {years.length > 1 ? `${years[0]} – ${years.at(-1)}` : years[0]}
@@ -215,7 +215,7 @@ function Espace() {
             </div>
 
             {(dossierId || all.length > 0) && (
-              <div className="mt-6 grid items-start gap-4 lg:grid-cols-2">
+              <div className="mt-6 grid items-stretch gap-4 lg:grid-cols-2">
                 {dossierId && <SourcesSummary dossierId={dossierId} suppliers={[...new Set(all.filter((t) => t.direction === "out").map((t) => t.supplier))]} />}
                 <MonthlyChart txs={all} />
               </div>
