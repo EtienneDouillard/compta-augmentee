@@ -98,3 +98,6 @@ export function ecriture(f: Facture, compteFournisseur = "401") {
   const totalDebit = round2(debits.reduce((s, l) => s + l.debit, 0));
   return { lignes, totalDebit, totalCredit: f.totalTtc, equilibree: Math.abs(totalDebit - f.totalTtc) <= 0.01 };
 }
+
+export const eur = (n: number) =>
+  n.toLocaleString("fr-FR", { style: "currency", currency: "EUR" });
