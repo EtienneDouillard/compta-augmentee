@@ -24,7 +24,7 @@ const pct = (t: number) => `${String(round2(t * 100)).replace(".", ",")} %`;
 export function SaisieAugmentee({ uploadId, onClose }: { uploadId: string | null; onClose: () => void }) {
   return (
     <Dialog open={uploadId !== null} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-h-[90vh] max-w-7xl overflow-y-auto">
+      <DialogContent className="flex h-[100dvh] max-h-none w-screen max-w-none flex-col gap-3 overflow-hidden p-4 sm:rounded-none">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2"><Sparkles className="h-5 w-5 text-primary" /> Saisie augmentée</DialogTitle>
           <DialogDescription>Claude lit la facture et propose un compte par nature. Vous validez. Sur un dossier démo, vous pouvez ensuite envoyer la facture et son PDF dans Pennylane.</DialogDescription>
@@ -58,9 +58,9 @@ function Content({ uploadId }: { uploadId: string }) {
   const s = d.saisie;
 
   return (
-    <div className="grid gap-5 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
+    <div className="grid min-h-0 flex-1 gap-5 overflow-y-auto lg:grid-cols-2 lg:overflow-hidden">
     <Piece url={d.pieceUrl} media={d.media} fileName={d.fileName} />
-    <div className="min-w-0 space-y-4">
+    <div className="min-w-0 space-y-4 lg:overflow-y-auto lg:pr-2">
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
         <span className="font-semibold text-foreground">{d.fileName}</span>
         <span>Paiement : {d.paiement.tiers}, {formatEUR(Math.abs(d.paiement.montant))} le {formatDate(d.paiement.date)}</span>
@@ -96,15 +96,21 @@ function Content({ uploadId }: { uploadId: string }) {
   );
 }
 
-// The invoice as the client deposited it, next to the proposed entry.
+// The invoice as the client deposited it, next to the proposed entry, as large as the screen allows (Julien, 29/10/2026:
+// « on voit bien la facture à l'écran »). The PDF opens without the thumbnails panel and fitted to the panel's width
+// (Chrome: navpanes, view; Firefox: pagemode, zoom).
+const AFFICHAGE_PDF = "#navpanes=0&view=FitH&pagemode=none&zoom=page-width";
+
 function Piece({ url, media, fileName }: { url: string | null; media: string | null; fileName: string }) {
   if (!url) return <p className="text-sm text-muted-foreground">Aperçu de la facture indisponible.</p>;
   return (
-    <div className="space-y-2">
+    <div className="flex min-h-0 flex-col gap-2">
       {media === "application/pdf" ? (
-        <iframe src={url} title={`Facture ${fileName}`} className="h-[70vh] w-full rounded-lg border bg-white" />
+        <iframe src={url + AFFICHAGE_PDF} title={`Facture ${fileName}`} className="h-[80dvh] w-full flex-1 rounded-lg border bg-white lg:h-auto" />
       ) : media ? (
-        <img src={url} alt={`Facture ${fileName}`} className="max-h-[70vh] w-full rounded-lg border bg-white object-contain" />
+        <div className="h-[80dvh] flex-1 overflow-auto rounded-lg border bg-white lg:h-auto">
+          <img src={url} alt={`Facture ${fileName}`} className="w-full" />
+        </div>
       ) : null}
       <a href={url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-sm font-semibold text-primary underline">
         <ExternalLink className="h-4 w-4" /> Ouvrir la facture dans un nouvel onglet
