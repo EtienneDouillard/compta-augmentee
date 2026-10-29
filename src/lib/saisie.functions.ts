@@ -16,7 +16,6 @@ import { etatEnvoi, MAX_ENVOI_GROUPE, type EtatEnvoi } from "@/lib/envoi-groupe"
 // every ready invoice of the dossier at once).
 
 const UNAVAILABLE = "Saisie augmentée indisponible : la base de données n'est pas encore à jour.";
-const ECRITURE_OFF = "L'envoi vers Pennylane est désactivé pour l'instant (fonction bêta).";
 const SAISIE_COLUMNS =
   "id, upload_id, transaction_id, tiers, fournisseur, numero, date_facture, total_ht, total_tva, total_ttc, libelle_ecriture, lignes, state, cost_usd, lu_le, decided_at, pennylane_invoice_id, envoye_le, type_document:lecture->>typeDocument";
 
@@ -65,12 +64,6 @@ async function valider(db: any, userId: string, s: any, lignes: Ligne[], libelle
     if (e2) throw new Error("Saisie validée, mais la mémoire du fournisseur n'a pas été mise à jour.");
   }
   return regles.length;
-}
-
-// Écriture Pennylane bloquée tant que l'équipe ne l'autorise pas (voir pennylane-write.beta.ts).
-async function requireEcritureActive() {
-  const { PENNYLANE_ECRITURE_ACTIVE } = await import("./pennylane-write.beta");
-  if (!PENNYLANE_ECRITURE_ACTIVE) throw new Error(ECRITURE_OFF);
 }
 
 // Sends a validated entry with its PDF; returns the Pennylane invoice id.
@@ -280,7 +273,6 @@ export const envoyerPennylane = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const db = context.supabase as any;
     await requireCabinetRole(db, context.userId);
-    await requireEcritureActive();
     const s = await loadSaisie(db, data.id);
     if (s.state !== "validee") throw new Error("Validez d'abord la saisie.");
     return { invoiceId: await envoyer(db, context.userId, s) };
@@ -306,7 +298,6 @@ export const listerEnvoiGroupe = createServerFn({ method: "POST" })
     const ids = (rows ?? []).map((r: any) => r.upload_id);
     const { data: ups } = ids.length ? await db.from("uploads").select("id, file_name").in("id", ids) : { data: [] };
     const names = new Map<string, string>((ups ?? []).map((u: any) => [u.id, u.file_name]));
-    const { PENNYLANE_ECRITURE_ACTIVE } = await import("./pennylane-write.beta");
     const lignes: LigneEnvoi[] = (rows ?? []).map((r: any) => {
       const v = toView(r)!;
       const fileName = names.get(r.upload_id) ?? "";
@@ -315,7 +306,9 @@ export const listerEnvoiGroupe = createServerFn({ method: "POST" })
         etat: etatEnvoi({ state: v.state, pennylaneInvoiceId: v.pennylaneInvoiceId, fileName, typeDocument: v.typeDocument, facture: factureOf(r, v.lignes, v.libelleEcriture) }),
       };
     });
-    return { demo: isDemoCompany(String(d?.company_id ?? "")), ecritureActive: PENNYLANE_ECRITURE_ACTIVE, lignes };
+    // Writing to Pennylane is allowed on the hackathon demo dossiers only (Julien, 29/10/2026).
+    const demo = isDemoCompany(String(d?.company_id ?? ""));
+    return { demo, ecritureActive: demo, lignes };
   });
 
 // One confirmation, then each invoice in turn: validated with the proposed lines if needed, then sent.
@@ -326,7 +319,6 @@ export const envoyerGroupe = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const db = context.supabase as any;
     await requireCabinetRole(db, context.userId);
-    await requireEcritureActive();
     const { data: d } = await db.from("dossiers").select("company_id").eq("id", data.dossierId).maybeSingle();
     if (!isDemoCompany(String(d?.company_id ?? ""))) throw new Error("L'envoi vers Pennylane est réservé aux dossiers démo du hackathon.");
     const results: { id: string; ok: boolean; message: string }[] = [];
