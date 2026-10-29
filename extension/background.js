@@ -48,7 +48,8 @@ function scan(learned) {
     if (L ? own !== L && !own.startsWith(L) : (!RX.test(text) && !/\.pdf|invoice|facture/i.test(href))) return;
     if (a.closest("[data-caplus]") && !/^(A|BUTTON)$/.test(a.tagName)) return;
     if (/summary|résumé|history|historique|settings|help|aide/i.test(text) && !/invoice|facture/i.test(text)) return;
-    const row = a.closest("tr, li, [role=row]") || a.parentElement?.parentElement || a.parentElement;
+    let row = a.closest("tr, li, [role=row]");
+    if (!row) { row = a.parentElement; for (let k = 0; k < 6 && row && !/20\d\d|[$€£]\s?\d/.test(row.innerText || ""); k++) row = row.parentElement; }
     const rowText = (row?.innerText || "").replace(/\s+/g, " ").slice(0, 300);
     if (seen.has(rowText + "|" + own)) return; seen.add(rowText + "|" + own);
     const zero = /[$€£]\s?0[.,]00\b|\b0[.,]00\s?[$€£]/.test(rowText) && !/[$€£]\s?[1-9]|[1-9][\d.,]*\s?[$€£]/.test(rowText);
