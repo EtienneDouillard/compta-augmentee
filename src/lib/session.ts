@@ -78,6 +78,10 @@ export type Tx = {
   counterpart_accounts?: string | null;
   skip_rule_id?: string | null;
   direction: "out" | "in";
+  // Entry chosen by the firm when the client has no invoice (null until chosen).
+  ecriture_choix?: string | null;
+  ecriture_compte?: string | null;
+  ecriture_envoyee_le?: string | null;
 };
 
 export type SupplierGroup = { key: string; direction: "out" | "in"; name: string; txs: Tx[]; total: number; state: "todo" | "progress" | "done" };

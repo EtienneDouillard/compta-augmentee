@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import {
-  ArrowDownLeft, ArrowUpRight, Ban, CheckCircle2, ChevronDown, ChevronRight, Layers, List, Download, Eye, Inbox, Pencil, RotateCcw, Search, Send, ListFilter, Sparkles, Undo2, X,
+  ArrowDownLeft, ArrowUpRight, Ban, CheckCircle2, ChevronDown, ChevronRight, Layers, List, Download, Eye, FileX, Inbox, Pencil, RotateCcw, Search, Send, ListFilter, Sparkles, Undo2, X,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -38,10 +38,11 @@ const GROUP_PAGE = 50;
 
 // All the open lines of a dossier in one table: review, bulk actions, search, filters and sorting.
 // Lines are grouped by supplier by default, without asking the firm (Julien, 29/10/2026); "Liste" shows them one by one.
-export function LinesTable({ txs, uploads, onChanged, onRename, onDownload, onSaisie, initialTab }: {
+export function LinesTable({ txs, uploads, onChanged, onRename, onDownload, onSaisie, initialTab, onEcriture }: {
   txs: Tx[]; uploads: Upload[]; onChanged: () => void;
   onRename: (detected: string, current: string) => Promise<string | null>; onDownload: (path: string) => void;
   onSaisie?: (uploadId: string) => void; initialTab?: Tab | undefined;
+  onEcriture?: (t: Tx) => void;
 }) {
   const [tab, setTab] = useState<Tab>(() => initialTab ?? (txs.some((t) => t.review_state === "pending") ? "pending" : "all"));
   const [view, setView] = useState<"groupes" | "liste">("groupes");
@@ -147,6 +148,12 @@ export function LinesTable({ txs, uploads, onChanged, onRename, onDownload, onSa
         <td className="max-w-[18rem] px-3 py-2.5">
           <div className="truncate font-mono" title={t.label}>{t.label}</div>
           {t.comment && <div className="mt-1 text-xs italic text-muted-foreground">« {t.comment} »</div>}
+          {onEcriture && t.status === "sans_facture" && (
+            <button type="button" onClick={() => onEcriture(t)} title="Choisir l'écriture face à la transaction bancaire"
+              className="mt-1 flex min-h-6 items-center gap-1 rounded-full bg-pale-2 px-2 py-0.5 text-xs font-semibold text-primary hover:underline">
+              <FileX className="h-3 w-3" /> {t.ecriture_envoyee_le ? `Écriture ${t.ecriture_compte} passée` : t.ecriture_compte ? `Écriture ${t.ecriture_compte} choisie` : "Choisir l'écriture"}
+            </button>
+          )}
           {files.map((u) => (
             <div key={u.id} className="flex max-w-full items-center gap-2">
               <button type="button" onClick={() => onDownload(u.storage_path)}
