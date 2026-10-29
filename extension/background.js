@@ -161,6 +161,66 @@ async function fileFromTab(tabId) {
   return last && last.error ? last : null;
 }
 
+// ---------- Plan B when the site refuses its own PDF (e.g. RapidAPI: S3 "explicit deny" even by hand) ----------
+// 1) other document links of the same row (summary, receipt, details) ; 2) the page is printed to PDF by Chrome
+// itself (chrome.debugger Page.printToPDF works on a background tab). The result is the supplier's own page.
+function rowLinks(rowText, skip) {
+  const norm = (s) => (s || "").replace(/\s+/g, " ").trim();
+  const key = norm(rowText).slice(0, 60);
+  const rows = [...document.querySelectorAll("tr, li, [role=row], div")].filter((r) => norm(r.innerText).startsWith(key) && norm(r.innerText).length < 400);
+  const row = rows.sort((a, b) => norm(a.innerText).length - norm(b.innerText).length)[0];
+  if (!row) return [];
+  const RX = /summary|résumé|receipt|reçu|recu|détail|detail|view|voir|statement|relevé|print|imprimer/i;
+  return [...row.querySelectorAll("a, button, [role=button], [role=link], span")].filter((e) => {
+    const t = norm(e.textContent || e.getAttribute("aria-label"));
+    return t && t.length < 40 && t.toLowerCase() !== (skip || "").toLowerCase() && RX.test(t);
+  }).slice(0, 3).map((e, i) => { e.setAttribute("data-caplus", "alt" + i); return { idx: "alt" + i, text: norm(e.textContent), href: /^https?:/.test(e.href || "") ? e.href : null }; });
+}
+function pageIsError() {
+  const t = (document.body?.innerText || "").trim();
+  return t.length < 600 && /not authorized|access ?denied|forbidden|explicit deny|404|not found|error/i.test(t);
+}
+async function printTab(tabId) {
+  const target = { tabId };
+  try {
+    await chrome.debugger.attach(target, "1.3");
+    const { data } = await chrome.debugger.sendCommand(target, "Page.printToPDF", { printBackground: true, preferCSSPageSize: true });
+    return data ? { mime: "application/pdf", base64: data, printed: true } : null;
+  } catch { return null; } finally { chrome.debugger.detach(target).catch(() => {}); }
+}
+async function planB(tabId, frameId, rowText, skipText) {
+  const alts = (await inFrame(tabId, frameId, rowLinks, [rowText, skipText])) || [];
+  for (const a of alts) {
+    let href = a.href, popupId = null;
+    if (!href) ({ url: href, popupId } = await clickAndCatch(tabId, frameId, a.idx));
+    if (!href) continue;
+    const f = await inFrame(tabId, frameId, grab, [href]);
+    if (f && !f.html) { if (popupId) chrome.tabs.remove(popupId).catch(() => {}); return { ...f, via: a.text }; }
+    const pid = popupId ?? (await chrome.tabs.create({ url: href, active: false })).id;
+    await loaded(pid); await wait(2500);
+    const bad = await inFrame(pid, 0, pageIsError);
+    const p = bad ? null : await printTab(pid);
+    chrome.tabs.remove(pid).catch(() => {});
+    if (p) return { ...p, via: a.text };
+  }
+  // Last resort: the supplier's own billing page, printed with only this row visible (date, amount, paid).
+  if (await inFrame(tabId, frameId, isolateRow, [rowText, true])) {
+    const p = await printTab(tabId);
+    await inFrame(tabId, frameId, isolateRow, [rowText, false]);
+    if (p) return { ...p, via: "page de facturation" };
+  }
+  return null;
+}
+function isolateRow(rowText, on) {
+  const norm = (s) => (s || "").replace(/\s+/g, " ").trim();
+  if (!on) { document.querySelectorAll("[data-caplus-hid]").forEach((e) => { e.style.display = ""; e.removeAttribute("data-caplus-hid"); }); return true; }
+  const key = norm(rowText).slice(0, 60);
+  const row = [...document.querySelectorAll("tr, li, [role=row]")].find((r) => norm(r.innerText).startsWith(key));
+  if (!row) return false;
+  [...row.parentElement.children].forEach((e) => { if (e !== row && !e.querySelector("th")) { e.setAttribute("data-caplus-hid", "1"); e.style.display = "none"; } });
+  return true;
+}
+
 async function api() {
   const { base, token } = await chrome.storage.local.get(["base", "token"]);
   if (!base || !token) throw new Error("Robot pas encore relié : clique « Lancer le robot » dans CA+.");
@@ -176,7 +236,7 @@ async function post(src, file, date, label) {
   return { ok: r.ok, ...j };
 }
 const siteError = (e) => /not authorized|accessdenied|explicit deny|403/i.test(e || "")
-  ? "le site refuse ce fichier (même erreur en cliquant à la main ?). Réessaie plus tard ou dépose-la à la main."
+  ? "le site bloque son propre PDF (erreur chez lui, même à la main) et aucun récapitulatif trouvé sur la ligne. Dépose-la à la main."
   : `pas de PDF trouvé${e ? " (" + e.slice(0, 80) + ")" : ""}.`;
 
 // ---------- "Lancer le robot" ----------
@@ -241,7 +301,12 @@ async function run(onlyUrl) {
             const f2 = await fileFromTab(pid);
             chrome.tabs.remove(pid).catch(() => {});
             popupId = null;
-            if (f2 && !f2.html) file = f2; else { log.push(`⚠️ ${src.supplier} ${it.date || ""} : ${siteError(f2?.error || file?.error)}`); continue; }
+            if (f2 && !f2.html) file = f2;
+            else {
+              const b = await planB(tabId, it.frameId, it.rowText, learned[src.url] || "invoice");
+              if (b) { file = b; log.push(`🛟 ${src.supplier} : PDF refusé par le site, pris « ${b.via} » à la place`); }
+              else { log.push(`⚠️ ${src.supplier} ${it.date || ""} : ${siteError(f2?.error || file?.error)}`); continue; }
+            }
           }
           if (popupId) chrome.tabs.remove(popupId).catch(() => {});
           const j = await post(src, file, it.date, it.rowText);
@@ -352,6 +417,17 @@ async function onLearned(m, sender) {
     const tab = await chrome.tabs.get(t.tabId).catch(() => null);
     if (tab && tab.url !== t.url) { const f = await fileFromTab(t.tabId); if (f && !f.html) file = f; else err = f?.error || err; }
   }
+  let via = null;
+  if (!file || file.html) {
+    await inFrame(t.tabId, 0, setBanner, ["🛟 PDF refusé par le site, je prends le récapitulatif…"]);
+    // Back to the list (the click may have navigated away) then try the row's other documents.
+    const tab = await chrome.tabs.get(t.tabId).catch(() => null);
+    if (tab && tab.url !== t.url) { await chrome.tabs.update(t.tabId, { url: t.url }); await loaded(t.tabId); await wait(3000); }
+    const res = await inFrames(t.tabId, rowLinks, [m.rowText, m.text]);
+    const fr = res.find((r) => r.result?.length);
+    const b = fr ? await planB(t.tabId, fr.frameId, m.rowText, m.text) : null;
+    if (b) { file = b; via = b.via; }
+  }
   if (!file || file.html) return teachEnd(`🎓 Appris : « ${m.text} ». Mais ${siteError(err)}`);
 
   const date = (m.rowText.match(/20\d\d-\d\d-\d\d/) || [null])[0];
@@ -360,7 +436,7 @@ async function onLearned(m, sender) {
     const { sent = {} } = await chrome.storage.local.get("sent");
     await chrome.storage.local.set({ sent: { ...sent, [clicked.href || t.url + "#" + m.rowText]: Date.now() } });
   }
-  return teachEnd(`🎓 Appris : « ${m.text} »\n${j.envoye ? "✅" : j.attached ? "📥" : "⚠️"} ${t.src.supplier} ${date || ""} : ${j.message || j.error || ""}`);
+  return teachEnd(`🎓 Appris : « ${m.text} »${via ? `\n🛟 PDF refusé par le site : « ${via} » envoyé à la place` : ""}\n${j.envoye ? "✅" : j.attached ? "📥" : "⚠️"} ${t.src.supplier} ${date || ""} : ${j.message || j.error || ""}`);
 }
 
 async function teachEnd(log) {
