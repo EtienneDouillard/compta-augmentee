@@ -221,7 +221,7 @@ async function post(src, file, date, label) {
   return { ok: r.ok, ...j };
 }
 const siteError = (e) => /not authorized|accessdenied|explicit deny|403/i.test(e || "")
-  ? "le site refuse ce fichier (même erreur en cliquant à la main ?). Réessaie plus tard ou dépose-la à la main."
+  ? "le site bloque son propre PDF (erreur chez lui, même à la main) et aucun récapitulatif trouvé sur la ligne. Dépose-la à la main."
   : `pas de PDF trouvé${e ? " (" + e.slice(0, 80) + ")" : ""}.`;
 
 // ---------- "Lancer le robot" ----------
@@ -421,7 +421,7 @@ async function onLearned(m, sender) {
     const { sent = {} } = await chrome.storage.local.get("sent");
     await chrome.storage.local.set({ sent: { ...sent, [clicked.href || t.url + "#" + m.rowText]: Date.now() } });
   }
-  return teachEnd(`🎓 Appris : « ${m.text} »\n${j.envoye ? "✅" : j.attached ? "📥" : "⚠️"} ${t.src.supplier} ${date || ""} : ${j.message || j.error || ""}`);
+  return teachEnd(`🎓 Appris : « ${m.text} »${via ? `\n🛟 PDF refusé par le site : « ${via} » envoyé à la place` : ""}\n${j.envoye ? "✅" : j.attached ? "📥" : "⚠️"} ${t.src.supplier} ${date || ""} : ${j.message || j.error || ""}`);
 }
 
 async function teachEnd(log) {
