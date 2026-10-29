@@ -9,7 +9,7 @@ import { buildBookmarklet } from '@/lib/bookmarklet';
 import chromeGuide from '@/assets/chrome-extensions-guide.png.asset.json';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
-const ROBOT_VERSION = '1.6.0';
+const ROBOT_VERSION = '1.7.0';
 
 function download() {
   fetch('/ca-plus-robot.zip')
