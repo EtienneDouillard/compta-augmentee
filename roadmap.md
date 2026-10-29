@@ -41,3 +41,5 @@
 - [x] Déployer en prod (demandé 29/10 11:41)
 - [x] Intégrer PR Julien #6–#9 (compta-augmentee) : migrations #7 #8 #9, code, puis fermer les PR
 - [x] Accueil client : 3 cartes (verte + bravo dedans ; graphique ; 🤖 automatisations)
+- [x] Pré-remplir le site fournisseur via Claude quand le libellé ne suffit pas (Delibero)
+- [x] Vue kanban par fournisseur (filtre) sur la liste

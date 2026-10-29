@@ -248,7 +248,7 @@ function SupplierStep({ steps, idx, dossierId, progress }: {
 
               {mode === "source" && !isSale && (
                 <ChoicePanel>
-                  <InvoiceSourceSetup dossierId={dossierId} supplier={group.name} guessUrl={siteDepuisPaiement(group.name, group.txs.map((t) => t.label))} onFiles={busy ? undefined : (f) => upload(f, selected)} />
+                  <InvoiceSourceSetup dossierId={dossierId} supplier={group.name} guessUrl={siteDepuisPaiement(group.name, group.txs.map((t) => t.label))} labels={group.txs.map((t) => t.label).slice(0, 10)} onFiles={busy ? undefined : (f) => upload(f, selected)} />
                 </ChoicePanel>
               )}
 

@@ -88,3 +88,31 @@ Termine par UN SEUL bloc JSON (rien après), en français :
     if (res2.error) throw new Error(`Recherche faite mais non sauvegardée : ${res2.error.message}`);
     return parsed;
   });
+
+/** Official website of a supplier, guessed by Claude from its name and the Pennylane bank labels, then
+ *  checked to answer. Used only to pre-fill the "site du fournisseur" field; the client can change it. */
+export const guessSupplierSite = createServerFn({ method: 'POST' })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(d => z.object({ supplier: z.string().trim().min(1).max(200), labels: z.array(z.string().max(300)).max(10) }).parse(d))
+  .handler(async ({ data, context }): Promise<{ url: string | null }> => {
+    const { apiKey, model } = await (await import("./claude-config.server")).claudeFor(context.userId);
+    if (!apiKey) return { url: null };
+    const prompt = `Fournisseur vu sur un relevé bancaire français : « ${data.supplier} ». Libellés : ${data.labels.map(l => `« ${l} »`).join(', ')}.
+Donne l'adresse du site officiel où ce fournisseur met les factures à disposition de ses clients (espace client / compte), sinon son site officiel.
+Réponds UNIQUEMENT par l'URL https complète, ou par NONE si tu ne sais pas avec certitude.`;
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
+      body: JSON.stringify({ model, max_tokens: 1500, messages: [{ role: 'user', content: prompt }] }),
+    });
+    if (!res.ok) return { url: null };
+    const json = await res.json() as { content: { type: string; text?: string }[] };
+    const text = json.content.filter(c => c.type === 'text').map(c => c.text ?? '').join('').trim();
+    const m = text.match(/https:\/\/[^\s"'<>)]+/);
+    if (!m) return { url: null };
+    try {
+      const u = new URL(m[0]);
+      const r = await fetch(u.origin, { method: 'GET', redirect: 'follow', headers: { 'user-agent': 'Mozilla/5.0 CA+ link check' }, signal: AbortSignal.timeout(6000) }).catch(() => null);
+      return { url: r && r.status < 500 ? u.href : u.origin };
+    } catch { return { url: null }; }
+  });

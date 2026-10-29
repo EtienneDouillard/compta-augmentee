@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { getInvoiceSource, saveInvoiceSource } from '@/lib/invoice-sources.functions';
 import { receptionProven, type CollectResult } from '@/lib/invoice-sources';
-import { researchInvoiceSource, RESEARCH_VERSION, type SourceResearch } from '@/lib/invoice-research.functions';
+import { guessSupplierSite, researchInvoiceSource, RESEARCH_VERSION, type SourceResearch } from '@/lib/invoice-research.functions';
 import type { SetupStep } from '@/lib/source-steps';
 import { checkInvoiceCollection } from '@/lib/invoice-collect.functions';
 import { setRobotSource } from '@/lib/collector.functions';
@@ -31,10 +31,11 @@ function stepsOf(r: SourceResearch): SetupStep[] {
   return r.version === RESEARCH_VERSION ? r.steps : [];
 }
 
-export function InvoiceSourceSetup({ dossierId, supplier, onFiles, guessUrl }: { dossierId: string; supplier: string; onFiles?: ((files: File[]) => void) | undefined; guessUrl?: string | null }) {
+export function InvoiceSourceSetup({ dossierId, supplier, onFiles, guessUrl, labels }: { dossierId: string; supplier: string; onFiles?: ((files: File[]) => void) | undefined; guessUrl?: string | null; labels?: string[] }) {
   const load = useServerFn(getInvoiceSource);
   const save = useServerFn(saveInvoiceSource);
   const research = useServerFn(researchInvoiceSource);
+  const guessSite = useServerFn(guessSupplierSite);
   const runCheck = useServerFn(checkInvoiceCollection);
   const setRobot = useServerFn(setRobotSource);
   const qc = useQueryClient();
@@ -42,6 +43,7 @@ export function InvoiceSourceSetup({ dossierId, supplier, onFiles, guessUrl }: {
   const query = useQuery({ queryKey, queryFn: () => load({ data: { dossierId, supplier } }) });
 
   const [url, setUrl] = useState('');
+  const [guessing, setGuessing] = useState(false);
   const [email, setEmail] = useState('');
   const [found, setFound] = useState<SourceResearch | null>(null);
   const [searching, setSearching] = useState(false);
@@ -54,7 +56,13 @@ export function InvoiceSourceSetup({ dossierId, supplier, onFiles, guessUrl }: {
     if (!query.data) return;
     const s = query.data.source;
     setEmail(s?.receipt_email ?? query.data.collectEmail ?? '');
-    if (!s) { if (guessUrl) setUrl(u => u || guessUrl); return; }
+    if (!s) {
+      if (guessUrl) { setUrl(u => u || guessUrl); return; }
+      // Nothing in the bank label: Claude finds the supplier's site to pre-fill the field.
+      setGuessing(true);
+      guessSite({ data: { supplier, labels: labels ?? [] } }).then(r => { if (r.url) setUrl(u => u || r.url!); }).catch(() => {}).finally(() => setGuessing(false));
+      return;
+    }
     setUrl(s.source_url);
     const r = s.research as unknown as SourceResearch | null;
     const current = r?.version === RESEARCH_VERSION ? r : null;
@@ -121,7 +129,7 @@ export function InvoiceSourceSetup({ dossierId, supplier, onFiles, guessUrl }: {
     {!started && <div className="space-y-2">
       <label htmlFor="invoice-source-url" className="font-semibold">Site du fournisseur</label>
       <div className="flex flex-wrap gap-2">
-        <Input id="invoice-source-url" className="flex-1" type="url" placeholder="https://…" value={url} onChange={e => setUrl(e.target.value)} />
+        <Input id="invoice-source-url" className="flex-1" type="url" placeholder={guessing ? "🔎 Claude cherche le site…" : "https://…"} value={url} onChange={e => setUrl(e.target.value)} />
         <Button variant="outline" disabled={searching || !url} onClick={runResearch}>{searching ? <><Loader2 className="animate-spin" />Claude cherche…</> : <><Search />Trouver la meilleure solution</>}</Button>
       </div>
     </div>}
