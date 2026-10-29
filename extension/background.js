@@ -87,9 +87,10 @@ async function run(onlyUrl) {
   const now = new Date();
   const months = [0, 1, 2].map((k) => new Date(now.getFullYear(), now.getMonth() - k, 15).toISOString().slice(0, 7));
   const log = [];
-  // Small window on the side, not focused: the user keeps working.
-  const win = await chrome.windows.create({ url: "about:blank", focused: false, width: 520, height: 760, left: 0, top: 0 });
-  const tabId = win.tabs[0].id;
+  // Background tab in the user's window: never focused, the user keeps working.
+  const tab = await chrome.tabs.create({ url: "about:blank", active: false });
+  const tabId = tab.id;
+  await chrome.tabs.update(tabId, { autoDiscardable: false }).catch(() => {});
   try {
     for (const src of sources) {
       try {
@@ -114,10 +115,17 @@ async function run(onlyUrl) {
           if (!href) { log.push(`⚠️ ${src.supplier} ${it.date || ""} : bouton sans fichier`); continue; }
           let [{ result: file }] = await chrome.scripting.executeScript({ target: { tabId }, func: grab, args: [href] });
           if (file?.html) {
-            const pid = popupId ?? (await chrome.tabs.create({ windowId: win.id, url: href, active: true })).id;
-            await chrome.tabs.update(pid, { active: true }); await loaded(pid); await wait(2500);
-            const shot = await chrome.tabs.captureVisibleTab(win.id, { format: "png" });
-            file = { mime: "image/png", base64: shot.split(",")[1] };
+            // Invoice shown as a web page (e.g. Stripe): open it in the background and take its PDF link.
+            const pid = popupId ?? (await chrome.tabs.create({ url: href, active: false })).id;
+            if (popupId) await chrome.tabs.update(pid, { active: false }).catch(() => {});
+            await loaded(pid); await wait(2500);
+            let inner = [];
+            for (let k = 0; k < 6 && !inner.some((x) => x.href); k++) { [{ result: inner }] = await chrome.scripting.executeScript({ target: { tabId: pid }, func: scan }); if (!inner.some((x) => x.href)) await wait(1000); }
+            const pdf = inner.find((x) => x.href && /download|télécharger|pdf/i.test(x.rowText + x.href)) || inner.find((x) => x.href);
+            file = pdf ? (await chrome.scripting.executeScript({ target: { tabId: pid }, func: grab, args: [pdf.href] }))[0].result : null;
+            chrome.tabs.remove(pid).catch(() => {});
+            popupId = null;
+            if (!file || file.html) { log.push(`⚠️ ${src.supplier} ${it.date || ""} : facture en page web, pas de PDF trouvé`); continue; }
           }
           if (popupId) chrome.tabs.remove(popupId).catch(() => {});
           const ext = file.mime === "application/pdf" ? "pdf" : file.mime === "image/png" ? "png" : "jpg";
@@ -130,7 +138,7 @@ async function run(onlyUrl) {
         }
       } catch (e) { log.push(`❌ ${src.supplier} : ${e.message}`); }
     }
-  } finally { chrome.windows.remove(win.id).catch(() => {}); }
+  } finally { chrome.tabs.remove(tabId).catch(() => {}); }
   const text = log.join("\n");
   await chrome.storage.local.set({ sent, lastMonth: now.toISOString().slice(0, 7), lastLog: text });
   return text;
