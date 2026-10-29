@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import {
-  ArrowDownLeft, ArrowUpRight, Ban, CheckCircle2, ChevronDown, ChevronRight, Layers, List, Download, Eye, Inbox, Pencil, RotateCcw, Scissors, Search, Send, ListFilter, Sparkles, Undo2, X,
+  ArrowDownLeft, ArrowUpRight, Ban, CheckCircle2, ChevronDown, ChevronRight, Layers, List, Download, Eye, FileX, Inbox, Pencil, RotateCcw, Scissors, Search, Send, ListFilter, Sparkles, Undo2, X,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
