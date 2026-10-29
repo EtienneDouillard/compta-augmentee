@@ -269,7 +269,7 @@ async function teach(url) {
     if (!clicked) return "🎓 Rien appris (pas de clic).";
     const learned = { ...before0, [url]: clicked.text };
     await chrome.storage.local.set({ learned });
-    for (let i = 0; i < 16 && !newTab && !dlUrl; i++) await wait(500); // the tab or download the click opens
+    if (!clicked.href) for (let i = 0; i < 16 && !newTab && !dlUrl; i++) await wait(500); // the tab or download the click opens
 
     let file = null;
     if (clicked.href) {
