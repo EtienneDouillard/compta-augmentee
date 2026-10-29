@@ -1,12 +1,13 @@
 import { CheckCircle2 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 // Green nudge (Simon): how much is already done across the whole dossier, to keep the client going.
-export function Nudge({ done, total }: { done: number; total: number }) {
+export function Nudge({ done, total, className }: { done: number; total: number; className?: string }) {
   if (total === 0) return null;
   const left = total - done;
   const pct = Math.round((done / total) * 100);
   return (
-    <div className="mt-5 flex items-center gap-4 rounded-2xl bg-mint-pale p-4 text-primary">
+    <div className={cn("mt-5 flex items-center gap-4 rounded-2xl bg-mint-pale p-4 text-primary", className)}>
       <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-mint">
         <CheckCircle2 className="h-6 w-6" />
       </span>

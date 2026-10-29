@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useServerFn } from '@tanstack/react-start';
-import { Check, Copy, Download, Info, Loader2 } from 'lucide-react';
+import { Check, Copy, Download, ExternalLink, Info, Loader2, Upload } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -26,16 +26,39 @@ const Tip = ({ text }: { text: string }) => (
   </TooltipProvider>
 );
 
-export function RobotChrome({ dossierId, robotUrl, lastRun, onSaveUrl }: { dossierId: string; robotUrl: string; lastRun?: { at: string; message?: string } | null; onSaveUrl?: (url: string) => Promise<void> }) {
+export function RobotChrome({ dossierId, robotUrl, lastRun, onSaveUrl, onFiles }: { dossierId: string; robotUrl: string; lastRun?: { at: string; message?: string } | null; onSaveUrl?: (url: string) => Promise<void>; onFiles?: ((files: File[]) => void) | undefined }) {
+  const [over, setOver] = useState(false);
+  const send = (files: File[]) => { if (!files.length) return; if (!onFiles) { toast.error('Dépôt indisponible pour le moment.'); return; } onFiles(files); };
   const mint = useServerFn(createCollectorToken);
   const [token, setToken] = useState<string | null>(null);
   const [bm, setBm] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [url, setUrl] = useState(robotUrl);
   const [savingUrl, setSavingUrl] = useState(false);
-  // React 19 neutralise les liens javascript: posés en prop : on écrit l'attribut à la main.
-  const favRef = useRef<HTMLAnchorElement>(null);
-  useEffect(() => { if (favRef.current && bm) favRef.current.setAttribute('href', bm); }, [bm]);
+  const [robot, setRobot] = useState(false);
+  const [running, setRunning] = useState(false);
+  const [log, setLog] = useState<string | null>(null);
+  void bm; void buildBookmarklet; void useRef;
+  // The Chrome extension announces itself on this page (extension/bridge.js).
+  useEffect(() => {
+    if (document.documentElement.dataset['caplusRobot']) setRobot(true);
+    const on = (e: MessageEvent) => {
+      if (e.source !== window || e.data?.source !== 'caplus-robot') return;
+      if (e.data.type === 'ready') setRobot(true);
+      if (e.data.type === 'done') { setRunning(false); setLog(e.data.log); toast.success('🤖 Robot terminé'); }
+    };
+    window.addEventListener('message', on);
+    window.postMessage({ source: 'caplus-app', type: 'ping' }, location.origin);
+    return () => window.removeEventListener('message', on);
+  }, []);
+
+  async function runRobot() {
+    if (url !== robotUrl && onSaveUrl) { try { await onSaveUrl(url); } catch { return; } }
+    const t = await getToken();
+    if (!t) return;
+    setRunning(true); setLog(null);
+    window.postMessage({ source: 'caplus-app', type: 'run', token: t }, location.origin);
+  }
 
   async function getToken() {
     if (token) return token;
@@ -77,26 +100,38 @@ export function RobotChrome({ dossierId, robotUrl, lastRun, onSaveUrl }: { dossi
       {onSaveUrl && url !== robotUrl && <Button size="sm" variant="outline" disabled={savingUrl} onClick={saveUrl}>{savingUrl ? <Loader2 className="animate-spin" /> : <Check />}OK</Button>}
       <Tip text="Adresse exacte de la page où se trouvent les factures (ex. Billing → Transaction history). Le favori l'ouvrira pour toi." />
     </div>
-    <ol className="space-y-2">
-      <li className="flex flex-wrap items-center gap-2"><span>1️⃣</span>
-        {bm ? (
-          <a ref={favRef} onClick={e => e.preventDefault()} draggable title="Glisse-moi dans la barre de favoris" className="inline-flex cursor-grab items-center gap-1 rounded bg-primary px-2 py-1 font-semibold text-primary-foreground">🤖 CA+ Robot</a>
-        ) : (
-          <Button size="sm" variant="outline" disabled={busy} onClick={makeFavorite}>{busy ? <Loader2 className="animate-spin" /> : <span aria-hidden>🤖</span>}Créer mon favori</Button>
-        )}
-        <Tip text="Glisse le bouton vert dans ta barre de favoris (Ctrl+Maj+B si elle est cachée). Un seul glisser-déposer." /></li>
-      <li className="flex flex-wrap items-center gap-2"><span>2️⃣</span><span className="font-semibold">Ouvre la page des factures et clique le favori</span>
-        <Tip text="1er clic : ouvre la page enregistrée. 2e clic (sur cette page) : télécharge les factures, Claude les vérifie et les envoie. Refais-le chaque mois." /></li>
-    </ol>
+    {robot ? (
+      <div className="flex flex-wrap items-center gap-2">
+        <Button size="lg" disabled={running || busy} onClick={runRobot}>{running ? <Loader2 className="animate-spin" /> : <span aria-hidden>🤖</span>}{running ? 'Le robot travaille…' : 'Lancer le robot'}</Button>
+        <Tip text="Le robot ouvre la page dans ton Chrome, trouve les factures du mois, Claude les vérifie, elles partent dans Pennylane. Il repasse tout seul chaque mois." />
+      </div>
+    ) : (
+      <div><ol className="space-y-2">
+        <li className="flex flex-wrap items-center gap-2"><span>1️⃣</span><Button size="sm" onClick={download}><Download />Télécharger</Button><span className="text-xs text-muted-foreground">puis double-clic sur le fichier 📦</span></li>
+        <li className="flex flex-wrap items-center gap-2"><span>2️⃣</span>
+          <Button size="sm" variant="outline" onClick={() => { navigator.clipboard.writeText('chrome://extensions').then(() => toast.success('Colle-le dans la barre d’adresse ⤴️')).catch(() => {}); }}><Copy />Copier chrome://extensions</Button>
+          <span className="text-xs text-muted-foreground">→ nouvel onglet, colle, Entrée</span></li>
+        <li className="flex flex-wrap items-center gap-2"><span>3️⃣</span><span className="text-xs">Active <b>Mode développeur</b> ↗️ (en haut à droite)</span></li>
+        <li className="flex flex-wrap items-center gap-2"><span>4️⃣</span><span className="text-xs"><b>Charger l'extension non empaquetée</b> → choisis le dossier <b>ca-plus-robot</b></span></li>
+        <li className="flex flex-wrap items-center gap-2"><span>5️⃣</span><Button size="sm" variant="outline" onClick={() => location.reload()}>✅ C'est installé</Button></li>
+      </ol>
+      </div>
+    )}
+    {log && <pre role="status" className="whitespace-pre-wrap rounded bg-background p-2 text-xs">{log}</pre>}
     {lastRun && <p role="status" className="font-semibold text-primary">🕒 {new Date(lastRun.at).toLocaleString('fr-FR')} · {lastRun.message}</p>}
     <details className="text-xs text-muted-foreground">
-      <summary className="cursor-pointer font-semibold">⚙️ Option : collecte automatique (extension)</summary>
+      <summary className="cursor-pointer font-semibold">✋ À la main</summary>
       <div className="mt-2 flex flex-wrap items-center gap-2">
-        <Button size="sm" variant="outline" onClick={download}><Download />Extension</Button>
-        <Tip text="Dézippe, ouvre chrome://extensions, active le mode développeur puis « Charger l'extension non empaquetée »." />
-        <Button size="sm" variant="outline" disabled={busy} onClick={copyCode}><Copy />Code robot</Button>
+        <Button size="sm" variant="outline" asChild><a href={url} target="_blank" rel="noopener noreferrer"><ExternalLink />Ouvrir</a></Button>
+        <label
+          onDragOver={e => { e.preventDefault(); setOver(true); }} onDragLeave={() => setOver(false)}
+          onDrop={e => { e.preventDefault(); setOver(false); send([...e.dataTransfer.files]); }}
+          className={`flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-lg border-2 border-dashed px-3 py-2 font-semibold ${over ? 'border-primary bg-primary/10' : 'border-primary/40 bg-background'}`}>
+          <Upload className="h-4 w-4" />Glisse la facture ici
+          <input type="file" multiple accept="application/pdf,image/jpeg,image/png" className="hidden" onChange={e => { send([...(e.target.files ?? [])]); e.target.value = ''; }} />
+        </label>
+        <Button size="sm" variant="ghost" disabled={busy} onClick={copyCode}><Copy />Code robot</Button>
         {token && <code className="max-w-full truncate rounded bg-background px-2 py-1 text-xs">{token}</code>}
-        <Tip text="Colle ce code dans l'extension (icône CA+). Il n'est affiché qu'une fois." />
       </div>
     </details>
   </div>;

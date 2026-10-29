@@ -21,7 +21,7 @@ export type SourceResearch = {
   version: number;
 };
 
-export const RESEARCH_VERSION = 2;
+export const RESEARCH_VERSION = 3;
 
 /** Checks each direct link answers; a dead link is removed rather than shown. */
 async function checkLinks(steps: SetupStep[]): Promise<SetupStep[]> {
@@ -56,9 +56,10 @@ Cherche réellement sur le web (centre d'aide officiel, documentation API, pages
 Choisis UNE option : la moins chère, la plus simple et la plus rapide qui fonctionne (en général l'e-mail de facturation remplacé par l'adresse Pennylane du dossier si le fournisseur le permet, sinon le téléchargement dans l'interface).
 LIENS : chaque étape doit avoir le lien DIRECT le plus profond vers la page exacte où agir (ex. la page « Billing » ou « Invoices » du compte, pas la page d'accueil, pas un article d'aide générique). Utilise les URL de l'application elle-même (souvent https://app.… ou https://….com/account/billing, /settings/billing, /invoices). Si l'URL contient un identifiant de compte inconnu, donne l'URL stable la plus proche qui redirige après connexion. N'invente pas : si tu n'as trouvé aucune URL fiable, mets null.
 ÉTAPES : 2 à 4 étapes maximum, chacune = une action sur une page. CA+ connaît déjà l'adresse Pennylane du dossier : n'ajoute JAMAIS d'étape pour la récupérer ; sur l'étape où il faut la coller, mets "pastePennylaneEmail": true. Le détail dit exactement quel bouton cliquer, avec le libellé affiché sur le site. La dernière étape obtient tout de suite une facture pour tester (transférer la dernière facture reçue à l'adresse Pennylane, ou télécharger le dernier PDF et le déposer sur le paiement dans CA+).
-"loginNote" : une phrase si la page demande de se connecter (ex. « Connectez-vous avec un compte admin Miro : la page s'ouvre ensuite directement. »).
+STYLE : ultra court, pour un non-informaticien. "title" = 3 à 6 mots en français, verbe d'action (ex. « Ouvrir la facturation », « Coller l'adresse Pennylane »). "detail" = 15 mots maximum, en français, juste le chemin de clics avec les libellés exacts du site entre guillemets séparés par → (ex. « Avatar → « Admin console » → « Billing » »). Pas de phrase d'explication, pas de « si besoin », pas de réserve.
+"loginNote" : 10 mots maximum, ou vide ; une phrase si la page demande de se connecter (ex. « Connectez-vous avec un compte admin Miro : la page s'ouvre ensuite directement. »).
 Ne propose jamais de stocker mot de passe ou cookie. Ne présente pas comme vérifié ce que tu n'as pas trouvé.
-"headline" : titre court de l'option (ex. « Envoyer les factures Miro par e-mail à Pennylane »).
+"headline" : 5 mots maximum (ex. « Miro → e-mail Pennylane »).
 Termine par UN SEUL bloc JSON (rien après), en français :
 {"headline":"…","loginNote":"…","steps":[{"title":"…","detail":"…","link":"url directe ou null","pastePennylaneEmail":false}],"summary":"…","recommended":"email|browser|api|mcp","why":"…","billingPath":"Menu → … → Télécharger","options":[{"method":"email|browser|api|mcp","title":"…","detail":"…","source":"url ou null"}],"sources":["url"],"warnings":["…"]}`;
     const res = await fetch('https://api.anthropic.com/v1/messages', {

@@ -150,25 +150,18 @@ function Espace() {
         ) : (
           <>
             {/* Simon: the whole width is used and the client scrolls less: greeting and summary side by side. */}
-            <div className="grid items-start gap-6 lg:grid-cols-2">
-            <div>
+            <div className="grid items-stretch gap-6 lg:grid-cols-2">
+            <div className="flex flex-col">
             <h1 className="text-2xl sm:text-3xl">Bonjour,</h1>
             {dossier.data?.name && (
-              // The dossier name stands out (retour de Julien): the client sees at once which company is concerned.
-              <p className="mt-3 inline-flex max-w-full items-center gap-3 rounded-xl border-l-4 border-mint bg-card px-4 py-2.5 shadow-sm">
-                <Building2 aria-hidden className="h-5 w-5 shrink-0 text-primary" />
-                <span className="min-w-0">
-                  <span className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground">Dossier</span>
-                  {(me.data?.dossiers.length ?? 0) > 1 && !me.data?.preview ? (
-                    // Several companies (Simon 6): the client switches dossier here.
-                    <select aria-label="Changer de dossier" value={dossierId ?? ""} onChange={(e) => switchDossier(e.target.value)}
-                      className="block max-w-full truncate bg-transparent text-lg font-bold leading-snug text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:text-xl">
-                      {me.data!.dossiers.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
-                    </select>
-                  ) : (
-                    <strong className="block text-lg leading-snug text-primary sm:text-xl">{dossier.data.name}</strong>
-                  )}
-                </span>
+              <p className="mt-1 inline-flex max-w-full items-center gap-2 text-sm font-semibold text-muted-foreground">
+                <Building2 aria-hidden className="h-4 w-4 shrink-0" />
+                {(me.data?.dossiers.length ?? 0) > 1 && !me.data?.preview ? (
+                  <select aria-label="Changer de dossier" value={dossierId ?? ""} onChange={(e) => switchDossier(e.target.value)}
+                    className="max-w-full truncate bg-transparent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                    {me.data!.dossiers.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+                  </select>
+                ) : <span className="truncate">{dossier.data.name}</span>}
               </p>
             )}
             {remaining === 0 && (
@@ -176,7 +169,7 @@ function Espace() {
                 {all.length === 0 ? "Aucune facture ne vous est demandée pour le moment." : "Merci pour vos réponses."}
               </p>
             )}
-            <Nudge done={all.length - remaining} total={all.length} />
+            <Nudge done={all.length - remaining} total={all.length} className="flex-1" />
             </div>
 
             {remaining === 0 ? (
@@ -188,9 +181,9 @@ function Espace() {
                 <p className="mt-2 text-primary-foreground/80">Nous n'attendons aucune facture de votre part pour le moment.</p>
               </section>
             ) : (
-              <section className="relative overflow-hidden rounded-3xl bg-primary p-6 text-primary-foreground shadow-xl shadow-primary/20 sm:p-8">
+              <section className="relative flex h-full flex-col overflow-hidden rounded-3xl bg-primary p-6 text-primary-foreground shadow-xl shadow-primary/20 sm:p-8">
                 <div aria-hidden className="pointer-events-none absolute -right-24 -top-24 h-80 w-80 rounded-full border-[56px] border-teal-2/60" />
-                <div className="relative">
+                <div className="relative flex flex-1 flex-col justify-center">
                   {years.length > 0 && (
                     <p className="flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-mint">
                       <CalendarCheck className="h-4 w-4" /> Opérations {years.length > 1 ? `${years[0]} – ${years.at(-1)}` : years[0]}
@@ -222,9 +215,9 @@ function Espace() {
             </div>
 
             {(dossierId || all.length > 0) && (
-              <div className="mt-6 grid items-start gap-4 lg:grid-cols-2">
+              <div className="mt-6 grid items-stretch gap-4 lg:grid-cols-2">
                 {dossierId && <SourcesSummary dossierId={dossierId} suppliers={[...new Set(all.filter((t) => t.direction === "out").map((t) => t.supplier))]} />}
-                <MonthlyChart txs={all} />
+                <MonthlyChart txs={all} className="h-full" />
               </div>
             )}
 

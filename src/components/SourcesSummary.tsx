@@ -27,14 +27,16 @@ export function SourcesSummary({ dossierId, suppliers }: { dossierId: string; su
     <Link
       to="/espace/sources"
       title="Configurez vos sources une fois pour toutes : ensuite les factures arrivent seules chaque mois."
-      className="inline-flex items-center gap-2 rounded-full border bg-card px-3 py-1.5 text-sm text-primary shadow-sm hover:bg-accent"
+      className="flex h-full items-center gap-3 rounded-2xl border bg-card p-4 text-primary shadow-sm transition-shadow hover:shadow-md"
     >
-      <Zap className="h-4 w-4" />
-      <span>
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-pale text-primary">
+        <Zap className="h-5 w-5" />
+      </span>
+      <span className="min-w-0 flex-1 font-semibold">
         Récupération auto :{" "}
         {q.isPending ? "…" : <><strong>{configured}</strong>/{total} fournisseur{total > 1 ? "s" : ""}</>}
       </span>
-      <ArrowRight className="h-3.5 w-3.5" />
+      <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground" />
     </Link>
   );
 }
