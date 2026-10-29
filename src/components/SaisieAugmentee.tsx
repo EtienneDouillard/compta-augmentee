@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { AlertTriangle, BookmarkCheck, Check, Plus, Send, Sparkles, Trash2, X } from "lucide-react";
+import { AlertTriangle, BookmarkCheck, Check, ExternalLink, Plus, Send, Sparkles, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -23,7 +23,7 @@ const pct = (t: number) => `${String(round2(t * 100)).replace(".", ",")} %`;
 export function SaisieAugmentee({ uploadId, onClose }: { uploadId: string | null; onClose: () => void }) {
   return (
     <Dialog open={uploadId !== null} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-h-[90vh] max-w-5xl overflow-y-auto">
+      <DialogContent className="max-h-[90vh] max-w-7xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2"><Sparkles className="h-5 w-5 text-primary" /> Saisie augmentée</DialogTitle>
           <DialogDescription>Claude lit la facture et propose un compte par nature. Vous validez. Sur un dossier démo, vous pouvez ensuite envoyer la facture et son PDF dans Pennylane.</DialogDescription>
@@ -57,7 +57,9 @@ function Content({ uploadId }: { uploadId: string }) {
   const s = d.saisie;
 
   return (
-    <div className="space-y-4">
+    <div className="grid gap-5 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
+    <Piece url={d.pieceUrl} media={d.media} fileName={d.fileName} />
+    <div className="min-w-0 space-y-4">
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
         <span className="font-semibold text-foreground">{d.fileName}</span>
         <span>Paiement : {d.paiement.tiers}, {formatEUR(Math.abs(d.paiement.montant))} le {formatDate(d.paiement.date)}</span>
@@ -88,6 +90,24 @@ function Content({ uploadId }: { uploadId: string }) {
           )}
         </div>
       )}
+    </div>
+    </div>
+  );
+}
+
+// The invoice as the client deposited it, next to the proposed entry.
+function Piece({ url, media, fileName }: { url: string | null; media: string | null; fileName: string }) {
+  if (!url) return <p className="text-sm text-muted-foreground">Aperçu de la facture indisponible.</p>;
+  return (
+    <div className="space-y-2">
+      {media === "application/pdf" ? (
+        <iframe src={url} title={`Facture ${fileName}`} className="h-[70vh] w-full rounded-lg border bg-white" />
+      ) : media ? (
+        <img src={url} alt={`Facture ${fileName}`} className="max-h-[70vh] w-full rounded-lg border bg-white object-contain" />
+      ) : null}
+      <a href={url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-sm font-semibold text-primary underline">
+        <ExternalLink className="h-4 w-4" /> Ouvrir la facture dans un nouvel onglet
+      </a>
     </div>
   );
 }

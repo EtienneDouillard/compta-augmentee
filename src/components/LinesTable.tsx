@@ -1,12 +1,13 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import {
-  ArrowDownLeft, ArrowUpRight, Ban, CheckCircle2, ChevronDown, ChevronRight, Layers, List, Download, Eye, Inbox, Pencil, RotateCcw, Search, Send, ListFilter, Sparkles, Undo2, X,
+  ArrowDownLeft, ArrowUpRight, Ban, CheckCircle2, ChevronDown, ChevronRight, Layers, List, Download, Eye, FileX, Inbox, Pencil, RotateCcw, Scissors, Search, Send, ListFilter, Sparkles, Undo2, X,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
+import { AnnulerDecoupage, Decoupage } from "@/components/Decoupage";
 import { FilterChip } from "@/components/FilterChip";
 import { Pill, ReviewPill, TxStatusPill } from "@/components/StatusPill";
 import { SortHeader } from "@/components/SortHeader";
@@ -25,7 +26,8 @@ type SortKey = "date" | "label" | "supplier" | "amount";
 const stateOf = (t: Tx): Exclude<Tab, "all"> =>
   t.review_state === "pending" ? "pending" : t.review_state === "dismissed" ? "dismissed" : t.status === "a_faire" ? "waiting" : "answered";
 // Lines still waiting for the client can be withdrawn too (demande de Julien, 29/10/2026).
-const selectable = (t: Tx) => stateOf(t) !== "answered";
+// A bank line cut into operations (Simon 7) is replaced by them: it is never sent or reactivated as such.
+const selectable = (t: Tx) => stateOf(t) !== "answered" && !t.decoupee;
 const accountsOf = (t: Tx) => (t.counterpart_accounts ?? "").split(",").map((a) => a.trim()).filter(Boolean);
 const PAGE = 100;
 // Ids per update: hundreds of ids in one request make its URL too long.
@@ -38,10 +40,11 @@ const GROUP_PAGE = 50;
 
 // All the open lines of a dossier in one table: review, bulk actions, search, filters and sorting.
 // Lines are grouped by supplier by default, without asking the firm (Julien, 29/10/2026); "Liste" shows them one by one.
-export function LinesTable({ txs, uploads, onChanged, onRename, onDownload, onSaisie, initialTab }: {
+export function LinesTable({ txs, uploads, onChanged, onRename, onDownload, onSaisie, initialTab, onEcriture }: {
   txs: Tx[]; uploads: Upload[]; onChanged: () => void;
   onRename: (detected: string, current: string) => Promise<string | null>; onDownload: (path: string) => void;
   onSaisie?: (uploadId: string) => void; initialTab?: Tab | undefined;
+  onEcriture?: (t: Tx) => void;
 }) {
   const [tab, setTab] = useState<Tab>(() => initialTab ?? (txs.some((t) => t.review_state === "pending") ? "pending" : "all"));
   const [view, setView] = useState<"groupes" | "liste">("groupes");
@@ -146,7 +149,14 @@ export function LinesTable({ txs, uploads, onChanged, onRename, onDownload, onSa
         <td className="whitespace-nowrap px-3 py-2.5 font-mono tabular-nums">{formatDate(t.date)}</td>
         <td className="max-w-[18rem] px-3 py-2.5">
           <div className="truncate font-mono" title={t.label}>{t.label}</div>
+          {t.parent_id && <div className="mt-1 text-xs text-muted-foreground"><Scissors className="mr-1 inline h-3 w-3" />Opération issue d'un découpage</div>}
           {t.comment && <div className="mt-1 text-xs italic text-muted-foreground">« {t.comment} »</div>}
+          {onEcriture && t.status === "sans_facture" && (
+            <button type="button" onClick={() => onEcriture(t)} title="Choisir l'écriture face à la transaction bancaire"
+              className="mt-1 flex min-h-6 items-center gap-1 rounded-full bg-pale-2 px-2 py-0.5 text-xs font-semibold text-primary hover:underline">
+              <FileX className="h-3 w-3" /> {t.ecriture_envoyee_le ? `Écriture ${t.ecriture_compte} passée` : t.ecriture_compte ? `Écriture ${t.ecriture_compte} choisie` : "Choisir l'écriture"}
+            </button>
+          )}
           {files.map((u) => (
             <div key={u.id} className="flex max-w-full items-center gap-2">
               <button type="button" onClick={() => onDownload(u.storage_path)}
@@ -187,7 +197,12 @@ export function LinesTable({ txs, uploads, onChanged, onRename, onDownload, onSa
         <td className="whitespace-nowrap px-3 py-2.5 text-right font-bold tabular-nums">{formatEUR(Math.abs(Number(t.amount)))}</td>
         <td className="px-3 py-2.5">
           <div className="flex flex-wrap items-center gap-2">
-            {state === "answered" ? <TxStatusPill status={t.status} /> : <ReviewPill state={t.review_state ?? "sent"} />}
+            {t.decoupee ? (
+              <>
+                <Pill tone="muted" icon={Scissors}>Découpée en opérations</Pill>
+                <AnnulerDecoupage tx={t} onDone={onChanged} />
+              </>
+            ) : state === "answered" ? <TxStatusPill status={t.status} /> : <ReviewPill state={t.review_state ?? "sent"} />}
             {state === "pending" && (
               <>
                 <Button size="sm" variant="outline" disabled={busy} onClick={() => setState([t.id], "sent", "Ligne envoyée au client")}>
@@ -199,7 +214,7 @@ export function LinesTable({ txs, uploads, onChanged, onRename, onDownload, onSa
                 </Button>
               </>
             )}
-            {state === "dismissed" && (
+            {state === "dismissed" && !t.decoupee && (
               <Button size="sm" variant="outline" disabled={busy} onClick={() => setState([t.id], "pending", "Ligne réactivée")}>
                 <RotateCcw /> Réactiver
               </Button>
@@ -209,6 +224,9 @@ export function LinesTable({ txs, uploads, onChanged, onRename, onDownload, onSa
                 onClick={() => withdraw([t.id])}>
                 <Undo2 /> Retirer la demande
               </Button>
+            )}
+            {t.direction === "out" && !t.parent_id && !t.decoupee && state !== "dismissed" && (
+              <Decoupage tx={t} files={files} onDone={onChanged} />
             )}
           </div>
         </td>

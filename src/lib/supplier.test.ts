@@ -10,6 +10,17 @@ describe("normalizeSupplier", () => {
   it("strips bank noise for unknown suppliers", () => {
     expect(normalizeSupplier("PRLV SEPA BOULANGERIE DUPONT 123456")).toBe("Boulangerie Dupont");
   });
+  // Labels of the hackathon demo dossier (Julien, 29/10/2026: « VIRT AMAZON, le fournisseur c'est Amazon »).
+  it("drops bank prefixes so every payment mode lands on the same supplier", () => {
+    expect(normalizeSupplier("VIRT AMAZON")).toBe("Amazon");
+    expect(normalizeSupplier("PRLVT AMAZON")).toBe("Amazon");
+    expect(normalizeSupplier("VIRT TECH ET CIE")).toBe("Tech et Cie");
+    expect(normalizeSupplier("PRLVT TECH ET CIE")).toBe("Tech et Cie");
+    expect(normalizeSupplier("PRLVMT FACEBK META IE9692928")).toBe("Meta");
+    expect(normalizeSupplier("VIRT RED SFR - CONTRAT 99-1GWPT1")).toBe("SFR");
+    expect(normalizeSupplier("CB BRASSERIE BILBON SACQUET")).toBe("Brasserie Bilbon");
+    expect(normalizeSupplier("RBST LIXXBAIL ECHEANCE")).toBe("Lixxbail");
+  });
 });
 
 describe("initials", () => {

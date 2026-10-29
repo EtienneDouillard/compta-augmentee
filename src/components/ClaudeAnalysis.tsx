@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Ban, Check, Copy, Gauge, Sparkles, User, Users, X, type LucideIcon } from "lucide-react";
+import { Ban, Check, Gauge, Sparkles, User, Users, X, type LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -12,7 +12,6 @@ import { formatDate, formatEUR } from "@/lib/session";
 
 const KIND: Record<SuggestionKind, { icon: LucideIcon; tone: "info" | "todo" | "danger" | "muted"; apply: string }> = {
   group: { icon: Users, tone: "info", apply: "Regrouper" },
-  duplicate: { icon: Copy, tone: "todo", apply: "Ne pas demander les cochées" },
   personal: { icon: User, tone: "danger", apply: "Ne pas demander les cochées" },
   skip: { icon: Ban, tone: "muted", apply: "Ne pas demander les cochées" },
 };
@@ -78,7 +77,7 @@ export function ClaudeAnalysis({ dossierId, onApplied }: { dossierId: string; on
         <div className="space-y-1">
           <h2 className="flex items-center gap-2 text-lg"><Sparkles className="h-5 w-5" /> Analyse par Claude</h2>
           <p className="max-w-2xl text-sm text-muted-foreground">
-            Claude repère les tiers à regrouper, les doublons, les dépenses qui semblent personnelles et les lignes pour lesquelles
+            Claude repère les tiers à regrouper, les dépenses qui semblent personnelles et les lignes pour lesquelles
             aucune facture n'est en général attendue. Rien n'est modifié sans votre validation.
           </p>
         </div>
@@ -147,8 +146,7 @@ export function ClaudeAnalysis({ dossierId, onApplied }: { dossierId: string; on
 
 function SuggestionCard({ s, onDone }: { s: Suggestion; onDone: () => void }) {
   const k = KIND[s.kind];
-  // Duplicates: keep the first (oldest) payment, propose to drop the copies.
-  const [sel, setSel] = useState<Set<string>>(() => new Set((s.kind === "duplicate" ? s.lines.slice(1) : s.lines).map((t) => t.id)));
+  const [sel, setSel] = useState<Set<string>>(() => new Set(s.lines.map((t) => t.id)));
   const [target, setTarget] = useState(s.target_supplier ?? "");
   const [busy, setBusy] = useState(false);
   const notPending = s.kind !== "group" && s.lines.some((t) => sel.has(t.id) && t.review_state !== "pending");
