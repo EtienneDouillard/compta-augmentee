@@ -20,6 +20,7 @@ import {
   type RecapPret,
 } from "@/lib/recap.functions";
 import { RELANCES_JOURS } from "@/lib/recap-client";
+import { InfoTip } from "@/components/Aide";
 
 const lien = () => (typeof window === "undefined" ? "https://localhost" : window.location.origin);
 // The app sends nothing (Julien, 29/10/2026): the recap opens in the firm's own mail app.
@@ -111,6 +112,10 @@ export function RecapClientPanel({ dossierId }: { dossierId: string }) {
     <section id="recap" className="scroll-mt-6 rounded-xl border bg-card p-5 shadow-sm">
       <h2 className="flex items-center gap-2 text-lg">
         <BellRing className="h-5 w-5" /> Prévenir le client par e-mail
+        <InfoTip label="Récapitulatif au client">
+          L'e-mail est préparé dans votre messagerie : vous le relisez et l'envoyez vous-même. Un récapitulatif au plus
+          toutes les 12 h.
+        </InfoTip>
       </h2>
       <p className="mt-1 text-sm text-muted-foreground">
         Un seul e-mail récapitulatif, détaillé par fournisseur (date, montant, libellé, reste à

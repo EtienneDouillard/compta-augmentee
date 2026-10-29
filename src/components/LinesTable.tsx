@@ -16,6 +16,7 @@ import { formatDate, formatEUR, type Tx } from "@/lib/session";
 import { matchesSearch, txHaystack } from "@/lib/priority";
 import { regrouper, type Groupe } from "@/lib/regroupement";
 import { cn } from "@/lib/utils";
+import { InfoTip } from "@/components/Aide";
 
 type Upload = { id: string; transaction_id: string; storage_path: string; file_name: string };
 export type Tab = "all" | "pending" | "waiting" | "answered" | "dismissed";
@@ -250,6 +251,11 @@ export function LinesTable({ txs, uploads, onChanged, onRename, onDownload, onSa
         <FilterChip size="sm" active={tab === "waiting"} onClick={() => filterBy(() => setTab("waiting"))} count={count("waiting")} icon={Send}>En attente du client</FilterChip>
         <FilterChip size="sm" active={tab === "answered"} onClick={() => filterBy(() => setTab("answered"))} count={count("answered")} icon={Inbox}>Réponses reçues</FilterChip>
         <FilterChip size="sm" active={tab === "dismissed"} onClick={() => filterBy(() => setTab("dismissed"))} count={count("dismissed")} icon={Ban}>Non demandées</FilterChip>
+        <InfoTip label="Statuts des lignes">
+          « À valider » : trouvée à la synchronisation, invisible du client. « En attente du client » : envoyée, sans réponse.
+          « Réponses reçues » : le client a déposé une facture ou répondu. « Non demandées » : écartées par vous ou par une règle.
+          La vue « Par fournisseur » regroupe automatiquement les tiers aux noms proches ; le crayon corrige un tiers durablement.
+        </InfoTip>
         {allSent.length > 0 && (
           <Button size="sm" variant="outline" disabled={busy} className="ml-auto"
             title="Remettre toutes les demandes de ce dossier « À valider » : le client ne les voit plus"

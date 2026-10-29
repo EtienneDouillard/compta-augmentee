@@ -22,6 +22,7 @@ import { RecapGroupe } from "@/components/RecapClient";
 import { CabinetChat } from "@/components/CabinetChat";
 import { cn } from "@/lib/utils";
 import type { Tab } from "@/components/LinesTable";
+import { InfoTip } from "@/components/Aide";
 
 export const Route = createFileRoute("/_authenticated/cabinet/")({
   beforeLoad: requireCabinet,
@@ -155,11 +156,11 @@ function Cabinet() {
         </div>
 
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
-          <Kpi onClick={() => openTile("all")} icon={Folder} label="Dossiers" value={String(rows.length)} sub={`${totals.syncedToday} synchronisé${totals.syncedToday > 1 ? "s" : ""} aujourd'hui`} />
-          <Kpi onClick={() => openTile("pending")} icon={Eye} label="Demandes à valider" value={String(totals.pending)} sub={`dans ${totals.pendingDossiers} dossier${totals.pendingDossiers > 1 ? "s" : ""}`} highlight={totals.pending > 0} />
-          <Kpi onClick={() => openTile("sent")} icon={Send} label="Envoyées au client" value={String(totals.sent)} sub={`${totals.sent - totals.received} en attente de réponse`} />
-          <Kpi onClick={() => openTile("received")} icon={Inbox} label="Réponses reçues" value={String(totals.received)} sub={totals.sent ? `${Math.round((totals.received / totals.sent) * 100)} % des demandes envoyées` : "aucune demande envoyée"} />
-          <Kpi onClick={() => openTile("toJustify")} icon={Euro} label="Montant restant à justifier" value={formatEUR(totals.toJustify)} sub="à valider ou en attente du client" className="col-span-2 lg:col-span-1" />
+          <Kpi onClick={() => openTile("all")} icon={Folder} label="Dossiers" tip="Les dossiers clients suivis par le cabinet. Cliquez pour voir la liste." value={String(rows.length)} sub={`${totals.syncedToday} synchronisé${totals.syncedToday > 1 ? "s" : ""} aujourd'hui`} />
+          <Kpi onClick={() => openTile("pending")} icon={Eye} label="Demandes à valider" tip="Paiements sans justificatif trouvés à la synchronisation. Le client ne les voit pas tant que vous ne les avez pas envoyés." value={String(totals.pending)} sub={`dans ${totals.pendingDossiers} dossier${totals.pendingDossiers > 1 ? "s" : ""}`} highlight={totals.pending > 0} />
+          <Kpi onClick={() => openTile("sent")} icon={Send} label="Envoyées au client" tip="Demandes visibles par le client dans son espace, qu'il ait répondu ou non." value={String(totals.sent)} sub={`${totals.sent - totals.received} en attente de réponse`} />
+          <Kpi onClick={() => openTile("received")} icon={Inbox} label="Réponses reçues" tip="Demandes envoyées auxquelles le client a répondu : facture déposée ou explication donnée." value={String(totals.received)} sub={totals.sent ? `${Math.round((totals.received / totals.sent) * 100)} % des demandes envoyées` : "aucune demande envoyée"} />
+          <Kpi onClick={() => openTile("toJustify")} icon={Euro} label="Montant restant à justifier" tip="Total des paiements encore sans réponse, à valider ou en attente du client. Les lignes « non demandées » n'y sont pas." value={formatEUR(totals.toJustify)} sub="à valider ou en attente du client" className="col-span-2 lg:col-span-1" />
         </div>
 
         <McpPanel existing={rows.map((r) => r.d.company_id)} />
@@ -259,12 +260,15 @@ function Cabinet() {
   );
 }
 
-function Kpi({ icon: Icon, label, value, sub, highlight, className, onClick }: {
-  icon: LucideIcon; label: string; value: ReactNode; sub: string; highlight?: boolean; className?: string; onClick: () => void;
+function Kpi({ icon: Icon, label, value, sub, highlight, className, onClick, tip }: {
+  icon: LucideIcon; label: string; value: ReactNode; sub: string; highlight?: boolean; className?: string; onClick: () => void; tip: string;
 }) {
+  // The help tip sits beside the tile button, not inside it (a button cannot hold another one).
   return (
+    <div className={cn("relative", className)}>
+    <InfoTip label={label} className="absolute right-2 top-2 z-10">{tip}</InfoTip>
     <button type="button" onClick={onClick} title={`Voir : ${label}`}
-      className={cn("rounded-xl border bg-card p-4 text-left shadow-sm transition hover:border-primary hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary", highlight && "border-yellow bg-yellow-soft/40", className)}>
+      className={cn("h-full w-full rounded-xl border bg-card p-4 pr-9 text-left shadow-sm transition hover:border-primary hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary", highlight && "border-yellow bg-yellow-soft/40")}>
       <div className="flex items-center gap-2 text-sm font-semibold text-primary">
         <span className={cn("flex h-7 w-7 items-center justify-center rounded-md", highlight ? "bg-yellow-soft text-yellow-ink" : "bg-pale text-primary")}>
           <Icon className="h-4 w-4" />
@@ -274,5 +278,6 @@ function Kpi({ icon: Icon, label, value, sub, highlight, className, onClick }: {
       <div className="mt-2 text-2xl font-bold tabular-nums text-primary sm:text-3xl">{value}</div>
       <div className="text-xs text-muted-foreground">{sub}</div>
     </button>
+    </div>
   );
 }

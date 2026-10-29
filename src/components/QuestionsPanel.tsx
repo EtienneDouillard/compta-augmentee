@@ -3,6 +3,7 @@ import { MessageSquare } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { InfoTip } from "@/components/Aide";
 
 export function QuestionsPanel({ dossierId }: { dossierId: string }) {
   const q = useQuery({
@@ -26,6 +27,10 @@ export function QuestionsPanel({ dossierId }: { dossierId: string }) {
     <section className={`rounded-xl border bg-card p-5 shadow-sm ${open ? "border-yellow" : ""}`}>
       <h2 className="flex items-center gap-2 text-lg">
         <MessageSquare className="h-5 w-5" /> Questions transmises par le client
+        <InfoTip label="Questions du client">
+          Messages laissés par le client depuis son espace, par exemple quand il vous demande de contacter un fournisseur.
+          Marquez-les traités une fois la réponse donnée.
+        </InfoTip>
         {open > 0 && <span className="rounded-full bg-yellow-soft px-2 py-0.5 text-sm font-bold text-yellow-ink">{open} à traiter</span>}
       </h2>
       <div className="mt-3 space-y-3">

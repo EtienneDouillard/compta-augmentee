@@ -8,6 +8,7 @@ import { libellePcg } from "@/lib/pcg";
 import { CHOIX, choixPour, ecritureSansFacture, erreurCompte, type ChoixId } from "@/lib/sans-facture";
 import { choisirEcriture, envoyerEcriture } from "@/lib/sans-facture.functions";
 import { formatDate, formatEUR, type Tx } from "@/lib/session";
+import { InfoTip } from "@/components/Aide";
 
 // The firm chooses the entry for a bank payment the client has no invoice for (Julien, 29/10/2026).
 export function EcritureSansFacture({ tx, demo, onClose, onDone }: { tx: Tx | null; demo: boolean; onClose: () => void; onDone: () => void }) {
@@ -15,7 +16,11 @@ export function EcritureSansFacture({ tx, demo, onClose, onDone }: { tx: Tx | nu
     <Dialog open={tx !== null} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2"><FileX className="h-5 w-5 text-primary" /> Choisir l'écriture</DialogTitle>
+          <DialogTitle className="flex items-center gap-2"><FileX className="h-5 w-5 text-primary" /> Choisir l'écriture
+            <InfoTip label="Choisir l'écriture">
+              Quand le client n'a pas de facture, choisissez l'écriture à passer face au paiement bancaire. Vérifiez le compte
+              proposé avant de valider.
+            </InfoTip></DialogTitle>
           <DialogDescription>Le client n'a pas de facture pour ce paiement : choisissez l'écriture à passer face à la transaction bancaire.</DialogDescription>
         </DialogHeader>
         {tx && <Content key={tx.id} tx={tx} demo={demo} onDone={onDone} />}

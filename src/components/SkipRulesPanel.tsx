@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { addSkipRule, deleteSkipRule } from "@/lib/skip-rules.functions";
 import { describeRule, normalizeText, REGLES_CONSEILLEES, ruleMatches, type SkipRule } from "@/lib/skip-rules";
 import type { Tx } from "@/lib/session";
+import { InfoTip } from "@/components/Aide";
 
 type Kind = SkipRule["kind"];
 type Dir = "all" | "out" | "in";
@@ -90,7 +91,11 @@ export function SkipRulesPanel({ dossierId, txs, onChanged }: { dossierId: strin
 
   return (
     <section id="regles" className="scroll-mt-6 rounded-xl border bg-card p-5 shadow-sm">
-      <h2 className="flex items-center gap-2 text-lg"><Filter className="h-5 w-5" /> Règles « ne plus demander »</h2>
+      <h2 className="flex items-center gap-2 text-lg"><Filter className="h-5 w-5" /> Règles « ne plus demander »
+        <InfoTip label="Règles « ne plus demander »">
+          Une règle porte sur des mots du libellé (ex. URSSAF) ou sur un fournisseur. Supprimer une règle remet ses lignes
+          encore écartées « À valider ».
+        </InfoTip></h2>
       <p className="mt-1 text-sm text-muted-foreground">
         Les lignes à valider qui correspondent à une règle passent en « Non demandée », maintenant et à chaque synchronisation.
         Les lignes déjà envoyées au client ne sont pas modifiées.
