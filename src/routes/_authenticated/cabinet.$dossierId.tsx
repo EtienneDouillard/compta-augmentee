@@ -14,6 +14,7 @@ import { SkipRulesPanel } from "@/components/SkipRulesPanel";
 import { CabinetChat } from "@/components/CabinetChat";
 import { ClaudeAnalysis } from "@/components/ClaudeAnalysis";
 import { SaisieAugmentee } from "@/components/SaisieAugmentee";
+import { EnvoiGroupe } from "@/components/EnvoiGroupe";
 import { SourcePill } from "@/components/StatusPill";
 import { createClientAccount } from "@/lib/admin.functions";
 import { syncDossierNow } from "@/lib/sync.functions";
@@ -148,7 +149,8 @@ function DossierPage() {
         <QuestionsPanel dossierId={dossierId} />
         <ClaudeAnalysis dossierId={dossierId} onApplied={reload} />
         <LinesTable txs={txs} uploads={uploads} onChanged={reload} onRename={rename} onDownload={download} onSaisie={setSaisie} />
-        <SaisieAugmentee uploadId={saisie} onClose={() => setSaisie(null)} />
+        <SaisieAugmentee uploadId={saisie} onClose={() => { setSaisie(null); qc.invalidateQueries({ queryKey: ["envoi-groupe", dossierId] }); }} />
+        <EnvoiGroupe dossierId={dossierId} onDone={reload} />
         <SkipRulesPanel dossierId={dossierId} txs={txs} onChanged={reload} />
 
         <div className="grid gap-5 lg:grid-cols-2">
