@@ -203,7 +203,22 @@ async function planB(tabId, frameId, rowText, skipText) {
     chrome.tabs.remove(pid).catch(() => {});
     if (p) return { ...p, via: a.text };
   }
+  // Last resort: the supplier's own billing page, printed with only this row visible (date, amount, paid).
+  if (await inFrame(tabId, frameId, isolateRow, [rowText, true])) {
+    const p = await printTab(tabId);
+    await inFrame(tabId, frameId, isolateRow, [rowText, false]);
+    if (p) return { ...p, via: "page de facturation" };
+  }
   return null;
+}
+function isolateRow(rowText, on) {
+  const norm = (s) => (s || "").replace(/\s+/g, " ").trim();
+  if (!on) { document.querySelectorAll("[data-caplus-hid]").forEach((e) => { e.style.display = ""; e.removeAttribute("data-caplus-hid"); }); return true; }
+  const key = norm(rowText).slice(0, 60);
+  const row = [...document.querySelectorAll("tr, li, [role=row]")].find((r) => norm(r.innerText).startsWith(key));
+  if (!row) return false;
+  [...row.parentElement.children].forEach((e) => { if (e !== row && !e.querySelector("th")) { e.setAttribute("data-caplus-hid", "1"); e.style.display = "none"; } });
+  return true;
 }
 
 async function api() {
