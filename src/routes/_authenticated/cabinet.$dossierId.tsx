@@ -8,7 +8,7 @@ import { AppHeader } from "@/components/AppHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { LinesTable } from "@/components/LinesTable";
+import { LinesTable, TABS, type Tab } from "@/components/LinesTable";
 import { QuestionsPanel } from "@/components/QuestionsPanel";
 import { SkipRulesPanel } from "@/components/SkipRulesPanel";
 import { CabinetChat } from "@/components/CabinetChat";
@@ -23,6 +23,9 @@ import { meQuery, requireCabinet, startPreview, type Tx } from "@/lib/session";
 
 export const Route = createFileRoute("/_authenticated/cabinet/$dossierId")({
   beforeLoad: requireCabinet,
+  // ?vue=pending opens the lines on that tab: the dashboard tiles lead here (Julien, 29/10/2026).
+  validateSearch: (search: Record<string, unknown>): { vue?: Tab | undefined } =>
+    TABS.includes(search["vue"] as Tab) ? { vue: search["vue"] as Tab } : {},
   head: () => ({
     meta: [
       { title: "Tableau de bord du dossier — PBC List" },
@@ -38,6 +41,7 @@ export const Route = createFileRoute("/_authenticated/cabinet/$dossierId")({
 
 function DossierPage() {
   const { dossierId } = Route.useParams();
+  const { vue } = Route.useSearch();
   const qc = useQueryClient();
   const [syncing, setSyncing] = useState(false);
   const [saisie, setSaisie] = useState<string | null>(null);
@@ -161,7 +165,9 @@ function DossierPage() {
 
         <QuestionsPanel dossierId={dossierId} />
         <ClaudeAnalysis dossierId={dossierId} onApplied={reload} />
-        <LinesTable txs={txs} uploads={uploads} onChanged={reload} onRename={rename} onDownload={download} onSaisie={setSaisie} />
+        <div id="lignes" className="scroll-mt-6">
+          <LinesTable key={vue ?? "defaut"} txs={txs} uploads={uploads} onChanged={reload} onRename={rename} onDownload={download} onSaisie={setSaisie} initialTab={vue} />
+        </div>
         <SaisieAugmentee uploadId={saisie} onClose={() => { setSaisie(null); qc.invalidateQueries({ queryKey: ["envoi-groupe", dossierId] }); }} />
         <EnvoiGroupe dossierId={dossierId} onDone={reload} />
         <SkipRulesPanel dossierId={dossierId} txs={txs} onChanged={reload} />
