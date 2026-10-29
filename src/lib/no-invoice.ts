@@ -19,3 +19,7 @@ export const PHOTO_SANS_FACTURE_NOTE = `Exceptionnellement, une photo peut servi
 Votre comptable appréciera si la photo suffit à justifier la dépense.`;
 
 export const PHOTO_SANS_FACTURE_COMMENT = "Photo justificative hors facture : aucune TVA déductible.";
+
+// Simon 7: a monthly card debit or a grouped transfer. The client deposits the card statement (or the list of
+// transfers); the firm cuts the line into operations, each of which then needs its own invoice.
+export const RELEVE_COMMENT = "Relevé de carte ou détail du virement déposé : à découper par le cabinet.";

@@ -20,7 +20,7 @@ const ECRITURE_OFF = "L'envoi vers Pennylane est désactivé pour l'instant (fon
 const SAISIE_COLUMNS =
   "id, upload_id, transaction_id, tiers, fournisseur, numero, date_facture, total_ht, total_tva, total_ttc, libelle_ecriture, lignes, state, cost_usd, lu_le, decided_at, pennylane_invoice_id, envoye_le, type_document:lecture->>typeDocument";
 
-async function requireCabinetRole(db: any, userId: string) {
+export async function requireCabinetRole(db: any, userId: string) {
   const { data } = await db.from("user_roles").select("role").eq("user_id", userId);
   if (!(data ?? []).some((r: { role: string }) => r.role === "cabinet")) throw new Error("Saisie réservée au cabinet.");
 }
@@ -94,7 +94,7 @@ async function envoyer(db: any, userId: string, s: any) {
 }
 
 // Same monthly cap as the dossier analysis: every Claude call of the app is logged in ai_analysis_runs.
-async function budget(db: any) {
+export async function budget(db: any) {
   const [{ data: s }, { data: runs }] = await Promise.all([
     db.from("ai_settings").select("monthly_cap_usd").eq("id", 1).maybeSingle(),
     db.from("ai_analysis_runs").select("cost_usd").gte("created_at", monthStart()),

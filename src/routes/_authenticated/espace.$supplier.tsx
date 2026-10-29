@@ -5,7 +5,7 @@ import { InvoiceSourceSetup } from "@/components/InvoiceSourceSetup";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import {
-  AlertTriangle, ArrowLeft, ArrowRight, Camera, Check, CloudUpload, Copy, FolderOpen, Handshake, Info, Mail, MailPlus, PartyPopper, Send, Sparkles, Upload,
+  AlertTriangle, ArrowLeft, ArrowRight, Camera, Check, CloudUpload, Copy, FileText, FolderOpen, Handshake, Info, Mail, MailPlus, PartyPopper, Send, Sparkles, Upload,
   type LucideIcon,
 } from "lucide-react";
 import { AppHeader } from "@/components/AppHeader";
@@ -28,6 +28,7 @@ import { emailsFournisseur } from "@/lib/saisie.functions";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { useCabinet } from "@/lib/cabinet";
+import { estGroupe } from "@/lib/decoupage";
 import { useClientDossier, useClientTxs } from "./espace.index";
 
 import { NO_INVOICE_NOTE_SALE, NO_INVOICE_WARNING, PHOTO_SANS_FACTURE_NOTE } from "@/lib/no-invoice";
@@ -247,6 +248,9 @@ function SupplierStep({ steps, idx, dossierId, progress }: {
               {mode === "upload" && (
                 <ChoicePanel>
                   <DropZone busy={busy} several={selected.length > 1} noun={noun} onFiles={(f) => uploadFiles(f, selected)} />
+                  {!isSale && selected.some((t) => estGroupe(t.label)) && (
+                    <ReleveGroupe busy={busy} onFiles={(f) => upload(f, selected.filter((t) => estGroupe(t.label)), { releve: true })} />
+                  )}
                   {!isSale && <PhotoSansFacture busy={busy} onFiles={(f) => upload(f, selected, { photoSansFacture: true })} />}
                 </ChoicePanel>
               )}
@@ -383,6 +387,26 @@ function ChoiceTile({ emoji, tone, open, onToggle, title, desc }: {
 
 function ChoicePanel({ children }: { children: ReactNode }) {
   return <div className="mt-4 rounded-2xl border-2 border-primary bg-card p-5 shadow-sm sm:p-6">{children}</div>;
+}
+
+// Simon 7: a monthly card debit or a grouped transfer covers several purchases. The client deposits the statement;
+// the firm cuts the line into operations and then asks for each invoice.
+function ReleveGroupe({ busy, onFiles }: { busy: boolean; onFiles: (f: File[]) => void }) {
+  const input = useRef<HTMLInputElement>(null);
+  return (
+    <div className="mt-4 rounded-xl border border-dashed bg-pale-2 p-4 text-sm">
+      <p className="font-semibold text-primary">Ce paiement regroupe plusieurs achats (débit carte du mois, virement groupé) ?</p>
+      <p className="mt-1 text-muted-foreground">
+        Déposez plutôt le relevé de carte ou le détail du virement : votre cabinet découpera ce paiement en opérations, puis vous
+        demandera la facture de chacune.
+      </p>
+      <Button variant="outline" size="lg" className="mt-3" disabled={busy} onClick={() => input.current?.click()}>
+        <FileText /> Déposer le relevé ou le détail
+      </Button>
+      <input ref={input} type="file" accept={ACCEPT} className="hidden"
+        onChange={(e) => { onFiles([...(e.target.files ?? [])]); e.target.value = ""; }} />
+    </div>
+  );
 }
 
 // Retour de Stéphane: a photo instead of a missing invoice (fuel pump…), accepted as an exception, without VAT.
