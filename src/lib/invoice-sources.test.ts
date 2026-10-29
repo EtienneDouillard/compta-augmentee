@@ -19,3 +19,13 @@ describe('collectionState', () => {
   it('est active quand tout est vérifié', () => expect(collectionState([{ ...base, status: 'conforme' }, { ...base, status: 'recu_pennylane' }])).toBe('active'));
   it('attend la réception si seulement annoncé par e-mail', () => expect(collectionState([{ ...base, status: 'email_annonce' }])).toBe('awaiting_first_invoice'));
 });
+
+import { receptionProven } from './invoice-sources';
+describe('receptionProven', () => {
+  const base = { transactionId: 't', date: '2026-10-01', amount: -10, label: 'x', reason: '' };
+  it('faux tant que rien n’est reçu', () => expect(receptionProven([{ ...base, status: 'manquant' }, { ...base, status: 'email_annonce' }] as any)).toBe(false));
+  it('vrai dès une pièce conforme ou dans Pennylane', () => {
+    expect(receptionProven([{ ...base, status: 'manquant' }, { ...base, status: 'recu_pennylane' }] as any)).toBe(true);
+    expect(receptionProven([{ ...base, status: 'non_conforme' }] as any)).toBe(false);
+  });
+});
