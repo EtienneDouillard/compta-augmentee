@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { blocagesEnvoi, choisirPlanItem, clePlanItem, codeTva, corpsMiseAJour, type PlanItem } from "./pennylane-import";
+import { blocagesEnvoi, choisirPlanItem, clePlanItem, codeTva, corpsMiseAJour, estRefusDeDroit, factureDejaPresente, type PlanItem } from "./pennylane-import";
 import type { Facture } from "./ventilation";
 
 const facture = (over: Partial<Facture> = {}): Facture => ({
@@ -54,5 +54,33 @@ describe("envoi d'une facture fournisseur dans Pennylane", () => {
     const sans6063 = new Map(trouves);
     sans6063.delete(clePlanItem("6063", "FR_200"));
     expect(blocagesEnvoi(facture(), sans6063)).toEqual(["Le compte 6063 n'est pas ouvert dans le dossier Pennylane pour ce taux de TVA : ouvrez-le d'abord."]);
+  });
+});
+
+describe("erreur à la première opération", () => {
+  it("refus de droit reconnu", () => {
+    expect(estRefusDeDroit("insufficient_scope")).toBe(true);
+    expect(estRefusDeDroit("HTTP 403 Forbidden")).toBe(true);
+    expect(estRefusDeDroit("Operation not enabled for this user")).toBe(true);
+  });
+  it("autre erreur montrée telle quelle", () => {
+    expect(estRefusDeDroit("Invalid filter: field number")).toBe(false);
+    expect(estRefusDeDroit("Unknown operation_id getListCompanyPlanItems")).toBe(false);
+  });
+});
+
+describe("facture déjà dans Pennylane", () => {
+  const f = facture({ numero: "F-2026-09602", date: "2026-09-29", totalTtc: 2932.58 });
+  const pl = { id: "33486619148288", date: "2026-09-29", amount: "2932.58", label: "REVIEW - Honoraires comptables - F-2026-09602" };
+  it("retrouvée par date, montant et numéro", () => {
+    expect(factureDejaPresente(f, [pl])).toBe("33486619148288");
+  });
+  it("autre montant, autre date ou autre numéro : pas la même", () => {
+    expect(factureDejaPresente(f, [{ ...pl, amount: "2932.00" }])).toBeNull();
+    expect(factureDejaPresente(f, [{ ...pl, date: "2026-09-30" }])).toBeNull();
+    expect(factureDejaPresente(f, [{ ...pl, label: "REVIEW - F-2026-09999" }])).toBeNull();
+  });
+  it("sans numéro lu : date et montant suffisent", () => {
+    expect(factureDejaPresente(facture({ numero: "", date: "2026-09-29", totalTtc: 2932.58 }), [pl])).toBe("33486619148288");
   });
 });

@@ -5,8 +5,8 @@
 // validated ones (account, VAT, amounts, line label).
 import { createHash } from "node:crypto";
 import { isDemoCompany } from "./demo-dossiers";
-import { openMcp } from "./mcp.server";
-import { blocagesEnvoi, choisirPlanItem, clePlanItem, codeTva, corpsMiseAJour, type PlanItem } from "./pennylane-import";
+import { noterErreurMcp, openMcp } from "./mcp.server";
+import { blocagesEnvoi, choisirPlanItem, clePlanItem, codeTva, corpsMiseAJour, estRefusDeDroit, factureDejaPresente, type FacturePennylane, type PlanItem } from "./pennylane-import";
 import type { Facture } from "./ventilation";
 
 export const ENVOI_DEMO_ONLY_MSG = "L'envoi vers Pennylane est réservé aux dossiers démo du hackathon.";
@@ -33,6 +33,20 @@ export async function envoyerFacture(opts: {
   const run = <T>(operation_id: string, intent: string, extra: Record<string, unknown> = {}, path: Record<string, unknown> = {}) =>
     s.call<T>("run_operations", { operation_id, path_params: { company_id: Number(companyId), ...path }, ...extra }, intent);
   try {
+    // 0. Already in Pennylane (sent before, or arrived there another way): linked, never created twice.
+    const memeJour = await s.call<{ supplier_invoices?: FacturePennylane[] }>(
+      "list_supplier_invoices", { company_id: Number(companyId), period_start: f.date, period_end: f.date, page: 1 },
+      "Checking that a supplier invoice is not already in the company before sending it.",
+    ).catch(async (e: Error) => {
+      await noterErreurMcp("Envoi saisie (factures déjà présentes)", e.message).catch(() => {});
+      throw new Error(estRefusDeDroit(e.message) ? PAS_DE_DROIT_MSG : `Pennylane a refusé la lecture des factures fournisseurs : ${e.message.slice(0, 200)}`);
+    });
+    const existante = factureDejaPresente(f, memeJour.supplier_invoices ?? []);
+    if (existante) {
+      await opts.onCreated(existante);
+      return { invoiceId: existante, dejaPresente: true };
+    }
+
     // 1. Pennylane account of each line, for its VAT rate.
     const numeros = [...new Set(f.lignes.map((l) => l.compte))];
     const items: PlanItem[] = [];
@@ -41,9 +55,12 @@ export async function envoyerFacture(opts: {
       const r = await run<{ plan_items: PlanItem[]; pagination?: { hasNextPage?: boolean } }>(
         "getListCompanyPlanItems", "Looking up the company's expense accounts used by a supplier invoice before importing it.",
         { query_params: { page, per_page: 100, filter: JSON.stringify([{ field: "number", operator: "in", value: numeros }]) } },
-      ).catch((e: Error) => {
+      ).catch(async (e: Error) => {
+        // Every failure used to be shown as a missing right, so a reconnection never helped and the real cause
+        // stayed hidden. The detail is now kept on the connection row and shown when it is not about rights.
         console.error("pennylane-import operations", e.message);
-        throw new Error(PAS_DE_DROIT_MSG);
+        await noterErreurMcp("Envoi saisie (plan comptable)", e.message).catch(() => {});
+        throw new Error(estRefusDeDroit(e.message) ? PAS_DE_DROIT_MSG : `Pennylane a refusé la lecture du plan comptable : ${e.message.slice(0, 200)}`);
       });
       items.push(...(r.plan_items ?? []));
       if (!r.pagination?.hasNextPage) break;
@@ -100,7 +117,7 @@ export async function envoyerFacture(opts: {
       console.error("pennylane-import update", (e as Error).message);
       throw new Error(`Facture créée dans Pennylane avec son PDF (n° ${invoiceId}), mais ses lignes n'ont pas pu être mises à jour.`);
     }
-    return { invoiceId };
+    return { invoiceId, dejaPresente: false };
   } finally {
     await s.close();
   }
