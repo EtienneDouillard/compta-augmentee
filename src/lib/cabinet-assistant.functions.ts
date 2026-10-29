@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { clip, dataCell } from "@/lib/ai-data";
+import { AssistantAction, actionState, assertActionScope, type AssistantActionInput } from "./assistant-actions";
 
 export const CABINET_DAILY_LIMIT = 50;
 const MAX_LINES = 200;
@@ -14,6 +15,7 @@ Tu peux :
 - résumer l'état d'un dossier à partir des données fournies (lignes à valider, en attente du client, réponses reçues, montants, principaux tiers) ;
 - repérer, parmi les lignes fournies, celles qui ressemblent à des opérations pour lesquelles aucune facture n'est en général attendue (cotisations sociales, impôts et taxes, salaires, virements internes, remboursements d'emprunt, frais bancaires), en le présentant toujours comme une suggestion à vérifier. Un remboursement reçu d'un fournisseur ou versé à un client appelle en principe un avoir : ne le classe pas parmi les lignes sans facture, propose plutôt de demander l'avoir ;
 - rédiger un message de relance au client, court et poli.
+- Sur un dossier ouvert, proposer une action avec l'outil proposer_action : actualiser, analyser les opérations, lire une pièce déposée, envoyer les demandes au client, écarter ou réactiver des demandes. Une proposition n'est JAMAIS une action effectuée : elle attend le clic de confirmation du collaborateur. Utilise exclusivement les identifiants des données. Une pièce à la fois. Ne propose jamais d'écriture dans Pennylane, de création de compte, de changement de mot de passe, ni d'envoi d'e-mail. La validation comptable se fait dans l'écran de saisie, où la pièce et les lignes restent visibles.
 
 Fonctionnement de l'application (faits à utiliser, sans rien y ajouter) :
 - Synchronisation : bouton « Actualiser maintenant » sur la fiche d'un dossier, et une tâche planifiée qui synchronise tous les dossiers ; ses horaires sont réglés dans Lovable et tu ne les connais pas.
@@ -59,7 +61,7 @@ async function dossierContext(supabase: any, dossierId: string) {
     supabase.from("dossiers").select("name, company_id, collect_email, collect_email_customers, detect_prefixes, last_sync_at, last_sync_source").eq("id", dossierId).maybeSingle(),
     supabase.from("dossier_members").select("id", { count: "exact", head: true }).eq("dossier_id", dossierId),
     supabase.from("transactions")
-      .select("date, amount, label, supplier, direction, status, review_state, counterpart_accounts, comment")
+      .select("id, date, amount, label, supplier, direction, status, review_state, counterpart_accounts, comment")
       .eq("dossier_id", dossierId).eq("is_open", true).order("date", { ascending: false }),
   ]);
   if (!d) throw new Error("Dossier introuvable.");
@@ -68,14 +70,16 @@ async function dossierContext(supabase: any, dossierId: string) {
   const by = (state: string) => lines.filter((t) => stateOf(t).startsWith(state));
   // Lines to act on first: to review, then waiting for the client.
   const shown = [...by("à valider"), ...by("en attente"), ...by("réponse"), ...by("non demandée")].slice(0, MAX_LINES);
-  return `Dossier « ${dataCell(d.name)} » (company_id ${d.company_id}).
+  const { data: uploads } = await supabase.from("uploads").select("id, file_name").eq("dossier_id", dossierId).limit(100);
+  return `Identifiant du dossier : ${dossierId}. Pièces déposées : ${(uploads ?? []).map((u: any) => `${u.id} : ${dataCell(u.file_name)}`).join(" ; ") || "aucune"}.
+Dossier « ${dataCell(d.name)} » (company_id ${d.company_id}).
 Adresse de collecte achats : ${d.collect_email || "non renseignée"} ; ventes : ${d.collect_email_customers || "non renseignée"}.
 Comptes surveillés : ${d.detect_prefixes}. Comptes clients rattachés : ${members ?? 0}.
 Dernière synchronisation : ${parisTime(d.last_sync_at)} (source : ${d.last_sync_source ?? "inconnue"}).
 Lignes ouvertes : ${lines.length}, dont ${by("à valider").length} à valider (${sum(by("à valider"))} €), ${by("en attente").length} en attente du client (${sum(by("en attente"))} €), ${by("réponse").length} réponses reçues, ${by("non demandée").length} non demandées.
 ${shown.length < lines.length ? `Détail des ${shown.length} premières lignes (à valider, puis en attente) :` : "Détail des lignes :"}
 date | montant € | sens | tiers | libellé | comptes | état
-${shown.map((t) => `${t.date} | ${Math.abs(Number(t.amount)).toFixed(2)} | ${t.direction === "in" ? "vente" : "achat"} | ${tiers(t.supplier)} | ${dataCell(t.label)} | ${dataCell(t.counterpart_accounts) || "-"} | ${stateOf(t)}`).join("\n") || "(aucune)"}`;
+${shown.map((t: any) => `${t.id} | ${t.date} | ${Math.abs(Number(t.amount)).toFixed(2)} | ${t.direction === "in" ? "vente" : "achat"} | ${tiers(t.supplier)} | ${dataCell(t.label)} | ${dataCell(t.counterpart_accounts) || "-"} | ${stateOf(t)}`).join("\n") || "(aucune)"}`;
 }
 
 // Every dossier is counted, so the answer matches the figures on the list page;
@@ -150,7 +154,7 @@ export const sendCabinetChatMessage = createServerFn({ method: "POST" })
       data.dossierId,
     ).lte("created_at", new Date().toISOString()).order("created_at", { ascending: false }).limit(20);
     const messages = [...(hist ?? [])].reverse().map((h: { role: string; content: string }) => ({ role: h.role as "user" | "assistant", content: clip(h.content) }));
-    while (messages.length && messages[0]!.role !== "user") messages.shift();
+    while (messages[0] && messages[0].role !== "user") messages.shift();
     // The data goes in the question, marked as data, never in the instructions.
     messages.push({ role: "user", content: `<donnees>\n${contextTxt}\n</donnees>\n\n${data.message}` });
 
@@ -162,22 +166,56 @@ export const sendCabinetChatMessage = createServerFn({ method: "POST" })
     const { default: Anthropic } = await import("@anthropic-ai/sdk");
     const client = new Anthropic({ apiKey, maxRetries: 0 });
     let text = "";
+    const actions: AssistantActionInput[] = [];
     try {
       const stream = client.messages.stream({
         model: "claude-sonnet-5-5",
         max_tokens: 2000,
         system: SYSTEM,
         messages,
+        tools: data.dossierId ? [{ name: "proposer_action", description: "Propose une action de l'application à confirmer par le cabinet. Ne l'exécute pas.", input_schema: {
+          type: "object", required: ["action", "dossierId", "ids"], additionalProperties: false,
+          properties: { action: { type: "string", enum: ["sync", "analyse", "lire", "envoyer", "ecarter", "reactiver"] }, dossierId: { type: "string" }, ids: { type: "array", items: { type: "string" }, maxItems: 100 } },
+        } }] : undefined,
         output_config: { effort: "low" },
       } as any);
       const final = await stream.finalMessage();
       if ((final as any).stop_reason === "refusal") text = "Je ne peux pas répondre à cette question.";
       else text = final.content.filter((b: any) => b.type === "text").map((b: any) => b.text).join("");
+      for (const block of final.content) {
+        if (block.type !== "tool_use" || block.name !== "proposer_action") continue;
+        const action = AssistantAction.parse(block.input);
+        assertActionScope(action, data.dossierId);
+        actions.push(action);
+      }
     } catch (err: any) {
       console.error("cabinet-assistant-chat", err?.status, err?.message);
       throw new Error("L'assistant est momentanément indisponible. Réessayez plus tard.");
     }
     text = text.trim();
-    await supabase.from("cabinet_chat_messages").insert({ dossier_id: data.dossierId, user_id: userId, role: "assistant", content: text });
-    return { reply: text };
+    if (!text && actions.length) text = "Confirmez l'action proposée ci-dessous. Rien n'a encore été modifié.";
+    const { error } = await supabase.from("cabinet_chat_messages").insert({ dossier_id: data.dossierId, user_id: userId, role: "assistant", content: text });
+    if (error) throw new Error("Impossible d'enregistrer la réponse.");
+    return { reply: text, actions };
+  });
+
+export const executeAssistantAction = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ dossierId: z.string().uuid(), proposal: AssistantAction, confirmed: z.literal(true) }).parse(d))
+  .handler(async ({ data, context }) => {
+    await requireCabinetRole(context.supabase, context.userId);
+    assertActionScope(data.proposal, data.dossierId);
+    const { data: dossier, error } = await context.supabase.from("dossiers").select("id").eq("id", data.dossierId).single();
+    if (error || !dossier) throw new Error("Dossier inaccessible.");
+    const action = data.proposal;
+    if (["sync", "analyse", "lire"].includes(action.action))
+      throw new Error("Cette action doit passer par sa fonction dédiée.");
+    const state = actionState(action.action);
+    const { data: rows, error: readError } = await context.supabase.from("transactions").select("id")
+      .eq("dossier_id", dossier.id).eq("is_open", true).eq("review_state", state.from).in("id", action.ids);
+    if (readError || rows?.length !== new Set(action.ids).size) throw new Error("La sélection a changé ou contient une ligne inaccessible. Redemandez une proposition.");
+    const { data: changed, error: updateError } = await context.supabase.from("transactions").update({ review_state: state.to })
+      .eq("dossier_id", dossier.id).eq("is_open", true).eq("review_state", state.from).in("id", action.ids).select("id");
+    if (updateError) throw new Error("Impossible d'appliquer l'action.");
+    return { message: `${changed?.length ?? 0} demande(s) mise(s) à jour. Aucun e-mail ni écriture Pennylane envoyé.` };
   });
