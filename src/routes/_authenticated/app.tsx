@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Check, AlertTriangle, BookOpen, MessageSquare, Split, LogOut, Copy, FileDown, Download, ExternalLink, Upload, FlaskConical } from "lucide-react";
-import { importerFacturesPennylane, NB_FACTURES_PENNYLANE } from "@/lib/pennylane-import";
+import { importerFacturesPennylane, NB_FACTURES_PENNYLANE } from "@/lib/pennylane-snapshot";
 import { envoyerVentilation, PENNYLANE_ECRITURE_ACTIVE } from "@/lib/pennylane-write.beta";
 import { supabase } from "@/integrations/supabase/client";
 import { alertes, controle, ecriture, eur, round2, tvaLigne, type Facture, type Ligne } from "@/lib/ventilation";
