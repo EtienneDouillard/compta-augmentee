@@ -151,27 +151,7 @@ function Espace() {
           <>
             {/* Simon: the whole width is used and the client scrolls less: greeting and summary side by side. */}
             <div className="grid items-stretch gap-6 lg:grid-cols-2">
-            <div className="flex flex-col">
-            <h1 className="text-2xl sm:text-3xl">Bonjour,</h1>
-            {dossier.data?.name && (
-              <p className="mt-1 inline-flex max-w-full items-center gap-2 text-sm font-semibold text-muted-foreground">
-                <Building2 aria-hidden className="h-4 w-4 shrink-0" />
-                {(me.data?.dossiers.length ?? 0) > 1 && !me.data?.preview ? (
-                  <select aria-label="Changer de dossier" value={dossierId ?? ""} onChange={(e) => switchDossier(e.target.value)}
-                    className="max-w-full truncate bg-transparent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-                    {me.data!.dossiers.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
-                  </select>
-                ) : <span className="truncate">{dossier.data.name}</span>}
-              </p>
-            )}
-            {remaining === 0 && (
-              <p className="mt-3 max-w-2xl text-muted-foreground">
-                {all.length === 0 ? "Aucune facture ne vous est demandée pour le moment." : "Merci pour vos réponses."}
-              </p>
-            )}
-            <Nudge done={all.length - remaining} total={all.length} className="flex-1" />
-            </div>
-
+            {remaining === 0 && all.length === 0 && <p className="text-muted-foreground lg:col-span-2">Aucune facture ne vous est demandée pour le moment.</p>}
             {remaining === 0 ? (
               <section className="rounded-3xl bg-primary px-6 py-10 text-center text-primary-foreground sm:px-12">
                 <span className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-mint text-primary">
@@ -212,14 +192,13 @@ function Espace() {
                 </div>
               </section>
             )}
+            <MonthlyChart txs={all} className="h-full" />
             </div>
 
-            {(dossierId || all.length > 0) && (
-              <div className="mt-6 grid items-stretch gap-4 lg:grid-cols-2">
-                {dossierId && <SourcesSummary dossierId={dossierId} suppliers={[...new Set(all.filter((t) => t.direction === "out").map((t) => t.supplier))]} />}
-                <MonthlyChart txs={all} className="h-full" />
-              </div>
-            )}
+            <div className="mt-6 grid items-stretch gap-4 lg:grid-cols-2">
+              <Nudge done={all.length - remaining} total={all.length} className="h-full" />
+              {dossierId && <SourcesSummary dossierId={dossierId} suppliers={[...new Set(all.filter((t) => t.direction === "out").map((t) => t.supplier))]} />}
+            </div>
 
             {steps.length > 0 && (
               <div className="mt-8 space-y-3">
