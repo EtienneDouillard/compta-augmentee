@@ -1,4 +1,5 @@
 # Roadmap
+- [ ] Contrôle de pertinence des pièces par Claude Sonnet 5.5 avant l'envoi automatique
 - [ ] Collecte des factures : identifier la méthode depuis une URL, mémoriser la configuration et contrôler les pièces
 - [ ] Collecte mensuelle : réception e-mail / connexions fournisseur / compagnon Chrome — services et autorisations à configurer
 - [x] Corriger la configuration Claude et vérifier une conversation réelle
