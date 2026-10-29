@@ -8,7 +8,6 @@ chrome.alarms.onAlarm.addListener(async () => {
   if (lastMonth !== m) run().catch(() => {});
 });
 chrome.runtime.onMessage.addListener((msg, _s, reply) => {
-  if (msg.type === "learned") { chrome.storage.local.get("learned").then(({ learned = {} }) => { learned[msg.url] = msg.text; chrome.storage.local.set({ learned }); }); return; }
   if (msg.type === "teach") { teach(msg.url).then((log) => reply({ log })).catch((e) => reply({ log: "❌ " + e.message })); return true; }
   if (msg.type === "run") { run(msg.url || null).then((log) => reply({ log })).catch((e) => reply({ log: "❌ " + e.message })); return true; }
 });
@@ -82,19 +81,36 @@ async function grab(href) {
 
 function clickIt(idx) { document.querySelector(`[data-caplus="${idx}"]`)?.click(); }
 
+// Runs in the page's own JS world: background-tab clicks may not open popups, so window.open
+// (and the "open blank then set location" trick) is caught and its URL kept for the robot.
+function patchOpen() {
+  if (window.__caplusPatched) return; window.__caplusPatched = true;
+  const cap = (u) => { try { document.documentElement.dataset.caplusOpen = new URL(String(u), location.href).href; } catch {} };
+  window.open = (u) => {
+    if (u && String(u) !== "about:blank") cap(u);
+    const loc = { assign: cap, replace: cap, set href(v) { cap(v); } };
+    return { get location() { return loc; }, set location(v) { cap(v); }, close() {}, focus() {}, blur() {}, document: { write() {}, close() {} }, closed: false };
+  };
+}
+function readOpen() { const u = document.documentElement.dataset.caplusOpen || null; delete document.documentElement.dataset.caplusOpen; return u; }
+
 // Buttons without a link: click it, catch the download Chrome starts, keep its URL, cancel the save.
 async function clickAndCatch(tabId, idx) {
   let url = null;
   const onCreated = (item) => { url = item.finalUrl || item.url; chrome.downloads.cancel(item.id).catch(() => {}); chrome.downloads.erase({ id: item.id }).catch(() => {}); };
   const before = new Set((await chrome.tabs.query({})).map((t) => t.id));
   chrome.downloads.onCreated.addListener(onCreated);
+  await chrome.scripting.executeScript({ target: { tabId }, world: "MAIN", func: patchOpen }).catch(() => {});
   await chrome.scripting.executeScript({ target: { tabId }, func: clickIt, args: [idx] });
   let popup = null;
   for (let i = 0; i < 20 && !url; i++) {
     await wait(500);
     const tabs = await chrome.tabs.query({});
     popup = tabs.find((t) => !before.has(t.id)) || null;
-    if (popup && popup.url && /^https?:/.test(popup.url)) { url = url || popup.url; break; }
+    const pu = popup && (popup.url || popup.pendingUrl);
+    if (pu && /^https?:/.test(pu)) { url = url || pu; break; }
+    const [{ result: caught }] = await chrome.scripting.executeScript({ target: { tabId }, world: "MAIN", func: readOpen }).catch(() => [{}]);
+    if (caught) { url = caught; break; }
   }
   chrome.downloads.onCreated.removeListener(onCreated);
   return { url, popupId: popup?.id ?? null };
@@ -189,34 +205,85 @@ async function run(onlyUrl) {
   return text;
 }
 
-// "Montrer au robot": the supplier page opens in front, the user clicks the invoice link once,
-// the robot remembers that label for this page and runs again on its own.
+// "Montrer au robot": the supplier page opens in front, the user clicks the invoice link once.
+// The robot remembers that label for this page, follows the tab or download it opens,
+// takes the PDF (clicking "download" on an invoice web page if needed) and sends it to CA+.
 function listenClick() {
   document.addEventListener("click", (e) => {
     const el = e.target.closest("a, button, [role=button], [role=link]") || e.target;
     const text = (el.textContent || el.getAttribute("aria-label") || "").trim().slice(0, 40);
-    if (text) chrome.runtime.sendMessage({ type: "learned", url: location.href.split("#")[0], text });
+    const row = el.closest("tr, li, [role=row]") || el.parentElement?.parentElement?.parentElement;
+    if (text) chrome.runtime.sendMessage({ type: "learned", url: location.href.split("#")[0], text, rowText: (row?.innerText || "").replace(/\s+/g, " ").slice(0, 300) });
   }, { capture: true, once: true });
   const b = document.createElement("div");
   b.textContent = "🎓 CA+ : clique sur le lien de la facture";
   b.style.cssText = "position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:2147483647;background:#1e3d36;color:#fff;padding:10px 16px;border-radius:10px;font:600 15px sans-serif;box-shadow:0 4px 20px rgba(0,0,0,.3)";
   document.body.appendChild(b);
 }
+
+// A file from any tab: the tab's own URL if it is the PDF, else a PDF link or "download" button inside it.
+async function fileFromTab(tabId) {
+  await loaded(tabId); await wait(1500);
+  const t = await chrome.tabs.get(tabId);
+  let [{ result: f }] = await chrome.scripting.executeScript({ target: { tabId }, func: grab, args: [t.url] }).catch(() => [{ result: null }]);
+  if (f && !f.html) return f;
+  for (let k = 0; k < 6; k++) {
+    const [{ result: inner }] = await chrome.scripting.executeScript({ target: { tabId }, func: scan, args: [null] });
+    const dl = (inner || []).find((x) => /download|télécharger|pdf/i.test(x.rowText + (x.href || ""))) || (inner || [])[0];
+    if (dl) {
+      let href = dl.href;
+      if (!href) ({ url: href } = await clickAndCatch(tabId, dl.idx));
+      if (href) { [{ result: f }] = await chrome.scripting.executeScript({ target: { tabId }, func: grab, args: [href] }); if (f && !f.html) return f; }
+    }
+    await wait(1000);
+  }
+  return null;
+}
+
 async function teach(url) {
+  const { base, token, learned: before0 = {} } = await chrome.storage.local.get(["base", "token", "learned"]);
+  if (!base || !token) throw new Error("Robot pas encore relié : clique « Lancer le robot » dans CA+.");
+  const H = { Authorization: "Bearer " + token, "Content-Type": "application/json" };
+  const { sources = [] } = await (await fetch(base + "/api/public/collector", { headers: H })).json();
+  const src = sources.find((s) => s.url === url);
+  if (!src) return "Rien à chercher : aucune facture manquante pour cette source.";
+
   const tab = await chrome.tabs.create({ url, active: true });
   await loaded(tab.id); await wait(1500);
-  await chrome.scripting.executeScript({ target: { tabId: tab.id }, func: listenClick });
-  const start = Date.now();
-  let text = null;
-  while (!text && Date.now() - start < 120000) {
-    await wait(700);
-    const { learned = {} } = await chrome.storage.local.get("learned");
-    const t = await chrome.tabs.get(tab.id).catch(() => null);
-    text = learned[url] || (t && learned[(t.url || "").split("#")[0]]);
-    if (text && t && !learned[url]) { learned[url] = text; await chrome.storage.local.set({ learned }); }
-    if (!t) break;
+  let clicked = null, newTab = null, dlUrl = null;
+  const onMsg = (m) => { if (m.type === "learned") clicked = m; };
+  const onTab = (t) => { if (t.openerTabId === tab.id || !newTab) newTab = t.id; };
+  const onDl = (item) => { dlUrl = item.finalUrl || item.url; };
+  chrome.runtime.onMessage.addListener(onMsg);
+  chrome.tabs.onCreated.addListener(onTab);
+  chrome.downloads.onCreated.addListener(onDl);
+  try {
+    await chrome.scripting.executeScript({ target: { tabId: tab.id }, func: listenClick });
+    const start = Date.now();
+    while (!clicked && Date.now() - start < 180000) { await wait(500); if (!(await chrome.tabs.get(tab.id).catch(() => null))) break; }
+    if (!clicked) return "🎓 Rien appris (pas de clic).";
+    const learned = { ...before0, [url]: clicked.text };
+    await chrome.storage.local.set({ learned });
+    for (let i = 0; i < 16 && !newTab && !dlUrl; i++) await wait(500); // the tab or download the click opens
+
+    let file = null;
+    if (newTab) file = await fileFromTab(newTab);
+    else if (dlUrl) [{ result: file }] = await chrome.scripting.executeScript({ target: { tabId: tab.id }, func: grab, args: [dlUrl] });
+    else file = await fileFromTab(tab.id); // same tab navigated to the invoice
+    if (!file || file.html) return `🎓 Appris : « ${clicked.text} », mais pas de PDF trouvé derrière.`;
+
+    const date = (clicked.rowText.match(/20\d\d-\d\d-\d\d/) || [null])[0];
+    const ext = file.mime === "application/pdf" ? "pdf" : file.mime === "image/png" ? "png" : "jpg";
+    const r = await fetch(base + "/api/public/collector", { method: "POST", headers: H, body: JSON.stringify({
+      sourceId: src.id, fileName: `${src.supplier}-${date || "facture"}.${ext}`, mime: file.mime, base64: file.base64, invoiceDate: date, label: clicked.rowText,
+    }) });
+    const j = await r.json().catch(() => ({}));
+    return `🎓 Appris : « ${clicked.text} »\n${j.envoye ? "✅" : j.attached ? "📥" : "⚠️"} ${src.supplier} ${date || ""} : ${j.message || j.error || ""}`;
+  } finally {
+    chrome.runtime.onMessage.removeListener(onMsg);
+    chrome.tabs.onCreated.removeListener(onTab);
+    chrome.downloads.onCreated.removeListener(onDl);
+    if (newTab) chrome.tabs.remove(newTab).catch(() => {});
+    chrome.tabs.remove(tab.id).catch(() => {});
   }
-  chrome.tabs.remove(tab.id).catch(() => {});
-  if (!text) return "🎓 Rien appris (pas de clic).";
-  return `🎓 Appris : « ${text} »\n` + (await run(url));
 }
