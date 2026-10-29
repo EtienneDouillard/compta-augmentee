@@ -78,7 +78,7 @@ export function InvoiceSourceSetup({ dossierId, supplier }: { dossierId: string;
       {found.warnings.map((w, i) => <p key={i} className="text-destructive">⚠ {w}</p>)}
       <Button size="sm" onClick={() => applyResearch(found)}>Appliquer cette préconisation</Button>
     </div>}
- className="space-y-2"><legend className="mb-2 font-semibold">Méthode à mémoriser</legend>
+ <fieldset className="space-y-2"><legend className="mb-2 font-semibold">Méthode à mémoriser</legend>
       {([['email', 'E-mail vers Pennylane'], ['browser', 'Chemin dans le navigateur'], ['api', 'API · connexion à développer'], ['mcp', 'MCP · connexion à développer']] as const).map(([value, label]) => <label key={value} className="flex items-center gap-3 text-sm"><input type="radio" name="invoice-source-method" checked={method === value} onChange={() => { setMethod(value); setConfigured(false); }} />{label}</label>)}
     </fieldset>
     {method === 'email' ? <div className="space-y-3">
