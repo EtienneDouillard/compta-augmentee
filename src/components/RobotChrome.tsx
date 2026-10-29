@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useServerFn } from '@tanstack/react-start';
-import { Check, Copy, Download, Info, Loader2 } from 'lucide-react';
+import { Check, Copy, Download, ExternalLink, Info, Loader2, Upload } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -26,7 +26,9 @@ const Tip = ({ text }: { text: string }) => (
   </TooltipProvider>
 );
 
-export function RobotChrome({ dossierId, robotUrl, lastRun, onSaveUrl }: { dossierId: string; robotUrl: string; lastRun?: { at: string; message?: string } | null; onSaveUrl?: (url: string) => Promise<void> }) {
+export function RobotChrome({ dossierId, robotUrl, lastRun, onSaveUrl, onFiles }: { dossierId: string; robotUrl: string; lastRun?: { at: string; message?: string } | null; onSaveUrl?: (url: string) => Promise<void>; onFiles?: ((files: File[]) => void) | undefined }) {
+  const [over, setOver] = useState(false);
+  const send = (files: File[]) => { if (!files.length) return; if (!onFiles) { toast.error('Dépôt indisponible pour le moment.'); return; } onFiles(files); };
   const mint = useServerFn(createCollectorToken);
   const [token, setToken] = useState<string | null>(null);
   const [bm, setBm] = useState<string | null>(null);
@@ -79,19 +81,28 @@ export function RobotChrome({ dossierId, robotUrl, lastRun, onSaveUrl }: { dossi
     </div>
     <ol className="space-y-2">
       <li className="flex flex-wrap items-center gap-2"><span>1️⃣</span>
-        {bm ? (
-          <a ref={favRef} onClick={e => e.preventDefault()} draggable title="Glisse-moi dans la barre de favoris" className="inline-flex cursor-grab items-center gap-1 rounded bg-primary px-2 py-1 font-semibold text-primary-foreground">🤖 CA+ Robot</a>
-        ) : (
-          <Button size="sm" variant="outline" disabled={busy} onClick={makeFavorite}>{busy ? <Loader2 className="animate-spin" /> : <span aria-hidden>🤖</span>}Créer mon favori</Button>
-        )}
-        <Tip text="Glisse le bouton vert dans ta barre de favoris (Ctrl+Maj+B si elle est cachée). Un seul glisser-déposer." /></li>
-      <li className="flex flex-wrap items-center gap-2"><span>2️⃣</span><span className="font-semibold">Ouvre la page des factures et clique le favori</span>
-        <Tip text="1er clic : ouvre la page enregistrée. 2e clic (sur cette page) : télécharge les factures, Claude les vérifie et les envoie. Refais-le chaque mois." /></li>
+        <Button size="sm" asChild><a href={url} target="_blank" rel="noopener noreferrer"><ExternalLink />Ouvrir mes factures</a></Button>
+        <Tip text="Ouvre la page du fournisseur dans un nouvel onglet. Connecte-toi si besoin, puis télécharge la facture (bouton Invoice / PDF)." /></li>
+      <li className="flex flex-wrap items-center gap-2"><span>2️⃣</span>
+        <label
+          onDragOver={e => { e.preventDefault(); setOver(true); }} onDragLeave={() => setOver(false)}
+          onDrop={e => { e.preventDefault(); setOver(false); send([...e.dataTransfer.files]); }}
+          className={`flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-lg border-2 border-dashed px-4 py-4 font-semibold ${over ? 'border-primary bg-primary/10' : 'border-primary/40 bg-background'}`}>
+          <Upload className="h-4 w-4" />Glisse la facture ici
+          <input type="file" multiple accept="application/pdf,image/jpeg,image/png" className="hidden" onChange={e => { send([...(e.target.files ?? [])]); e.target.value = ''; }} />
+        </label>
+        <Tip text="Claude vérifie la facture puis CA+ l'envoie dans Pennylane." /></li>
     </ol>
     {lastRun && <p role="status" className="font-semibold text-primary">🕒 {new Date(lastRun.at).toLocaleString('fr-FR')} · {lastRun.message}</p>}
     <details className="text-xs text-muted-foreground">
-      <summary className="cursor-pointer font-semibold">⚙️ Option : collecte automatique (extension)</summary>
+      <summary className="cursor-pointer font-semibold">⚙️ Options avancées</summary>
       <div className="mt-2 flex flex-wrap items-center gap-2">
+        {bm ? (
+          <a ref={favRef} onClick={e => e.preventDefault()} draggable className="inline-flex cursor-grab items-center gap-1 rounded bg-primary px-2 py-1 font-semibold text-primary-foreground">🤖 CA+ Robot</a>
+        ) : (
+          <Button size="sm" variant="outline" disabled={busy} onClick={makeFavorite}>{busy ? <Loader2 className="animate-spin" /> : <span aria-hidden>🔖</span>}Favori</Button>
+        )}
+        <Tip text="Favori à glisser dans la barre de favoris Chrome (Ctrl+Maj+B), puis à cliquer sur la page des factures." />
         <Button size="sm" variant="outline" onClick={download}><Download />Extension</Button>
         <Tip text="Dézippe, ouvre chrome://extensions, active le mode développeur puis « Charger l'extension non empaquetée »." />
         <Button size="sm" variant="outline" disabled={busy} onClick={copyCode}><Copy />Code robot</Button>

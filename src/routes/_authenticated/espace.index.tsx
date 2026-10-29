@@ -154,21 +154,14 @@ function Espace() {
             <div>
             <h1 className="text-2xl sm:text-3xl">Bonjour,</h1>
             {dossier.data?.name && (
-              // The dossier name stands out (retour de Julien): the client sees at once which company is concerned.
-              <p className="mt-3 inline-flex max-w-full items-center gap-3 rounded-xl border-l-4 border-mint bg-card px-4 py-2.5 shadow-sm">
-                <Building2 aria-hidden className="h-5 w-5 shrink-0 text-primary" />
-                <span className="min-w-0">
-                  <span className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground">Dossier</span>
-                  {(me.data?.dossiers.length ?? 0) > 1 && !me.data?.preview ? (
-                    // Several companies (Simon 6): the client switches dossier here.
-                    <select aria-label="Changer de dossier" value={dossierId ?? ""} onChange={(e) => switchDossier(e.target.value)}
-                      className="block max-w-full truncate bg-transparent text-lg font-bold leading-snug text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:text-xl">
-                      {me.data!.dossiers.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
-                    </select>
-                  ) : (
-                    <strong className="block text-lg leading-snug text-primary sm:text-xl">{dossier.data.name}</strong>
-                  )}
-                </span>
+              <p className="mt-1 inline-flex max-w-full items-center gap-2 text-sm font-semibold text-muted-foreground">
+                <Building2 aria-hidden className="h-4 w-4 shrink-0" />
+                {(me.data?.dossiers.length ?? 0) > 1 && !me.data?.preview ? (
+                  <select aria-label="Changer de dossier" value={dossierId ?? ""} onChange={(e) => switchDossier(e.target.value)}
+                    className="max-w-full truncate bg-transparent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                    {me.data!.dossiers.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+                  </select>
+                ) : <span className="truncate">{dossier.data.name}</span>}
               </p>
             )}
             {remaining === 0 && (

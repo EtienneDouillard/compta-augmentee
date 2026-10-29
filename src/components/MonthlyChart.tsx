@@ -31,7 +31,6 @@ export function MonthlyChart({ txs, className }: { txs: { date: string; amount: 
           <span key={m.mois} className="flex-1 truncate text-center">{libelle(m.mois).split(" ")[0]}</span>
         ))}
       </div>
-      <p className="mt-2 text-xs text-muted-foreground">Justifié : facture transmise ou explication donnée.</p>
       <table className="sr-only">
         <caption>Montants justifiés et à justifier par mois</caption>
         <thead><tr><th scope="col">Mois</th><th scope="col">Justifié</th><th scope="col">À justifier</th></tr></thead>
