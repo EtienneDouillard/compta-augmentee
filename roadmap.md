@@ -1,4 +1,6 @@
 # Roadmap
+- [ ] Corriger la configuration Claude et vérifier une conversation réelle
+- [ ] Relier l'assistant aux actions du dossier avec confirmation et contrôle des droits
 - [x] Prototype : ventilation, livre de lecture, échange client
 - [x] Sauvegarde réelle : dossiers, factures, lignes, pièces, historique
 - [x] Connexion collaborateur (e-mail + Google)
