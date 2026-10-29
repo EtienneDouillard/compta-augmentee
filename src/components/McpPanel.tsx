@@ -50,9 +50,17 @@ export function McpPanel({ existing }: { existing: string[] }) {
           <p className="text-sm text-muted-foreground">Non connecté : la synchronisation utilise l'API (secours).</p>
         )}
       </div>
-      <Button variant={s === "connected" && !status.data?.needsReauth ? "outline" : "default"} onClick={connect} disabled={busy}>
-        <Plug /> {s === "connected" ? "Reconnecter Pennylane (MCP)" : "Connecter Pennylane (MCP)"}
-      </Button>
+      {/* Connected: no big button (Julien, 29/10/2026), only a discreet link in case the access has to be renewed. */}
+      {ok ? (
+        <button type="button" onClick={connect} disabled={busy} title="À utiliser seulement si la connexion expire"
+          className="rounded-sm text-sm text-muted-foreground underline-offset-4 hover:text-primary hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+          Reconnecter
+        </button>
+      ) : (
+        <Button onClick={connect} disabled={busy}>
+          <Plug /> {s === "connected" || s === "expired" ? "Reconnecter Pennylane (MCP)" : "Connecter Pennylane (MCP)"}
+        </Button>
+      )}
       <ImportDossiers existing={existing} />
     </div>
   );

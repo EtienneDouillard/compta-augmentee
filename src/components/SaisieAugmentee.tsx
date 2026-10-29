@@ -13,6 +13,7 @@ import { STATE_LABEL, TYPE_NON_VALABLE, ecartPaiement } from "@/lib/saisie";
 import { envoyerPennylane, getSaisie, lireFacture, rejeterSaisie, validerSaisie } from "@/lib/saisie.functions";
 import { formatDate, formatEUR } from "@/lib/session";
 import { alertes, controle, ecriture, round2, tvaLigne, type Facture, type Ligne } from "@/lib/ventilation";
+import { InfoTip } from "@/components/Aide";
 
 type State = Awaited<ReturnType<typeof getSaisie>>;
 type Saisie = NonNullable<State["saisie"]>;
@@ -25,8 +26,13 @@ export function SaisieAugmentee({ uploadId, onClose }: { uploadId: string | null
     <Dialog open={uploadId !== null} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-h-[90vh] max-w-7xl overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2"><Sparkles className="h-5 w-5 text-primary" /> Saisie augmentée</DialogTitle>
-          <DialogDescription>Claude lit la facture et propose un compte par nature. Vous validez. Sur un dossier démo, vous pouvez ensuite envoyer la facture et son PDF dans Pennylane.</DialogDescription>
+          <DialogTitle className="flex items-center gap-2"><Sparkles className="h-5 w-5 text-primary" /> Saisie augmentée
+            <InfoTip label="Saisie augmentée">
+              Claude lit la facture et propose un compte par nature ; vous validez. Sur un dossier démo, la facture et son
+              PDF peuvent ensuite être envoyés dans Pennylane. Les comptes sont choisis dans le plan comptable ANC au 1er janvier 2026. Une prestation sur plusieurs mois est
+              répartie entre charge et 486. Les comptes validés pour un tiers sont repris la fois suivante.
+            </InfoTip></DialogTitle>
+          <DialogDescription className="sr-only">Claude lit la facture et propose un compte par nature. Vous validez. Sur un dossier démo, vous pouvez ensuite envoyer la facture et son PDF dans Pennylane.</DialogDescription>
         </DialogHeader>
         {uploadId && <Content key={uploadId} uploadId={uploadId} />}
       </DialogContent>

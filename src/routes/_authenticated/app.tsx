@@ -9,6 +9,7 @@ import { eclater } from "@/lib/eclatement";
 import { lireLignesPiece } from "@/lib/piece.functions";
 import { AppHeader } from "@/components/AppHeader";
 import { requireCabinet } from "@/lib/session";
+import { InfoTip } from "@/components/Aide";
 
 export const Route = createFileRoute("/_authenticated/app")({
   beforeLoad: requireCabinet,
@@ -129,7 +130,11 @@ function AppPage() {
             <select value={dossierId ?? ""} onChange={(e) => setDossierId(e.target.value)} className="bg-transparent text-xs uppercase tracking-[0.15em] text-muted-foreground outline-none">
               {dossiers.map((d) => <option key={d.id} value={d.id}>{d.nom}</option>)}
             </select>
-            <h1 className="font-display text-4xl">Comptabilité augmentée</h1>
+            <h1 className="flex items-center gap-2 font-display text-4xl">Comptabilité augmentée
+              <InfoTip label="Ventilation et livre">
+                Écran repris de l'application « Comptabilité augmentée », réservé au cabinet : ventilation des factures par
+                compte, livre de lecture et échanges avec le client.
+              </InfoTip></h1>
             <p className="text-xs text-muted-foreground">Client : {dossier?.client_nom ?? "—"} · connecté : {email}</p>
           </div>
           <div className="flex items-center gap-3">

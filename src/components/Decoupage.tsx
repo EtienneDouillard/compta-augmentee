@@ -17,6 +17,7 @@ import { annulerDecoupage, decouper, lireReleve } from "@/lib/decoupage.function
 import { RELEVE_COMMENT } from "@/lib/no-invoice";
 import { formatDate, formatEUR, type Tx } from "@/lib/session";
 import { cn } from "@/lib/utils";
+import { InfoTip } from "@/components/Aide";
 
 type Upload = { id: string; transaction_id: string; storage_path: string; file_name: string };
 type Row = { date: string; fournisseur: string; montant: string };
@@ -101,12 +102,14 @@ export function Decoupage({ tx, files, onDone }: { tx: Tx; files: Upload[]; onDo
       </DialogTrigger>
       <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Découper la ligne en opérations</DialogTitle>
+          <DialogTitle className="flex items-center gap-2">Découper la ligne en opérations
+            <InfoTip label="Découpage">
+              Pour un débit carte ou un virement qui regroupe plusieurs achats : chaque opération devient une ligne à valider
+              avec son propre fournisseur. La ligne d'origine n'est plus montrée au client.
+            </InfoTip></DialogTitle>
           <DialogDescription>
             {formatDate(tx.date)} · <span className="font-mono">{tx.label}</span> ·{" "}
-            <strong>{formatEUR(Math.abs(Number(tx.amount)))}</strong>. Chaque opération devient une
-            ligne « À valider » avec son fournisseur ; la ligne d'origine n'est plus montrée au
-            client.
+            <strong>{formatEUR(Math.abs(Number(tx.amount)))}</strong>
           </DialogDescription>
         </DialogHeader>
 
