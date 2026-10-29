@@ -38,3 +38,16 @@ export function describeRule(r: Pick<SkipRule, "kind" | "pattern" | "direction">
   const dir = r.direction === "out" ? " (achats)" : r.direction === "in" ? " (ventes)" : "";
   return what + dir;
 }
+
+// Suggested rules (retour de Simon) for bank lines that never come with a supplier invoice: social contributions,
+// taxes, loan instalments, wages, bank fees. Offered to the firm in one click, never applied without it.
+export const REGLES_CONSEILLEES: { pattern: string; motif: string }[] = [
+  { pattern: "URSSAF", motif: "cotisations sociales" },
+  { pattern: "DGFIP", motif: "impôts et taxes" },
+  { pattern: "IMPOT", motif: "impôts et taxes" },
+  { pattern: "ECHEANCE PRET", motif: "échéances d'emprunt" },
+  { pattern: "ECH PRET", motif: "échéances d'emprunt" },
+  { pattern: "REMBOURSEMENT PRET", motif: "échéances d'emprunt" },
+  { pattern: "SALAIRE", motif: "salaires" },
+  { pattern: "FRAIS BANCAIRES", motif: "frais bancaires" },
+];

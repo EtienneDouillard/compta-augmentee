@@ -28,3 +28,5 @@
 - [x] Publier l'app après la fusion
 - [x] Favicon « CA+ » (augmenté)
 - [x] Comptes démo client + dirigeant sur le dossier Démo Hackathon 7, avec données Pennylane
+
+- [ ] Paramètres : changer la clé API Claude et le modèle (cabinet et dirigeant séparés), défaut Sonnet 5.5

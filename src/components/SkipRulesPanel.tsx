@@ -1,13 +1,13 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ChevronDown, Filter, Plus, Trash2 } from "lucide-react";
+import { ChevronDown, Filter, Plus, Sparkles, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { addSkipRule, deleteSkipRule } from "@/lib/skip-rules.functions";
-import { describeRule, ruleMatches, type SkipRule } from "@/lib/skip-rules";
+import { describeRule, normalizeText, REGLES_CONSEILLEES, ruleMatches, type SkipRule } from "@/lib/skip-rules";
 import type { Tx } from "@/lib/session";
 
 type Kind = SkipRule["kind"];
@@ -36,6 +36,28 @@ export function SkipRulesPanel({ dossierId, txs, onChanged }: { dossierId: strin
   const draft: SkipRule = { id: "", kind, pattern, direction: dir === "all" ? null : dir };
   // Same scope as the sync: open lines still awaiting the cabinet's review.
   const wouldSkip = pattern.trim().length >= 2 ? txs.filter((t) => t.review_state === "pending" && ruleMatches(draft, t)).length : 0;
+  // Suggested rules not yet in the dossier, with the lines each one would set aside now.
+  const have = new Set(rules.filter((r) => r.kind === "label").map((r) => normalizeText(r.pattern)));
+  const suggestions = REGLES_CONSEILLEES.filter((c) => !have.has(normalizeText(c.pattern))).map((c) => ({
+    ...c,
+    count: txs.filter((t) => t.review_state === "pending" && ruleMatches({ id: "", kind: "label", pattern: c.pattern, direction: "out" }, t)).length,
+  }));
+
+  async function addSuggested(list: typeof suggestions) {
+    setBusy(true);
+    try {
+      let skipped = 0;
+      for (const c of list) skipped += (await addSkipRule({ data: { dossierId, kind: "label", pattern: c.pattern, direction: "out" } })).skipped;
+      toast.success(`${plural(list.length, "règle")} ajoutée${list.length > 1 ? "s" : ""} : ${plural(skipped, "ligne")} mise${skipped > 1 ? "s" : ""} de côté.`);
+      await q.refetch();
+      onChanged();
+    } catch (err) {
+      toast.error((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   const setAside = (id: string) => txs.filter((t) => t.skip_rule_id === id && t.review_state === "dismissed").length;
 
   async function add(e: React.FormEvent) {
@@ -90,6 +112,23 @@ export function SkipRulesPanel({ dossierId, txs, onChanged }: { dossierId: strin
             </li>
           ))}
         </ul>
+      )}
+
+      {suggestions.length > 0 && (
+        <div className="mt-4 rounded-lg border border-dashed p-3">
+          <p className="flex items-center gap-2 text-sm font-semibold"><Sparkles className="h-4 w-4" /> Règles conseillées (achats sans facture fournisseur)</p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {suggestions.map((c) => (
+              <Button key={c.pattern} size="sm" variant="outline" disabled={busy} onClick={() => addSuggested([c])}
+                title={`Libellé contenant « ${c.pattern} » : ${c.motif}`}>
+                <Plus /> {c.pattern} <span className="text-muted-foreground">· {c.motif}{c.count ? ` · ${c.count}` : ""}</span>
+              </Button>
+            ))}
+            {suggestions.length > 1 && (
+              <Button size="sm" disabled={busy} onClick={() => addSuggested(suggestions)}><Plus /> Tout ajouter</Button>
+            )}
+          </div>
+        </div>
       )}
 
       <form onSubmit={add} className="mt-4 grid gap-3 sm:grid-cols-[11rem_1fr_9rem_auto] sm:items-end">

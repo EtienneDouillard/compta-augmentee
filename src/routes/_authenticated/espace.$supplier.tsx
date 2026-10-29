@@ -2,15 +2,14 @@ import { requireClient } from "@/lib/session";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { HelpChat } from "@/components/HelpChat";
 import { InvoiceSourceSetup } from "@/components/InvoiceSourceSetup";
-import { useQueryClient } from "@tanstack/react-query";
 import { useRef, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import {
-  AlertTriangle, ArrowLeft, ArrowRight, Camera, Check, ChevronDown, CloudUpload, Copy, FileX, FolderOpen, Info, Mail, PartyPopper, Upload,
+  AlertTriangle, ArrowLeft, ArrowRight, Camera, Check,  CloudUpload, Copy, FileX, FolderOpen, Info, Mail, MailPlus, PartyPopper, Sparkles, Upload,
   type LucideIcon,
 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { AppHeader } from "@/components/AppHeader";
+import { Nudge } from "@/components/Nudge";
 import { SupplierAvatar } from "@/components/brand";
 import { GroupStatePill, TxStatusPill } from "@/components/StatusPill";
 import { Button } from "@/components/ui/button";
@@ -18,23 +17,12 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { groupBySupplier, formatDate, formatEUR, type SupplierGroup, type Tx } from "@/lib/session";
 import { stepOrder } from "@/lib/priority";
+import type { Bilan } from "@/lib/controle-depot";
+import { ACCEPT, mailtoFactures, useDepot } from "@/lib/use-depot";
 import { cn } from "@/lib/utils";
 import { useClientDossier, useClientTxs } from "./espace.index";
 
-export const NO_INVOICE_WARNING = `Attention : sans facture, cette dépense risque de :
-– ne pas être déduite de votre résultat, car une charge doit être appuyée de justificatifs suffisants (BOI-BIC-CHG-10-20-20 § 1 et 10) ;
-– vous faire perdre la TVA récupérable, car la TVA n'est déductible que si elle figure sur une facture (CGI art. 271, II-2 ; BOI-TVA-DED-40-10-10 § 30) ;
-– être reclassée s'il s'agit d'une dépense personnelle : elle ne sera alors pas prise en charge par l'entreprise.
-Vous pouvez souvent obtenir un duplicata auprès du fournisseur. Votre comptable reviendra vers vous si besoin.`;
-
-// For a sale, the missing document is the client's own invoice: guidance only, no tax rule.
-export const NO_INVOICE_NOTE_SALE = `À savoir : pour un encaissement, la pièce attendue est la facture (ou le justificatif de vente) que vous avez établie pour votre client.
-– Si vous l'avez émise, vous la retrouverez dans votre logiciel de facturation ou dans vos e-mails envoyés : vous pouvez la déposer ou la transférer.
-– S'il s'agit d'un remboursement d'un fournisseur, déposez plutôt l'avoir qu'il vous a adressé (choix 1).
-– S'il ne s'agit pas d'une vente (apport, prêt, virement entre vos comptes…), précisez-le dans le commentaire.
-Votre comptable reviendra vers vous si besoin.`;
-
-const ACCEPT = "application/pdf,image/jpeg,image/png";
+import { NO_INVOICE_NOTE_SALE, NO_INVOICE_WARNING } from "@/lib/no-invoice";
 
 export const Route = createFileRoute("/_authenticated/espace/$supplier")({
   beforeLoad: requireClient,
@@ -69,21 +57,24 @@ function SupplierPage() {
         </main>
       </div>
     );
+  const all = txs.data ?? [];
+  const done = all.filter((t) => t.status !== "a_faire").length;
   // Keyed by group so the selection starts afresh on each step.
-  return <SupplierStep key={supplier} steps={steps} idx={idx} dossierId={dossierId} />;
+  return <SupplierStep key={supplier} steps={steps} idx={idx} dossierId={dossierId} progress={{ done, total: all.length }} />;
 }
 
-function SupplierStep({ steps, idx, dossierId }: { steps: SupplierGroup[]; idx: number; dossierId: string }) {
+function SupplierStep({ steps, idx, dossierId, progress }: {
+  steps: SupplierGroup[]; idx: number; dossierId: string; progress: { done: number; total: number };
+}) {
   const group = steps[idx]!;
   const navigate = useNavigate();
-  const qc = useQueryClient();
   const dossier = useClientDossier(dossierId);
+  const { busy, checking, bilanOf, upload, mark } = useDepot(dossierId);
   const pending = group.txs.filter((t) => t.status === "a_faire");
   // All the payments still to do are selected at first: one click answers the whole supplier.
   const [sel, setSel] = useState<Set<string>>(() => new Set(pending.map((t) => t.id)));
   const [mode, setMode] = useState<"upload" | "email" | "none" | "source" | null>(null);
   const [comment, setComment] = useState("");
-  const [busy, setBusy] = useState(false);
 
   const selected = pending.filter((t) => sel.has(t.id));
   const isSale = group.direction === "in";
@@ -91,7 +82,6 @@ function SupplierStep({ steps, idx, dossierId }: { steps: SupplierGroup[]; idx: 
   const noun = isSale ? "encaissement" : "paiement";
   const thisOne = isSale ? "cet encaissement" : "ce paiement";
   const plural = (n: number) => (n > 1 ? "s" : "");
-  const refresh = () => qc.invalidateQueries({ queryKey: ["client-txs"] });
   const toggle = (id: string, on: boolean) =>
     setSel((s) => {
       const n = new Set(s);
@@ -99,61 +89,13 @@ function SupplierStep({ steps, idx, dossierId }: { steps: SupplierGroup[]; idx: 
       return n;
     });
 
-  const NOTHING_SELECTED = "Sélectionnez au moins une ligne.";
-
-  async function uploadFiles(files: File[], targets: Tx[]) {
-    if (files.length === 0) return;
-    if (targets.length === 0) { toast.error(NOTHING_SELECTED); return; }
-    const bad = files.find((f) => !ACCEPT.split(",").includes(f.type));
-    if (bad) { toast.error(`« ${bad.name} » n'est pas un PDF, JPG ou PNG.`); return; }
-    setBusy(true);
-    try {
-      for (let i = 0; i < files.length; i++) {
-        const f = files[i]!;
-        const tx = targets[Math.min(i, targets.length - 1)]!;
-        const safe = f.name.replace(/[^\w.\-]+/g, "_");
-        const path = `${dossierId}/${tx.id}/${Date.now()}-${safe}`;
-        const up = await supabase.storage.from("factures").upload(path, f, { contentType: f.type });
-        if (up.error) throw up.error;
-        const ins = await supabase.from("uploads").insert({
-          dossier_id: dossierId, transaction_id: tx.id, storage_path: path, file_name: f.name,
-        });
-        if (ins.error) throw ins.error;
-      }
-      const ids = targets.slice(0, files.length).map((t) => t.id);
-      const upd = await supabase.from("transactions").update({ status: "depose", comment: null }).in("id", ids);
-      if (upd.error) throw upd.error;
-      toast.success(files.length > 1 ? `${files.length} fichiers envoyés` : "Fichier envoyé");
-      refresh();
-    } catch (e) {
-      toast.error("L'envoi a échoué : " + (e as Error).message);
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function markEmail() {
-    const ids = selected.map((t) => t.id);
-    if (!ids.length) { toast.error(NOTHING_SELECTED); return; }
-    setBusy(true);
-    const { error } = await supabase.from("transactions").update({ status: "email" }).in("id", ids);
-    setBusy(false);
-    if (error) { toast.error(error.message); return; }
-    toast.success("C'est noté, merci !");
-    refresh();
-  }
-
+  const uploadFiles = (files: File[], targets: Tx[]) => upload(files, targets);
+  const markEmail = () => mark(selected, "email");
   async function markNoInvoice() {
-    const ids = selected.map((t) => t.id);
-    if (!ids.length) { toast.error(NOTHING_SELECTED); return; }
-    setBusy(true);
-    const { error } = await supabase.from("transactions").update({ status: "sans_facture", comment: comment.trim() || null }).in("id", ids);
-    setBusy(false);
-    if (error) { toast.error(error.message); return; }
-    toast.success("C'est noté");
-    setComment("");
-    setMode(null);
-    refresh();
+    if (await mark(selected, "sans_facture", comment)) {
+      setComment("");
+      setMode(null);
+    }
   }
 
   function goNext() {
@@ -187,6 +129,8 @@ function SupplierStep({ steps, idx, dossierId }: { steps: SupplierGroup[]; idx: 
             )}
           </div>
         </div>
+
+        <Nudge done={progress.done} total={progress.total} />
 
         <div className="mt-6 flex items-start gap-4">
           <SupplierAvatar name={group.name} className="h-16 w-16 text-xl" />
@@ -228,11 +172,16 @@ function SupplierStep({ steps, idx, dossierId }: { steps: SupplierGroup[]; idx: 
               </span>
             </div>
           )}
+          <div aria-hidden className="hidden gap-x-4 border-b px-4 py-2 pl-12 text-xs font-semibold uppercase tracking-wide text-muted-foreground sm:grid sm:grid-cols-[6.5rem_minmax(0,1fr)_7.5rem] sm:pr-32">
+            <span>{isSale ? "Encaissé le" : "Payé le"}</span><span>Libellé bancaire</span><span className="text-right">Montant</span>
+          </div>
           <ul className="divide-y">
             {group.txs.map((t) => (
               <TxRow
                 key={t.id}
                 tx={t}
+                isSale={isSale}
+                bilan={bilanOf(t)}
                 selected={sel.has(t.id)}
                 onToggle={(on) => toggle(t.id, on)}
                 onFiles={(f) => !busy && uploadFiles(f, [t])}
@@ -251,60 +200,87 @@ function SupplierStep({ steps, idx, dossierId }: { steps: SupplierGroup[]; idx: 
                   : `Pour ces ${selected.length} ${noun}s, comment souhaitez-vous procéder ?`}
             </h2>
             <p className="mt-1 text-muted-foreground">Choisissez la solution la plus simple pour vous.</p>
-            <div inert={selected.length === 0} className={cn("mt-5 space-y-4", selected.length === 0 && "opacity-50")}>
-              {!isSale && <ChoiceCard n={1} icon={FolderOpen} tone="mint" open={mode === "source"} onToggle={() => setMode(mode === "source" ? null : "source")}
-                title="Configurer une source de factures" desc="Conservez le site, le chemin de facturation et le mode de réception de ce fournisseur.">
-                <InvoiceSourceSetup dossierId={dossierId} supplier={group.name} />
-              </ChoiceCard>}
-              <ChoiceCard n={isSale ? 1 : 2} icon={Upload} tone="mint" open={mode === "upload"} onToggle={() => setMode(mode === "upload" ? null : "upload")}
-                title="Je dépose mes factures" desc="Ajoutez les factures depuis votre ordinateur ou votre téléphone.">
-                <DropZone busy={busy} several={selected.length > 1} noun={noun} onFiles={(f) => uploadFiles(f, selected)} />
-              </ChoiceCard>
-
-              <ChoiceCard n={isSale ? 2 : 3} icon={Mail} tone="pale" open={mode === "email"} onToggle={() => setMode(mode === "email" ? null : "email")}
-                title="Je les envoie par e-mail" desc="Transférez les e-mails qui contiennent vos factures à l'adresse de votre dossier.">
-                {collect ? (
-                  <>
-                    <div className="flex flex-col gap-3 rounded-xl border bg-pale-2 p-3 sm:flex-row sm:items-center">
-                      <code className="flex-1 break-all px-1 font-mono font-semibold text-primary">{collect}</code>
-                      <Button variant="outline" size="lg" onClick={() => { navigator.clipboard.writeText(collect); toast.success("Adresse copiée"); }}>
-                        <Copy /> Copier
-                      </Button>
-                    </div>
-                    <ul className="mt-4 space-y-2 text-sm text-muted-foreground">
-                      <li className="flex gap-2">
-                        <Info className="mt-0.5 h-4 w-4 shrink-0" />
-                        {isSale
-                          ? `Depuis votre logiciel de facturation, ajoutez cette adresse en copie lorsque vous envoyez une facture à ${group.name}.`
-                          : `Dans votre compte ${group.name}, ajoutez cette adresse comme e-mail de réception des factures : elles nous arriveront automatiquement.`}
-                      </li>
-                      <li className="flex gap-2">
-                        <Info className="mt-0.5 h-4 w-4 shrink-0" />
-                        Ou transférez simplement les e-mails contenant vos factures à cette adresse : elles arrivent directement dans votre dossier.
-                      </li>
-                    </ul>
-                    <Button size="xl" className="mt-5" disabled={busy} onClick={markEmail}>
-                      <Check /> C'est fait, je les ai envoyées
-                    </Button>
-                  </>
-                ) : (
-                  <p className="text-muted-foreground">
-                    L'adresse de réception n'est pas encore renseignée par votre cabinet. Utilisez plutôt le dépôt de fichiers.
-                  </p>
+            <div inert={selected.length === 0} className={cn("mt-5", selected.length === 0 && "opacity-50")}>
+              {checking && (
+                <p role="status" className="mb-4 flex items-center gap-2 rounded-xl bg-pale-2 p-3 text-sm font-semibold text-primary">
+                  <Sparkles className="h-4 w-4 animate-pulse" /> Vérification de la facture (fournisseur et montant)…
+                </p>
+              )}
+              <div className={cn("grid gap-3", isSale ? "sm:grid-cols-3" : "sm:grid-cols-2 lg:grid-cols-4")}>
+                {!isSale && (
+                  <ChoiceTile n={1} icon={FolderOpen} tone="mint" open={mode === "source"} onToggle={() => setMode(mode === "source" ? null : "source")}
+                    title="Configurer une source de factures" desc="Le site, le chemin de facturation et le mode de réception de ce fournisseur." />
                 )}
-              </ChoiceCard>
+                <ChoiceTile n={isSale ? 1 : 2} icon={Upload} tone="mint" open={mode === "upload"} onToggle={() => setMode(mode === "upload" ? null : "upload")}
+                  title="Je dépose mes factures" desc="Depuis votre ordinateur ou votre téléphone." />
+                <ChoiceTile n={isSale ? 2 : 3} icon={Mail} tone="pale" open={mode === "email"} onToggle={() => setMode(mode === "email" ? null : "email")}
+                  title="Je les envoie par e-mail" desc="Vers l'adresse de votre dossier." />
+                <ChoiceTile n={isSale ? 3 : 4} icon={FileX} tone="yellow" open={mode === "none"} onToggle={() => setMode(mode === "none" ? null : "none")}
+                  title="Je n'ai pas de facture" desc="Un mot d'explication aide votre comptable." />
+              </div>
 
-              <ChoiceCard n={isSale ? 3 : 4} icon={FileX} tone="yellow" open={mode === "none"} onToggle={() => setMode(mode === "none" ? null : "none")}
-                title="Je n'ai pas de facture" desc="Indiquez-le simplement ; un mot d'explication aide votre comptable.">
-                <label htmlFor="no-invoice-comment" className="text-sm font-semibold">Votre commentaire (facultatif)</label>
-                <Textarea id="no-invoice-comment" rows={3} value={comment} onChange={(e) => setComment(e.target.value)}
-                  placeholder={isSale ? "Par exemple : apport, virement entre mes comptes…" : "Par exemple : facture introuvable, achat personnel…"}
-                  className="mt-2 bg-card md:text-base" />
-                <NoInvoiceWarning text={isSale ? NO_INVOICE_NOTE_SALE : NO_INVOICE_WARNING} />
-                <Button size="xl" className="mt-5" disabled={busy} onClick={markNoInvoice}>
-                  Je confirme : pas de facture pour {selected.length > 1 ? `ces ${selected.length} ${noun}s` : thisOne}
-                </Button>
-              </ChoiceCard>
+              {mode === "source" && !isSale && (
+                <ChoicePanel>
+                  <InvoiceSourceSetup dossierId={dossierId} supplier={group.name} />
+                </ChoicePanel>
+              )}
+
+              {mode === "upload" && (
+                <ChoicePanel>
+                  <DropZone busy={busy} several={selected.length > 1} noun={noun} onFiles={(f) => uploadFiles(f, selected)} />
+                </ChoicePanel>
+              )}
+
+              {mode === "email" && (
+                <ChoicePanel>
+                  {collect ? (
+                    <>
+                      <p className="font-semibold">Transférez vos factures à cette adresse : elles arrivent directement dans votre dossier.</p>
+                      <div className="mt-3 flex flex-col gap-3 rounded-xl border bg-pale-2 p-3 sm:flex-row sm:items-center">
+                        <code className="flex-1 break-all px-1 font-mono font-semibold text-primary">{collect}</code>
+                        <Button variant="outline" size="lg" onClick={() => { navigator.clipboard.writeText(collect); toast.success("Adresse copiée"); }}>
+                          <Copy /> Copier
+                        </Button>
+                      </div>
+                      <Button asChild size="xl" className="mt-4">
+                        <a href={mailtoFactures(collect, selected)}><MailPlus /> Ouvrir ma messagerie</a>
+                      </Button>
+                      <ul className="mt-4 space-y-2 text-sm text-muted-foreground">
+                        <li className="flex gap-2">
+                          <Info className="mt-0.5 h-4 w-4 shrink-0" />
+                          Votre messagerie s'ouvre avec l'adresse déjà remplie : joignez-y la facture en PDF (ou transférez l'e-mail qui la contient), puis envoyez.
+                        </li>
+                        <li className="flex gap-2">
+                          <Info className="mt-0.5 h-4 w-4 shrink-0" />
+                          {isSale
+                            ? `Depuis votre logiciel de facturation, vous pouvez aussi ajouter cette adresse en copie lorsque vous envoyez une facture à ${group.name}.`
+                            : `Dans votre compte ${group.name}, vous pouvez aussi ajouter cette adresse comme e-mail de réception des factures : elles nous arriveront automatiquement.`}
+                        </li>
+                      </ul>
+                      <Button size="xl" variant="outline" className="mt-5" disabled={busy} onClick={markEmail}>
+                        <Check /> C'est fait, je les ai envoyées
+                      </Button>
+                    </>
+                  ) : (
+                    <p className="text-muted-foreground">
+                      L'adresse de réception n'est pas encore renseignée par votre cabinet. Utilisez plutôt le dépôt de fichiers.
+                    </p>
+                  )}
+                </ChoicePanel>
+              )}
+
+              {mode === "none" && (
+                <ChoicePanel>
+                  <label htmlFor="no-invoice-comment" className="text-sm font-semibold">Votre commentaire (facultatif)</label>
+                  <Textarea id="no-invoice-comment" rows={3} value={comment} onChange={(e) => setComment(e.target.value)}
+                    placeholder={isSale ? "Par exemple : apport, virement entre mes comptes…" : "Par exemple : facture introuvable, achat personnel…"}
+                    className="mt-2 bg-card md:text-base" />
+                  <NoInvoiceWarning text={isSale ? NO_INVOICE_NOTE_SALE : NO_INVOICE_WARNING} />
+                  <Button size="xl" className="mt-5" disabled={busy} onClick={markNoInvoice}>
+                    Je confirme : pas de facture pour {selected.length > 1 ? `ces ${selected.length} ${noun}s` : thisOne}
+                  </Button>
+                </ChoicePanel>
+              )}
             </div>
           </section>
         )}
@@ -324,7 +300,9 @@ function SupplierStep({ steps, idx, dossierId }: { steps: SupplierGroup[]; idx: 
   );
 }
 
-function TxRow({ tx, selected, onToggle, onFiles }: { tx: Tx; selected: boolean; onToggle: (on: boolean) => void; onFiles: (f: File[]) => void }) {
+function TxRow({ tx, isSale, bilan, selected, onToggle, onFiles }: {
+  tx: Tx; isSale: boolean; bilan: Bilan; selected: boolean; onToggle: (on: boolean) => void; onFiles: (f: File[]) => void;
+}) {
   const todo = tx.status === "a_faire";
   const amount = formatEUR(Math.abs(Number(tx.amount)));
   return (
@@ -342,10 +320,13 @@ function TxRow({ tx, selected, onToggle, onFiles }: { tx: Tx; selected: boolean;
         </span>
       )}
       <div className="grid min-w-0 flex-1 gap-x-4 sm:grid-cols-[6.5rem_minmax(0,1fr)_7.5rem] sm:items-center">
-        <span className="order-2 font-mono text-sm text-muted-foreground sm:order-none sm:text-foreground">{formatDate(tx.date)}</span>
+        <span className="order-2 text-sm text-muted-foreground sm:order-none sm:font-mono sm:text-foreground">
+          <span className="sm:hidden">{isSale ? "Encaissé le " : "Payé le "}</span>{formatDate(tx.date)}
+        </span>
         <span className="order-3 min-w-0 sm:order-none">
           <span className="block truncate font-mono text-sm text-muted-foreground">{tx.label}</span>
           {tx.comment && <span className="block truncate text-sm italic text-muted-foreground">« {tx.comment} »</span>}
+          <BilanLine bilan={bilan} />
         </span>
         <span className="order-1 font-bold tabular-nums sm:order-none sm:text-right">{amount}</span>
       </div>
@@ -356,26 +337,46 @@ function TxRow({ tx, selected, onToggle, onFiles }: { tx: Tx; selected: boolean;
 
 const TILE = { mint: "bg-mint-soft text-primary", pale: "bg-pale text-primary", yellow: "bg-yellow-soft text-yellow-ink" };
 
-function ChoiceCard({ n, icon: Icon, tone, open, onToggle, title, desc, children }: {
-  n: number; icon: LucideIcon; tone: keyof typeof TILE; open: boolean; onToggle: () => void; title: string; desc: string; children: ReactNode;
+function ChoiceTile({ n, icon: Icon, tone, open, onToggle, title, desc }: {
+  n: number; icon: LucideIcon; tone: keyof typeof TILE; open: boolean; onToggle: () => void; title: string; desc: string;
 }) {
   return (
-    <div className={cn("rounded-2xl bg-card shadow-sm transition-colors", open ? "border-2 border-primary" : "border")}>
-      <button type="button" aria-expanded={open} onClick={onToggle}
-        className="flex w-full items-start gap-4 rounded-2xl p-5 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
-        <span className={cn("flex h-12 w-12 shrink-0 items-center justify-center rounded-xl", TILE[tone])}>
-          <Icon className="h-6 w-6" />
-        </span>
-        <span className="min-w-0 flex-1">
-          <span className="block text-lg font-bold text-primary">{title}</span>
-          <span className="block text-muted-foreground">{desc}</span>
-        </span>
-        <span className="flex items-center gap-1 whitespace-nowrap text-sm font-semibold text-muted-foreground">
-          Choix {n} <ChevronDown className={cn("h-4 w-4 transition-transform", open && "rotate-180")} />
-        </span>
-      </button>
-      {open && <div className="px-5 pb-6 sm:pl-[5.25rem]">{children}</div>}
-    </div>
+    <button type="button" aria-expanded={open} onClick={onToggle}
+      className={cn(
+        "flex w-full items-start gap-3 rounded-2xl bg-card p-4 text-left shadow-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary sm:flex-col",
+        open ? "border-2 border-primary" : "border hover:border-primary/40",
+      )}>
+      <span className={cn("flex h-12 w-12 shrink-0 items-center justify-center rounded-xl", TILE[tone])}>
+        <Icon className="h-6 w-6" />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Choix {n}</span>
+        <span className="block text-lg font-bold leading-snug text-primary">{title}</span>
+        <span className="block text-sm text-muted-foreground">{desc}</span>
+      </span>
+    </button>
+  );
+}
+
+function ChoicePanel({ children }: { children: ReactNode }) {
+  return <div className="mt-4 rounded-2xl border-2 border-primary bg-card p-5 shadow-sm sm:p-6">{children}</div>;
+}
+
+// What Claude read on the files of one payment.
+function BilanLine({ bilan: b }: { bilan: Bilan }) {
+  if (!b.lues) return null;
+  const doubt = b.fournisseursDouteux.length > 0;
+  const text =
+    b.etat === "complet" ? "Facture vérifiée : le montant correspond"
+    : b.etat === "partiel" ? `Déposé ${formatEUR(b.totalLu)} · reste ${formatEUR(b.reste)} à justifier : ajoutez une facture`
+    : b.etat === "excedent" ? `Factures déposées : ${formatEUR(b.totalLu)}, au-delà du montant payé`
+    : "Pièce reçue, vérifiée par votre cabinet";
+  const ok = b.etat === "complet" && !doubt;
+  return (
+    <span className={cn("mt-0.5 block text-sm font-semibold", ok ? "text-primary" : "text-yellow-ink")}>
+      {ok ? "✓ " : "⚠ "}{text}
+      {doubt && <span className="block font-normal">Fournisseur lu sur la facture : {b.fournisseursDouteux.join(", ")}. Est-ce bien la bonne ?</span>}
+    </span>
   );
 }
 

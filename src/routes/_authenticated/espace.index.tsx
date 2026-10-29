@@ -4,17 +4,20 @@ import { HelpChat } from "@/components/HelpChat";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import {
-  ArrowDownWideNarrow, ArrowRight, CalendarCheck, CheckCircle2, ChevronDown, ChevronRight, Clock, ReceiptText, Search, ShoppingBag,
+  ArrowDownWideNarrow, ArrowRight, Building2, CalendarCheck, CheckCircle2, ChevronDown, ChevronRight, Clock, ReceiptText, Search, ShoppingBag,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { AppHeader, CabinetContact } from "@/components/AppHeader";
+import { MultiActions } from "@/components/MultiActions";
+import { Nudge } from "@/components/Nudge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { SupplierAvatar } from "@/components/brand";
 import { FilterChip } from "@/components/FilterChip";
 import { GroupStatePill } from "@/components/StatusPill";
 import { Button } from "@/components/ui/button";
 import { useCabinet } from "@/lib/cabinet";
 import { matchesSearch, prioritize, txHaystack } from "@/lib/priority";
-import { meQuery, groupBySupplier, formatEUR, type SupplierGroup, type Tx } from "@/lib/session";
+import { meQuery, groupBySupplier, formatDate, formatEUR, type SupplierGroup, type Tx } from "@/lib/session";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/espace/")({
@@ -82,13 +85,14 @@ function Espace() {
   const [status, setStatus] = useState<"all" | "todo" | "done">("all");
   const [dir, setDir] = useState<"all" | "out" | "in">("all");
   const [order, setOrder] = useState<"priority" | "name">("priority");
+  // Several suppliers answered at once (Simon): their payments still to do.
+  const [picked, setPicked] = useState<Set<string>>(new Set());
 
   const all = txs.data ?? [];
   const steps = prioritize(groupBySupplier(all));
   const remaining = all.filter((t) => t.status === "a_faire").length;
   const pendingGroups = steps.filter((g) => g.state !== "done");
   const next = pendingGroups[0];
-  const pct = all.length ? Math.round(((all.length - remaining) / all.length) * 100) : 100;
   const years = [...new Set(all.filter((t) => t.status === "a_faire").map((t) => t.date.slice(0, 4)))].sort();
   const bothDirections = steps.some((g) => g.direction === "in") && steps.some((g) => g.direction === "out");
 
@@ -103,7 +107,7 @@ function Espace() {
 
   return (
     <div className="min-h-screen bg-background pb-28 sm:text-[17px]">
-      <AppHeader space="client" /><HelpChat />
+      <AppHeader space="client" /><HelpChat raised={picked.size > 0} />
       <main className="mx-auto max-w-4xl px-4 py-8 sm:py-10">
         {me.data && !me.data.dossierId ? (
           <p className="text-muted-foreground">Votre compte n'est rattaché à aucun dossier. Contactez votre cabinet.</p>
@@ -112,13 +116,28 @@ function Espace() {
         ) : (
           <>
             <h1 className="text-2xl sm:text-3xl">Bonjour,</h1>
-            <p className="mt-2 max-w-2xl text-muted-foreground">
-              {remaining === 0
-                ? all.length === 0
-                  ? "Aucune facture ne vous est demandée pour le moment."
-                  : "Merci pour vos réponses."
-                : `Voici les factures qui nous manquent encore${dossier.data?.name ? ` pour ${dossier.data.name}` : ""}. Vous pouvez vous arrêter à tout moment et reprendre plus tard : tout est enregistré au fur et à mesure.`}
+            {dossier.data?.name && (
+              // The dossier name stands out (retour de Julien): the client sees at once which company is concerned.
+              <p className="mt-3 inline-flex max-w-full items-center gap-3 rounded-xl border-l-4 border-mint bg-card px-4 py-2.5 shadow-sm">
+                <Building2 aria-hidden className="h-5 w-5 shrink-0 text-primary" />
+                <span className="min-w-0">
+                  <span className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground">Dossier</span>
+                  <strong className="block text-lg leading-snug text-primary sm:text-xl">{dossier.data.name}</strong>
+                </span>
+              </p>
+            )}
+            <p className="mt-3 max-w-2xl text-muted-foreground">
+              {remaining === 0 ? (
+                all.length === 0 ? "Aucune facture ne vous est demandée pour le moment." : "Merci pour vos réponses."
+              ) : (
+                <>
+                  Voici les factures qui nous manquent encore
+                  {dossier.data?.name && <> pour <strong className="font-bold text-foreground">{dossier.data.name}</strong></>}. Vous pouvez vous
+                  arrêter à tout moment et reprendre plus tard : tout est enregistré au fur et à mesure.
+                </>
+              )}
             </p>
+            <div className="max-w-2xl"><Nudge done={all.length - remaining} total={all.length} /></div>
 
             {remaining === 0 ? (
               <section className="mt-6 rounded-3xl bg-primary px-6 py-10 text-center text-primary-foreground sm:px-12">
@@ -142,24 +161,6 @@ function Espace() {
                     {remaining > 1 && pendingGroups.length > 1 ? ", réparties chez " : ", chez "}
                     {counterparts(pendingGroups)}
                   </h2>
-                  <div className="mt-6 max-w-xl">
-                    <div className="mb-2 flex items-center justify-between gap-3 text-sm">
-                      <span className="flex items-center gap-2 text-base font-bold">
-                        <CheckCircle2 className="h-5 w-5 text-mint" /> {all.length - remaining} sur {all.length} traitée{all.length - remaining > 1 ? "s" : ""}
-                      </span>
-                      <span className="text-primary-foreground/80">{remaining} restante{remaining > 1 ? "s" : ""}</span>
-                    </div>
-                    <div
-                      role="progressbar"
-                      aria-label="Votre progression"
-                      aria-valuenow={pct}
-                      aria-valuemin={0}
-                      aria-valuemax={100}
-                      className="h-3 overflow-hidden rounded-full bg-teal-2"
-                    >
-                      <div className="h-full rounded-full bg-mint transition-all" style={{ width: `${pct}%` }} />
-                    </div>
-                  </div>
                   {next && (
                     <div className="mt-8 flex flex-wrap items-center gap-x-5 gap-y-3">
                       <Link
@@ -257,12 +258,20 @@ function Espace() {
                     </span>
                   </div>
                   <div className="mt-4 grid gap-4 sm:grid-cols-2">
-                    {list.map((g) => <SupplierCard key={g.key} g={g} />)}
+                    {list.map((g) => (
+                      <SupplierCard key={g.key} g={g} picked={picked.has(g.key)}
+                        onPick={(on) => setPicked((p) => { const n = new Set(p); if (on) n.add(g.key); else n.delete(g.key); return n; })} />
+                    ))}
                   </div>
                 </section>
               );
             })}
           </>
+        )}
+
+        {dossierId && (
+          <MultiActions dossierId={dossierId} groups={steps.filter((g) => picked.has(g.key) && g.state !== "done")}
+            onClear={() => setPicked(new Set())} />
         )}
 
         {(cabinet.email || cabinet.phone) && (
@@ -275,16 +284,28 @@ function Espace() {
   );
 }
 
-function SupplierCard({ g }: { g: SupplierGroup }) {
+function SupplierCard({ g, picked, onPick }: { g: SupplierGroup; picked: boolean; onPick: (on: boolean) => void }) {
   const done = g.txs.length - todoCount(g);
   const noun = g.direction === "in" ? "encaissement" : "paiement";
+  // Payment dates (Stéphane): those still to justify, or all of them once the supplier is done.
+  const days = (g.txs.some((t) => t.status === "a_faire") ? g.txs.filter((t) => t.status === "a_faire") : g.txs).map((t) => t.date).sort();
+  const verb = g.direction === "in" ? "Encaissé" : "Payé";
+  const dates = !days.length ? "" : days[0] === days.at(-1)
+    ? `${verb} le ${formatDate(days[0]!)}`
+    : `${verb}s du ${formatDate(days[0]!)} au ${formatDate(days.at(-1)!)}`;
   return (
+    <div className="relative">
+    {g.state !== "done" && (
+      <Checkbox className="absolute left-3 top-3 z-10 h-5 w-5 bg-card" checked={picked} onCheckedChange={(v) => onPick(v === true)}
+        aria-label={`Sélectionner ${g.name} pour une action groupée`} />
+    )}
     <Link
       to="/espace/$supplier"
       params={{ supplier: g.key }}
       className={cn(
-        "group flex items-center gap-4 rounded-2xl border p-5 transition-shadow hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
+        "group flex items-center gap-4 rounded-2xl border p-5 pl-10 transition-shadow hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
         g.state === "done" ? "bg-card/60" : "bg-card shadow-sm",
+        picked && "border-primary ring-2 ring-primary/30",
       )}
     >
       <SupplierAvatar name={g.name} />
@@ -293,6 +314,7 @@ function SupplierCard({ g }: { g: SupplierGroup }) {
         <div className="text-sm text-muted-foreground">
           {g.txs.length} {noun}{g.txs.length > 1 ? "s" : ""} · <span className="font-semibold text-foreground">{formatEUR(g.total)}</span>
         </div>
+        {dates && <div className="text-sm text-muted-foreground">{dates}</div>}
         {g.state === "progress" && (
           <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
             <span className="h-1.5 w-20 overflow-hidden rounded-full bg-cream-2">
@@ -306,5 +328,6 @@ function SupplierCard({ g }: { g: SupplierGroup }) {
       <GroupStatePill state={g.state} className="hidden sm:inline-flex" />
       <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
     </Link>
+    </div>
   );
 }
