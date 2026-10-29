@@ -327,11 +327,7 @@ export function LinesTable({ txs, uploads, onChanged, onRename, onDownload, onSa
             Annuler la sélection
           </button>
         </div>
-      ) : (
-        <p className="text-sm text-muted-foreground">
-          Les lignes « À valider » ne sont pas visibles par le client tant que vous ne les avez pas envoyées.
-        </p>
-      )}
+      ) : null}
 
       <div className="overflow-x-auto rounded-xl border bg-card shadow-sm">
         <table className="w-full min-w-[64rem] text-sm">

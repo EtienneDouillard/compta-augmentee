@@ -78,14 +78,11 @@ export function ClaudeAnalysis({ dossierId, onApplied }: { dossierId: string; on
         <div className="space-y-1">
           <h2 className="flex items-center gap-2 text-lg"><Sparkles className="h-5 w-5" /> Analyse par Claude
             <InfoTip label="Analyse par Claude">
-              Le coût est estimé avant chaque analyse et un plafond mensuel le limite (modifiable). Claude analyse les
+              Claude repère les tiers à regrouper, les dépenses qui semblent personnelles et les lignes pour lesquelles
+              aucune facture n'est en général attendue. Rien n'est modifié sans votre validation. Le coût est estimé avant chaque analyse et un plafond mensuel le limite (modifiable). Claude analyse les
               lignes jamais analysées ; chaque suggestion s'applique ou s'ignore une par une. Deux paiements identiques ne sont jamais
               signalés comme doublons : chacun reste à demander.
             </InfoTip></h2>
-          <p className="max-w-2xl text-sm text-muted-foreground">
-            Claude repère les tiers à regrouper, les dépenses qui semblent personnelles et les lignes pour lesquelles
-            aucune facture n'est en général attendue. Rien n'est modifié sans votre validation.
-          </p>
         </div>
         <Button onClick={prepare} disabled={!!busy || !s || s.newLines === 0}>
           <Sparkles /> {busy === "estimate" ? "Estimation…" : "Analyser avec Claude"}

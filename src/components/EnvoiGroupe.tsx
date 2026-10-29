@@ -84,15 +84,11 @@ export function EnvoiGroupe({
       <h2 className="flex items-center gap-2 text-lg">
         <Send className="h-5 w-5" /> Valider et envoyer dans Pennylane
         <InfoTip label="Envoi dans Pennylane">
-          Réservé aux dossiers de démonstration. Sont mises de côté : les factures avec un écart, un compte hors du plan
+          Les factures lues par Claude, sans écart, sont validées telles que proposées puis envoyées avec leur PDF, en une
+          seule confirmation. Cliquez sur une facture pour voir l'affectation comptable proposée. Réservé aux dossiers de démonstration. Sont mises de côté : les factures avec un écart, un compte hors du plan
           comptable ANC 2026, un fichier qui n'est pas un PDF, ou déjà envoyées.
         </InfoTip>
       </h2>
-      <p className="mt-1 text-sm text-muted-foreground">
-        Les factures lues par Claude, sans écart, sont validées telles que proposées puis envoyées
-        avec leur PDF, en une seule confirmation. Celles qui demandent un regard sont listées à
-        part. Cliquez sur une facture pour l'ouvrir et voir l'affectation comptable proposée.
-      </p>
 
       {!demo ? (
         <p className="mt-3 text-sm text-muted-foreground">

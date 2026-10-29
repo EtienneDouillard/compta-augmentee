@@ -93,13 +93,10 @@ export function SkipRulesPanel({ dossierId, txs, onChanged }: { dossierId: strin
     <section id="regles" className="scroll-mt-6 rounded-xl border bg-card p-5 shadow-sm">
       <h2 className="flex items-center gap-2 text-lg"><Filter className="h-5 w-5" /> Règles « ne plus demander »
         <InfoTip label="Règles « ne plus demander »">
-          Une règle porte sur des mots du libellé (ex. URSSAF) ou sur un fournisseur. Supprimer une règle remet ses lignes
+          Les lignes à valider qui correspondent à une règle passent en « Non demandée », maintenant et à chaque
+          synchronisation ; celles déjà envoyées au client ne changent pas. Une règle porte sur des mots du libellé (ex. URSSAF) ou sur un fournisseur. Supprimer une règle remet ses lignes
           encore écartées « À valider ».
         </InfoTip></h2>
-      <p className="mt-1 text-sm text-muted-foreground">
-        Les lignes à valider qui correspondent à une règle passent en « Non demandée », maintenant et à chaque synchronisation.
-        Les lignes déjà envoyées au client ne sont pas modifiées.
-      </p>
 
       {rules.length === 0 ? (
         <p className="mt-4 text-sm text-muted-foreground">Aucune règle pour ce dossier.</p>

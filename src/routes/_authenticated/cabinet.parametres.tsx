@@ -14,6 +14,7 @@ import { DEFAULT_CABINET, LOGO_BUCKET, cabinetQuery, useCabinet } from "@/lib/ca
 import { requireCabinet } from "@/lib/session";
 import { getClaudeSettings, saveClaudeSettings } from "@/lib/claude-settings.functions";
 import { CLAUDE_MODELS } from "@/lib/claude-models";
+import { InfoTip } from "@/components/Aide";
 
 export const Route = createFileRoute("/_authenticated/cabinet/parametres")({
   beforeLoad: requireCabinet,
@@ -128,10 +129,12 @@ function SettingsPage() {
           <span className="text-muted-foreground">Paramètres du cabinet</span>
         </nav>
         <div>
-          <h1 className="text-2xl sm:text-3xl">Paramètres du cabinet</h1>
-          <p className="mt-1 text-muted-foreground">
-            Ces informations sont affichées aux clients : page de connexion, en-tête de leur espace et écran de fin.
-          </p>
+          <h1 className="flex items-center gap-2 text-2xl sm:text-3xl">Paramètres du cabinet
+            <InfoTip label="Paramètres du cabinet">
+              Ces informations sont affichées aux clients : page de connexion, en-tête de leur espace et écran de fin.
+              Laissez l'e-mail ou le téléphone vide pour ne pas l'afficher.
+            </InfoTip>
+          </h1>
         </div>
 
         {q.isError ? (
@@ -159,7 +162,6 @@ function SettingsPage() {
                     onChange={(e) => setF({ ...f, phone: e.target.value })} />
                 </div>
               </div>
-              <p className="text-sm text-muted-foreground">Laissez l'e-mail ou le téléphone vide pour ne pas l'afficher.</p>
 
               <div className="space-y-2">
                 <span className="text-sm font-medium">Logo</span>
@@ -174,7 +176,10 @@ function SettingsPage() {
                   )}
                 </div>
                 <p className="text-sm text-muted-foreground">
-                  PNG, JPG ou WebP, 1 Mo au plus. Sans logo, les initiales du cabinet sont affichées. Le logo est visible sur la page de connexion, comme le nom du cabinet.
+                  PNG, JPG ou WebP, 1 Mo au plus.
+                  <InfoTip label="Logo" className="ml-1 align-middle">
+                    Sans logo, les initiales du cabinet sont affichées. Le logo est visible sur la page de connexion, comme le nom du cabinet.
+                  </InfoTip>
                 </p>
               </div>
 

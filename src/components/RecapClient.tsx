@@ -113,15 +113,11 @@ export function RecapClientPanel({ dossierId }: { dossierId: string }) {
       <h2 className="flex items-center gap-2 text-lg">
         <BellRing className="h-5 w-5" /> Prévenir le client par e-mail
         <InfoTip label="Récapitulatif au client">
-          L'e-mail est préparé dans votre messagerie : vous le relisez et l'envoyez vous-même. Un récapitulatif au plus
-          toutes les 12 h.
+          Un seul e-mail, détaillé par fournisseur (date, montant, libellé, reste à justifier, lien vers chaque demande),
+          au plus un toutes les 12 h. Il part de votre propre messagerie : l'application n'envoie rien. Les relances dues
+          s'affichent ici et sur le tableau de bord (« Envoyer les récapitulatifs »).
         </InfoTip>
       </h2>
-      <p className="mt-1 text-sm text-muted-foreground">
-        Un seul e-mail récapitulatif, détaillé par fournisseur (date, montant, libellé, reste à
-        justifier, lien direct vers chaque demande), au plus un toutes les 12 h. Il part de votre
-        propre messagerie : l'application n'envoie rien.
-      </p>
       {q.isError ? (
         <p className="mt-3 rounded-lg bg-yellow-soft/60 p-3 text-sm text-yellow-ink">
           {(q.error as Error).message}
@@ -208,10 +204,6 @@ export function RecapClientPanel({ dossierId }: { dossierId: string }) {
             <Button size="sm" variant="outline" onClick={save}>
               Enregistrer la programmation
             </Button>
-            <p className="text-xs text-muted-foreground">
-              Les relances dues s'affichent ici et sur le tableau de bord (« Envoyer les
-              récapitulatifs »).
-            </p>
           </fieldset>
         </div>
       )}

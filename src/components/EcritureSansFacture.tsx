@@ -21,7 +21,7 @@ export function EcritureSansFacture({ tx, demo, onClose, onDone }: { tx: Tx | nu
               Quand le client n'a pas de facture, choisissez l'écriture à passer face au paiement bancaire. Vérifiez le compte
               proposé avant de valider.
             </InfoTip></DialogTitle>
-          <DialogDescription>Le client n'a pas de facture pour ce paiement : choisissez l'écriture à passer face à la transaction bancaire.</DialogDescription>
+          <DialogDescription className="sr-only">Le client n'a pas de facture pour ce paiement : choisissez l'écriture à passer face à la transaction bancaire.</DialogDescription>
         </DialogHeader>
         {tx && <Content key={tx.id} tx={tx} demo={demo} onDone={onDone} />}
       </DialogContent>

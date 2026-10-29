@@ -28,10 +28,11 @@ export function SaisieAugmentee({ uploadId, onClose }: { uploadId: string | null
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2"><Sparkles className="h-5 w-5 text-primary" /> Saisie augmentée
             <InfoTip label="Saisie augmentée">
-              Les comptes sont choisis dans le plan comptable ANC au 1er janvier 2026. Une prestation sur plusieurs mois est
+              Claude lit la facture et propose un compte par nature ; vous validez. Sur un dossier démo, la facture et son
+              PDF peuvent ensuite être envoyés dans Pennylane. Les comptes sont choisis dans le plan comptable ANC au 1er janvier 2026. Une prestation sur plusieurs mois est
               répartie entre charge et 486. Les comptes validés pour un tiers sont repris la fois suivante.
             </InfoTip></DialogTitle>
-          <DialogDescription>Claude lit la facture et propose un compte par nature. Vous validez. Sur un dossier démo, vous pouvez ensuite envoyer la facture et son PDF dans Pennylane.</DialogDescription>
+          <DialogDescription className="sr-only">Claude lit la facture et propose un compte par nature. Vous validez. Sur un dossier démo, vous pouvez ensuite envoyer la facture et son PDF dans Pennylane.</DialogDescription>
         </DialogHeader>
         {uploadId && <Content key={uploadId} uploadId={uploadId} />}
       </DialogContent>
