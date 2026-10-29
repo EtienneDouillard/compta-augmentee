@@ -24,4 +24,8 @@ describe("bookmarklet robot CA+", () => {
   it("n'envoie jamais les cookies du navigateur", () => {
     expect(code).not.toContain("document.cookie");
   });
+
+  it("est syntaxiquement exécutable tel quel", () => {
+    expect(() => new Function(code)).not.toThrow();
+  });
 });

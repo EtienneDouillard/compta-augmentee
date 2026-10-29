@@ -1,6 +1,32 @@
 import { queryOptions } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
+// Active dossier of the client space, kept in the browser (a client may have several companies, Simon 6).
+const DOSSIER_KEY = "pbc-dossier-actif";
+// Dossier a cabinet user is previewing as its client (read-only, "Voir l'espace client").
+const APERCU_KEY = "pbc-apercu-dossier";
+
+function readKey(key: string) {
+  try {
+    return window.localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+function writeKey(key: string, value: string | null) {
+  try {
+    if (value) window.localStorage.setItem(key, value);
+    else window.localStorage.removeItem(key);
+  } catch {
+    // private window: the choice simply is not remembered
+  }
+}
+export const chooseDossier = (id: string) => writeKey(DOSSIER_KEY, id);
+export const startPreview = (id: string) => writeKey(APERCU_KEY, id);
+export const stopPreview = () => writeKey(APERCU_KEY, null);
+
+export type MeDossier = { id: string; name: string };
+
 export const meQuery = queryOptions({
   queryKey: ["me"],
   queryFn: async () => {
@@ -8,13 +34,18 @@ export const meQuery = queryOptions({
     if (!u.user) return null;
     const { data: roles } = await supabase.from("user_roles").select("role").eq("user_id", u.user.id);
     const isCabinet = !!roles?.some((r) => r.role === "cabinet");
-    const { data: m } = await supabase
-      .from("dossier_members")
-      .select("dossier_id")
-      .eq("user_id", u.user.id)
-      .limit(1)
-      .maybeSingle();
-    return { id: u.user.id, email: u.user.email ?? "", isCabinet, dossierId: m?.dossier_id ?? null };
+    const { data: m } = await supabase.from("dossier_members").select("dossier_id").eq("user_id", u.user.id);
+    const ids = (m ?? []).map((r) => r.dossier_id);
+    // A cabinet user previewing a client space sees that dossier (RLS lets the cabinet read every dossier).
+    const apercu = isCabinet ? readKey(APERCU_KEY) : null;
+    const wanted = apercu ? [apercu] : ids;
+    const { data: d } = wanted.length
+      ? await supabase.from("dossiers").select("id, name").in("id", wanted).order("name")
+      : { data: [] };
+    const dossiers: MeDossier[] = (d ?? []).map((x) => ({ id: x.id, name: x.name }));
+    const saved = readKey(DOSSIER_KEY);
+    const active = apercu ? (dossiers[0]?.id ?? null) : (dossiers.find((x) => x.id === saved)?.id ?? dossiers[0]?.id ?? ids[0] ?? null);
+    return { id: u.user.id, email: u.user.email ?? "", isCabinet, dossierId: active, dossiers, preview: !!apercu && !!active };
   },
 });
 
@@ -83,5 +114,6 @@ export async function requireCabinet({ context }: { context: { queryClient: Quer
 }
 export async function requireClient({ context }: { context: { queryClient: QueryClient } }) {
   const me = await context.queryClient.fetchQuery(meQuery);
-  if (!me || me.isCabinet || !me.dossierId) throw redirect({ to: "/" });
+  // The cabinet may enter the client space only to preview a dossier ("Voir l'espace client").
+  if (!me || !me.dossierId || (me.isCabinet && !me.preview)) throw redirect({ to: "/" });
 }

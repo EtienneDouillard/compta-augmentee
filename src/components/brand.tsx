@@ -1,6 +1,8 @@
 import { ListChecks } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useState } from "react";
 import { initials } from "@/lib/supplier";
+import { faviconUrl } from "@/lib/logos";
 
 // Firm logo (design option C), or its monogram while no logo is uploaded.
 export function Monogram({ name, logoUrl, className }: { name: string; logoUrl?: string | null | undefined; className?: string | undefined }) {
@@ -49,19 +51,26 @@ const AVATAR_TONES = [
 ];
 
 // Initials avatar for a supplier or customer; no third-party logos.
-export function SupplierAvatar({ name, className }: { name: string; className?: string | undefined }) {
+// Initials in a coloured circle; with a site, the supplier's own icon (favicon) on top, initials if it fails to load.
+export function SupplierAvatar({ name, site, className }: { name: string; site?: string | null | undefined; className?: string | undefined }) {
+  const [failed, setFailed] = useState(false);
   let hash = 0;
   for (const ch of name) hash = (hash * 31 + ch.charCodeAt(0)) >>> 0;
+  const logo = site && !failed;
   return (
     <span
       aria-hidden
       className={cn(
-        "flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-base font-bold",
-        AVATAR_TONES[hash % AVATAR_TONES.length],
+        "flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full text-base font-bold",
+        logo ? "border bg-card" : AVATAR_TONES[hash % AVATAR_TONES.length],
         className,
       )}
     >
-      {initials(name)}
+      {logo ? (
+        <img src={faviconUrl(site)} alt="" loading="lazy" referrerPolicy="no-referrer" className="h-3/5 w-3/5 object-contain" onError={() => setFailed(true)} />
+      ) : (
+        initials(name)
+      )}
     </span>
   );
 }

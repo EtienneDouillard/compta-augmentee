@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useServerFn } from '@tanstack/react-start';
 import { Check, Copy, Download, Info, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { createCollectorToken } from '@/lib/collector.functions';
 import { buildBookmarklet } from '@/lib/bookmarklet';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 function download() {
   fetch('/ca-plus-robot.zip')
@@ -16,12 +16,14 @@ function download() {
 }
 
 const Tip = ({ text }: { text: string }) => (
-  <Tooltip delayDuration={0}>
+  <TooltipProvider delayDuration={0}>
+    <Tooltip>
     <TooltipTrigger asChild>
       <button type="button" aria-label={text} className="ml-1 inline-flex align-middle text-muted-foreground"><Info className="h-3.5 w-3.5" /></button>
     </TooltipTrigger>
     <TooltipContent className="max-w-64 text-xs">{text}</TooltipContent>
-  </Tooltip>
+    </Tooltip>
+  </TooltipProvider>
 );
 
 export function RobotChrome({ dossierId, robotUrl, lastRun, onSaveUrl }: { dossierId: string; robotUrl: string; lastRun?: { at: string; message?: string } | null; onSaveUrl?: (url: string) => Promise<void> }) {
@@ -31,6 +33,9 @@ export function RobotChrome({ dossierId, robotUrl, lastRun, onSaveUrl }: { dossi
   const [busy, setBusy] = useState(false);
   const [url, setUrl] = useState(robotUrl);
   const [savingUrl, setSavingUrl] = useState(false);
+  // React 19 neutralise les liens javascript: posés en prop : on écrit l'attribut à la main.
+  const favRef = useRef<HTMLAnchorElement>(null);
+  useEffect(() => { if (favRef.current && bm) favRef.current.setAttribute('href', bm); }, [bm]);
 
   async function getToken() {
     if (token) return token;
@@ -75,7 +80,7 @@ export function RobotChrome({ dossierId, robotUrl, lastRun, onSaveUrl }: { dossi
     <ol className="space-y-2">
       <li className="flex flex-wrap items-center gap-2"><span>1️⃣</span>
         {bm ? (
-          <a href={bm} onClick={e => e.preventDefault()} draggable title="Glisse-moi dans la barre de favoris" className="inline-flex cursor-grab items-center gap-1 rounded bg-primary px-2 py-1 font-semibold text-primary-foreground">🤖 CA+ Robot</a>
+          <a ref={favRef} onClick={e => e.preventDefault()} draggable title="Glisse-moi dans la barre de favoris" className="inline-flex cursor-grab items-center gap-1 rounded bg-primary px-2 py-1 font-semibold text-primary-foreground">🤖 CA+ Robot</a>
         ) : (
           <Button size="sm" variant="outline" disabled={busy} onClick={makeFavorite}>{busy ? <Loader2 className="animate-spin" /> : <span aria-hidden>🤖</span>}Créer mon favori</Button>
         )}

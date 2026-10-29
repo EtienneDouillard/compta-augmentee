@@ -11,3 +11,11 @@ export const NO_INVOICE_NOTE_SALE = `À savoir : pour un encaissement, la pièce
 – S'il s'agit d'un remboursement d'un fournisseur, déposez plutôt l'avoir qu'il vous a adressé (choix 1).
 – S'il ne s'agit pas d'une vente (apport, prêt, virement entre vos comptes…), précisez-le dans le commentaire.
 Votre comptable reviendra vers vous si besoin.`;
+
+// Retour de Stéphane: exceptionally, a photo can support an expense without an invoice (e.g. no receipt at the
+// fuel pump: photo of the pump showing amount and litres). The expense is documented, the VAT is not deductible.
+export const PHOTO_SANS_FACTURE_NOTE = `Exceptionnellement, une photo peut servir de justificatif quand aucune facture n'existe (par exemple : pas de ticket au distributeur de carburant, photo de la pompe montrant le montant et les litres).
+– Aucune TVA ne sera déduite : la déduction suppose une facture (CGI art. 271, II ; BOI-TVA-DED-40-10-10 § 30).
+Votre comptable appréciera si la photo suffit à justifier la dépense.`;
+
+export const PHOTO_SANS_FACTURE_COMMENT = "Photo justificative hors facture : aucune TVA déductible.";

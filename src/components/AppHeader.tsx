@@ -6,7 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { BrandMark, Monogram } from "@/components/brand";
 import { useCabinet } from "@/lib/cabinet";
-import { meQuery } from "@/lib/session";
+import { meQuery, stopPreview } from "@/lib/session";
 import { cn } from "@/lib/utils";
 
 export function AppHeader({ space }: { space: "client" | "cabinet" }) {
@@ -24,7 +24,24 @@ export function AppHeader({ space }: { space: "client" | "cabinet" }) {
 // Client side (design B, warm): the firm's identity comes first (design C).
 function ClientBar({ onSignOut }: { onSignOut: () => void }) {
   const cabinet = useCabinet();
+  const me = useQuery(meQuery);
+  const navigate = useNavigate();
+  const qc = useQueryClient();
+  async function leavePreview() {
+    stopPreview();
+    await qc.invalidateQueries({ queryKey: meQuery.queryKey });
+    navigate({ to: "/cabinet" });
+  }
   return (
+    <>
+    {me.data?.preview && (
+      <div role="status" className="bg-yellow-soft text-yellow-ink">
+        <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-2 px-4 py-2 text-sm">
+          <span><strong>Aperçu de l'espace client</strong> : vous êtes connecté en cabinet, les actions du client sont désactivées.</span>
+          <Button size="sm" variant="outline" onClick={leavePreview}>Revenir à l'espace cabinet</Button>
+        </div>
+      </div>
+    )}
     <header className="border-b bg-card">
       <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-3">
         <div className="flex min-w-0 items-center gap-3">
@@ -42,6 +59,7 @@ function ClientBar({ onSignOut }: { onSignOut: () => void }) {
         </div>
       </div>
     </header>
+    </>
   );
 }
 
