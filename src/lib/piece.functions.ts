@@ -14,14 +14,14 @@ export const lireLignesPiece = createServerFn({ method: "POST" })
     let bin = "";
     for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
     const mime = blob.type || (data.piecePath.toLowerCase().endsWith(".pdf") ? "application/pdf" : "image/png");
-    const apiKey = process.env["ANTHROPIC_API_KEY"];
+    const { apiKey, model } = await (await import("./claude-config.server")).claudeFor(context.userId);
     if (!apiKey) throw new Error("La clé ANTHROPIC_API_KEY manque.");
     const source = { type: "base64", media_type: mime, data: btoa(bin) };
     const res = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: { "x-api-key": apiKey, "anthropic-version": "2023-06-01", "content-type": "application/json" },
       body: JSON.stringify({
-        model: "claude-sonnet-5-5",
+        model,
         max_tokens: 16000,
         system: "Tu lis des factures fournisseurs françaises. Extrais chaque ligne de désignation telle qu'imprimée (toutes les pages), sans regrouper. Pour une prestation sur une période, renseigne debut et fin (AAAA-MM-JJ). Réponds en appelant l'outil « lignes ».",
         messages: [
