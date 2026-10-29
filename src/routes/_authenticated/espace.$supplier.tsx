@@ -1,6 +1,7 @@
 import { requireClient } from "@/lib/session";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { HelpChat } from "@/components/HelpChat";
+import { ContactParCabinet } from "@/components/ContactParCabinet";
 import { InvoiceSourceSetup } from "@/components/InvoiceSourceSetup";
 import { siteDepuisPaiement } from "@/lib/logos";
 import { useEffect, useRef, useState, type ReactNode } from "react";
