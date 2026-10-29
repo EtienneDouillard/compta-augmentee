@@ -59,3 +59,14 @@ export function siteFournisseur(name: string, sourceUrl?: string | null): string
 }
 
 export const faviconUrl = (site: string) => `https://${site}/favicon.ico`;
+
+// Pre-filled supplier site for a new invoice source: a domain written in the Pennylane bank label
+// ("NOKIA.COM", "www.zcf.fr"), else a well-known supplier. The client can always change it.
+export function siteDepuisPaiement(name: string, labels: string[]): string | null {
+  for (const l of labels) {
+    const m = l.match(/\b(?:https?:\/\/)?(?:www\.)?([a-z0-9][a-z0-9-]{1,62}(?:\.[a-z0-9-]{2,63})*\.(?:com|fr|io|net|org|co|eu|ai|app|so|us|de|uk|be|ch|es|it|dev|cloud))\b/i);
+    if (m) return `https://${m[1]!.toLowerCase()}`;
+  }
+  const s = siteFournisseur(name);
+  return s ? `https://${s}` : null;
+}

@@ -31,7 +31,7 @@ function stepsOf(r: SourceResearch): SetupStep[] {
   return r.version === RESEARCH_VERSION ? r.steps : [];
 }
 
-export function InvoiceSourceSetup({ dossierId, supplier, onFiles }: { dossierId: string; supplier: string; onFiles?: ((files: File[]) => void) | undefined }) {
+export function InvoiceSourceSetup({ dossierId, supplier, onFiles, guessUrl }: { dossierId: string; supplier: string; onFiles?: ((files: File[]) => void) | undefined; guessUrl?: string | null }) {
   const load = useServerFn(getInvoiceSource);
   const save = useServerFn(saveInvoiceSource);
   const research = useServerFn(researchInvoiceSource);
@@ -54,7 +54,7 @@ export function InvoiceSourceSetup({ dossierId, supplier, onFiles }: { dossierId
     if (!query.data) return;
     const s = query.data.source;
     setEmail(s?.receipt_email ?? query.data.collectEmail ?? '');
-    if (!s) return;
+    if (!s) { if (guessUrl) setUrl(u => u || guessUrl); return; }
     setUrl(s.source_url);
     const r = s.research as unknown as SourceResearch | null;
     const current = r?.version === RESEARCH_VERSION ? r : null;

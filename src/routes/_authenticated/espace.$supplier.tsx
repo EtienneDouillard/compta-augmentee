@@ -2,6 +2,7 @@ import { requireClient } from "@/lib/session";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { HelpChat } from "@/components/HelpChat";
 import { InvoiceSourceSetup } from "@/components/InvoiceSourceSetup";
+import { siteDepuisPaiement } from "@/lib/logos";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import {
@@ -247,7 +248,7 @@ function SupplierStep({ steps, idx, dossierId, progress }: {
 
               {mode === "source" && !isSale && (
                 <ChoicePanel>
-                  <InvoiceSourceSetup dossierId={dossierId} supplier={group.name} onFiles={busy ? undefined : (f) => upload(f, selected)} />
+                  <InvoiceSourceSetup dossierId={dossierId} supplier={group.name} guessUrl={siteDepuisPaiement(group.name, group.txs.map((t) => t.label))} onFiles={busy ? undefined : (f) => upload(f, selected)} />
                 </ChoicePanel>
               )}
 
