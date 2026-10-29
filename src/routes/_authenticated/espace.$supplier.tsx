@@ -2,7 +2,7 @@ import { requireClient } from "@/lib/session";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { HelpChat } from "@/components/HelpChat";
 import { InvoiceSourceSetup } from "@/components/InvoiceSourceSetup";
-import { useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import {
   AlertTriangle, ArrowLeft, ArrowRight, Camera, Check,  CloudUpload, Copy, FileX, FolderOpen, Info, Mail, MailPlus, PartyPopper, Sparkles, Upload,
@@ -74,6 +74,8 @@ function SupplierStep({ steps, idx, dossierId, progress }: {
   // All the payments still to do are selected at first: one click answers the whole supplier.
   const [sel, setSel] = useState<Set<string>>(() => new Set(pending.map((t) => t.id)));
   const [mode, setMode] = useState<"upload" | "email" | "none" | "source" | null>(null);
+  // Coming from the sources catalogue (#source): open the source setup directly.
+  useEffect(() => { if (typeof window !== "undefined" && window.location.hash === "#source") setMode("source"); }, []);
   const [comment, setComment] = useState("");
 
   const selected = pending.filter((t) => sel.has(t.id));

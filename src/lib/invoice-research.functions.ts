@@ -10,12 +10,18 @@ export type SourceResearch = {
   options: { method: 'email' | 'browser' | 'api' | 'mcp'; title: string; detail: string; source: string | null }[];
   sources: string[];
   warnings: string[];
+  /** Short title of the single recommended option, shown alone to the user. */
+  headline: string;
+  /** Step-by-step setup of the recommended option; the last step gets one invoice now to test reception. */
+  steps: { title: string; detail: string; link: string | null }[];
 };
 
 const Research = z.object({
   summary: z.string(), recommended: z.enum(['email', 'browser', 'api', 'mcp']), why: z.string(), billingPath: z.string(),
   options: z.array(z.object({ method: z.enum(['email', 'browser', 'api', 'mcp']), title: z.string(), detail: z.string(), source: z.string().nullable().catch(null) })).catch([]),
   sources: z.array(z.string()).catch([]), warnings: z.array(z.string()).catch([]),
+  headline: z.string().catch(''),
+  steps: z.array(z.object({ title: z.string(), detail: z.string().catch(''), link: z.string().nullable().catch(null) })).catch([]),
 });
 
 /** Claude Sonnet 5.5 searches the web (official help pages, API docs) for how to fetch this supplier's invoices. */
@@ -29,13 +35,16 @@ export const researchInvoiceSource = createServerFn({ method: 'POST' })
 Mission : trouver comment un cabinet comptable peut récupérer chaque mois, automatiquement si possible, les factures PDF de ce fournisseur.
 Cherche réellement sur le web (centre d'aide officiel, documentation API, pages facturation). Vérifie : chemin exact dans l'interface, envoi des factures par e-mail et possibilité de changer l'adresse de facturation (pour la rediriger vers l'adresse Pennylane), API ou MCP officiel donnant accès aux factures, intermédiaire de paiement (Stripe, Paddle…).
 Ne propose jamais de stocker mot de passe ou cookie. Ne présente pas comme vérifié ce que tu n'as pas trouvé.
+Choisis UNE option recommandée : la moins chère, la plus simple et la plus rapide à configurer qui fonctionne (en général l'e-mail de facturation redirigé vers l'adresse Pennylane du dossier si le fournisseur le permet, sinon le téléchargement dans l'interface).
+"steps" : 3 à 6 étapes courtes et concrètes pour configurer CETTE option (titre impératif, détail d'une phrase, lien direct si connu). La dernière étape obtient tout de suite une facture pour tester : par exemple transférer la dernière facture reçue à l'adresse Pennylane, ou télécharger le dernier PDF et le déposer sur le paiement dans CA+.
+"headline" : titre court de l'option (ex. « Envoyer les factures Miro par e-mail à Pennylane »).
 Termine par UN SEUL bloc JSON (rien après), en français :
-{"summary":"…","recommended":"email|browser|api|mcp","why":"…","billingPath":"Menu → … → Télécharger","options":[{"method":"email|browser|api|mcp","title":"…","detail":"…","source":"url ou null"}],"sources":["url"],"warnings":["…"]}`;
+{"headline":"…","steps":[{"title":"…","detail":"…","link":"url ou null"}],"summary":"…","recommended":"email|browser|api|mcp","why":"…","billingPath":"Menu → … → Télécharger","options":[{"method":"email|browser|api|mcp","title":"…","detail":"…","source":"url ou null"}],"sources":["url"],"warnings":["…"]}`;
     const res = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'anthropic-beta': 'web-fetch-2025-09-10', 'content-type': 'application/json' },
       body: JSON.stringify({
-        model, max_tokens: 4000,
+        model, max_tokens: 6000,
         tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: 5 }, { type: 'web_fetch_20250910', name: 'web_fetch', max_uses: 3 }],
         messages: [{ role: 'user', content: prompt }],
       }),

@@ -39,3 +39,8 @@ export function collectionState(results: CollectResult[]): 'active' | 'attention
   if (results.every(r => r.status === 'conforme' || r.status === 'recu_pennylane')) return 'active';
   return 'awaiting_first_invoice';
 }
+
+/** The setup is proven once at least one invoice of this supplier has actually been received (in CA+ and checked, or in Pennylane). */
+export function receptionProven(results: CollectResult[]): boolean {
+  return results.some(r => r.status === 'conforme' || r.status === 'recu_pennylane');
+}
