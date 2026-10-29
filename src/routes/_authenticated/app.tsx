@@ -133,7 +133,7 @@ function AppPage() {
                 </button>
               ))}
             </nav>
-            <button aria-label="Se déconnecter" onClick={async () => { await supabase.auth.signOut(); nav({ to: "/auth" }); }} className="text-muted-foreground"><LogOut className="h-4 w-4" /></button>
+            <button aria-label="Se déconnecter" onClick={async () => { await supabase.auth.signOut(); nav({ to: "/cabinet/connexion" }); }} className="text-muted-foreground"><LogOut className="h-4 w-4" /></button>
           </div>
         </div>
       </header>
