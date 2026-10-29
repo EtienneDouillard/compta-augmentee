@@ -1,11 +1,16 @@
 {
   "manifest_version": 3,
   "name": "CA+ Robot factures",
-  "version": "1.0.0",
-  "description": "Récupère chaque mois vos factures fournisseurs depuis votre Chrome connecté et les envoie à CA+.",
+  "version": "1.1.0",
+  "description": "Ouvre vos pages fournisseurs dans votre Chrome connecté, récupère les factures et les envoie à CA+.",
   "permissions": ["tabs", "scripting", "storage", "alarms"],
   "host_permissions": ["<all_urls>"],
   "action": { "default_popup": "popup.html", "default_icon": "icon.png" },
   "background": { "service_worker": "background.js" },
+  "content_scripts": [{
+    "matches": ["https://*.lovable.app/*", "http://localhost/*", "http://localhost:8080/*"],
+    "js": ["bridge.js"],
+    "run_at": "document_start"
+  }],
   "icons": { "48": "icon.png", "128": "icon.png" }
 }
