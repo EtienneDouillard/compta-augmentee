@@ -107,7 +107,7 @@ export function InvoiceSourceSetup({ dossierId, supplier, onFiles }: { dossierId
   const last = steps.length; // index of the final "verify" step
 
   return <div className="space-y-5">
-    <div className="flex items-center gap-2 text-sm font-semibold text-primary"><Globe className="h-4 w-4" /> Source de factures · {supplier}</div>
+    {!started && <div className="flex items-center gap-2 text-sm font-semibold text-primary"><Globe className="h-4 w-4" /> {supplier}</div>}
 
     {!started && <div className="space-y-2">
       <label htmlFor="invoice-source-url" className="font-semibold">Site du fournisseur</label>
@@ -119,7 +119,6 @@ export function InvoiceSourceSetup({ dossierId, supplier, onFiles }: { dossierId
 
     {found && !started && <div className="space-y-3 rounded-lg border border-primary/40 bg-secondary/40 p-4 text-sm">
       <p className="flex items-center gap-2 font-semibold text-primary"><Sparkles className="h-4 w-4" />{found.headline || METHOD[found.recommended]}</p>
-      <p className="text-muted-foreground">{found.why}</p>
       {found.recommended === 'email' && <div className="space-y-1">
         <label htmlFor="invoice-receipt-email" className="font-semibold">Adresse de réception Pennylane du dossier</label>
         <Input id="invoice-receipt-email" type="email" value={email} onChange={e => setEmail(e.target.value)} />
@@ -130,7 +129,13 @@ export function InvoiceSourceSetup({ dossierId, supplier, onFiles }: { dossierId
       </div>
     </div>}
 
-    {found && started && <div className="space-y-3 rounded-lg border p-4 text-sm">
+    {found && started && found.recommended !== 'email' && <div className="space-y-2">
+      <RobotChrome dossierId={dossierId} robotUrl={robotUrl} onFiles={onFiles}
+        onSaveUrl={async (newUrl) => { await setRobot({ data: { dossierId, supplier, sourceUrl: url, robotUrl: newUrl } }); await qc.invalidateQueries({ queryKey }); }} />
+      <Button variant="ghost" size="sm" onClick={() => { setStarted(false); setStep(0); }}><RotateCcw />Changer</Button>
+    </div>}
+
+    {found && started && found.recommended === 'email' && <div className="space-y-3 rounded-lg border p-4 text-sm">
       <div className="flex items-center justify-between gap-2">
         <p className="font-semibold text-primary">{found.headline || METHOD[found.recommended]}</p>
         <Button variant="ghost" size="sm" onClick={() => { setStarted(false); setStep(0); }}><RotateCcw />Changer</Button>
