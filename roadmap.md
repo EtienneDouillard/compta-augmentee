@@ -36,4 +36,4 @@
 - [x] Reconnecter GitHub API dans le nouvel espace de travail
 - [x] Robot CA+ : URL préremplie modifiable avec sauvegarde
 - [x] Infobulle (i) : remplacer le survol natif par une vraie infobulle
-- [ ] Déployer en prod (demandé 29/10 11:41)
+- [x] Déployer en prod (demandé 29/10 11:41)
