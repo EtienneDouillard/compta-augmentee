@@ -8,8 +8,13 @@ window.addEventListener("message", (e) => {
   if (m.type === "ping") window.postMessage({ source: "caplus-robot", type: "ready", version: V }, location.origin);
   if (m.type === "connect") chrome.storage.local.set({ base: location.origin, token: m.token }, () =>
     window.postMessage({ source: "caplus-robot", type: "connected" }, location.origin));
-  if (m.type === "teach") chrome.runtime.sendMessage({ type: "teach", url: m.url }, (r) =>
-    window.postMessage({ source: "caplus-robot", type: "done", log: r?.log || "Terminé" }, location.origin));
+  // Teaching replies at once ("started"); the result comes later as "caplus-done" (below).
+  if (m.type === "teach") chrome.storage.local.set(m.token ? { base: location.origin, token: m.token } : {}, () => chrome.runtime.sendMessage({ type: "teach", url: m.url }, (r) => {
+    if (r?.log) window.postMessage({ source: "caplus-robot", type: "done", log: r.log }, location.origin);
+  }));
   if (m.type === "run") chrome.storage.local.set(m.token ? { base: location.origin, token: m.token } : {}, () => chrome.runtime.sendMessage({ type: "run", url: m.url }, (r) =>
     window.postMessage({ source: "caplus-robot", type: "done", log: r?.log || "Terminé" }, location.origin)));
+});
+chrome.runtime.onMessage.addListener((m) => {
+  if (m?.type === "caplus-done") window.postMessage({ source: "caplus-robot", type: "done", log: m.log }, location.origin);
 });
