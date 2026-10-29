@@ -6,7 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { BrandMark, Monogram } from "@/components/brand";
 import { useCabinet } from "@/lib/cabinet";
-import { meQuery, stopPreview } from "@/lib/session";
+import { chooseDossier, meQuery, stopPreview } from "@/lib/session";
 import { cn } from "@/lib/utils";
 
 export function AppHeader({ space }: { space: "client" | "cabinet" }) {
@@ -44,12 +44,23 @@ function ClientBar({ onSignOut }: { onSignOut: () => void }) {
     )}
     <header className="border-b bg-card">
       <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-3">
-        <div className="flex min-w-0 items-center gap-3">
-          <Monogram name={cabinet.name} logoUrl={cabinet.logoUrl} />
-          <div className="min-w-0">
-            <div className="truncate font-bold leading-tight text-primary">{cabinet.name}</div>
-            <div className="text-sm text-muted-foreground">Espace client</div>
-          </div>
+        <div className="flex min-w-0 items-center gap-4">
+          <Link to="/espace" aria-label="Accueil" className="flex shrink-0 items-center gap-3 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+            <Monogram name={cabinet.name} logoUrl={cabinet.logoUrl} />
+            <div className="min-w-0">
+              <div className="truncate font-bold leading-tight text-primary">{cabinet.name}</div>
+              <div className="text-sm text-muted-foreground">Espace client</div>
+            </div>
+          </Link>
+          {me.data?.dossierId && <div className="hidden min-w-0 border-l pl-4 sm:block">
+            <div className="font-bold leading-tight text-primary">Bonjour 👋</div>
+            {me.data.dossiers.length > 1 && !me.data.preview ? (
+              <select aria-label="Changer de dossier" value={me.data.dossierId} onChange={async (e) => { chooseDossier(e.target.value); await qc.invalidateQueries({ queryKey: meQuery.queryKey }); }}
+                className="max-w-full truncate bg-transparent text-sm text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                {me.data.dossiers.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+              </select>
+            ) : <div className="truncate text-sm text-muted-foreground">🏢 {me.data.dossiers.find((d) => d.id === me.data!.dossierId)?.name}</div>}
+          </div>}
         </div>
         <div className="flex items-center gap-5">
           <CabinetContact className="hidden md:flex" />
