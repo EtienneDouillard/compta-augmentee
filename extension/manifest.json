@@ -1,9 +1,9 @@
 {
   "manifest_version": 3,
   "name": "CA+ Robot factures",
-  "version": "1.7.0",
+  "version": "1.8.0",
   "description": "Ouvre vos pages fournisseurs dans votre Chrome connecté, récupère les factures et les envoie à CA+.",
-  "permissions": ["tabs", "scripting", "storage", "alarms", "downloads"],
+  "permissions": ["tabs", "scripting", "storage", "alarms", "downloads", "webNavigation"],
   "host_permissions": ["<all_urls>"],
   "action": { "default_popup": "popup.html", "default_icon": "icon.png" },
   "background": { "service_worker": "background.js" },
