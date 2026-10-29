@@ -78,7 +78,7 @@ ${lines.join("\n") || "(aucun)"}`;
     const { data: hist } = await supabase.from("chat_messages").select("role, content")
       .eq("user_id", userId).lte("created_at", new Date().toISOString()).order("created_at", { ascending: false }).limit(20);
     const messages = [...(hist ?? [])].reverse().map((h) => ({ role: h.role as "user" | "assistant", content: clip(h.content) }));
-    while (messages.length && messages[0]!.role !== "user") messages.shift();
+    while (messages[0] && messages[0].role !== "user") messages.shift();
     // The data goes in the question, marked as data, never in the instructions.
     messages.push({ role: "user", content: `<donnees>\n${context_txt}\n</donnees>\n\n${data.message}` });
 
@@ -107,7 +107,8 @@ ${lines.join("\n") || "(aucun)"}`;
     }
     const escalate = text.includes(ESCALATE);
     text = text.replaceAll(ESCALATE, "").trim();
-    await supabase.from("chat_messages").insert({ dossier_id: dossierId, user_id: userId, role: "assistant", content: text });
+    const { error: saveError } = await supabase.from("chat_messages").insert({ dossier_id: dossierId, user_id: userId, role: "assistant", content: text });
+    if (saveError) throw new Error("Impossible d'enregistrer la réponse.");
     return { reply: text, escalate };
   });
 
