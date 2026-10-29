@@ -42,3 +42,4 @@
 - [x] Intégrer PR Julien #6–#9 (compta-augmentee) : migrations #7 #8 #9, code, puis fermer les PR
 - [x] Accueil client : 3 cartes (verte + bravo dedans ; graphique ; 🤖 automatisations)
 - [ ] Pré-remplir le site fournisseur via Claude quand le libellé ne suffit pas (Delibero)
+- [ ] Vue kanban par fournisseur (filtre) sur la liste
