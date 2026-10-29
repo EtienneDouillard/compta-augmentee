@@ -10,6 +10,8 @@ import { receptionProven, type CollectResult } from '@/lib/invoice-sources';
 import { researchInvoiceSource, RESEARCH_VERSION, type SourceResearch } from '@/lib/invoice-research.functions';
 import type { SetupStep } from '@/lib/source-steps';
 import { checkInvoiceCollection } from '@/lib/invoice-collect.functions';
+import { setRobotSource } from '@/lib/collector.functions';
+import { RobotChrome } from '@/components/RobotChrome';
 
 type CheckData = { results: CollectResult[]; steps: string[] };
 const STATUS: Record<CollectResult['status'], string> = { conforme: '✓ Facture reçue et conforme', recu_pennylane: '✓ Facture dans Pennylane', non_conforme: '✗ Pièce non conforme', manquant: '• Pas encore reçue', email_annonce: '… Envoi annoncé' };
@@ -25,6 +27,7 @@ export function InvoiceSourceSetup({ dossierId, supplier }: { dossierId: string;
   const save = useServerFn(saveInvoiceSource);
   const research = useServerFn(researchInvoiceSource);
   const runCheck = useServerFn(checkInvoiceCollection);
+  const setRobot = useServerFn(setRobotSource);
   const qc = useQueryClient();
   const queryKey = ['invoice-source', dossierId, supplier];
   const query = useQuery({ queryKey, queryFn: () => load({ data: { dossierId, supplier } }) });
@@ -87,7 +90,19 @@ export function InvoiceSourceSetup({ dossierId, supplier }: { dossierId: string;
     finally { setChecking(false); }
   }
 
+  const robotUrl = (found ? stepsOf(found).find(s => s.link)?.link : null) ?? query.data?.source?.robot_url ?? url;
+  async function startRobot() {
+    try { await setRobot({ data: { dossierId, supplier, sourceUrl: url, robotUrl } }); await qc.invalidateQueries({ queryKey }); toast.success('🤖 Robot activé'); }
+    catch (e) { toast.error(e instanceof Error ? e.message : 'Enregistrement impossible.'); }
+  }
+
   if (query.isPending) return <p className="text-muted-foreground">Chargement de la source…</p>;
+  const src = query.data?.source;
+  if (src?.method === 'browser') return <div className="space-y-3">
+    <RobotChrome dossierId={dossierId} robotUrl={src.robot_url || src.source_url} lastRun={src.robot_last_run as any}
+      onSaveUrl={async (newUrl) => { await setRobot({ data: { dossierId, supplier, sourceUrl: src.source_url, robotUrl: newUrl } }); await qc.invalidateQueries({ queryKey }); }} />
+    <Button variant="ghost" size="sm" onClick={async () => { await save({ data: { dossierId, supplier, sourceUrl: src.source_url, method: 'email', billingPath: '', receiptEmail: email || null, configured: false, autoSend: false } }); await qc.invalidateQueries({ queryKey }); }}><RotateCcw />Changer</Button>
+  </div>;
   if (query.isError) return <p role="alert" className="text-destructive">{query.error.message}</p>;
   const last = steps.length; // index of the final "verify" step
 
@@ -109,7 +124,10 @@ export function InvoiceSourceSetup({ dossierId, supplier }: { dossierId: string;
         <label htmlFor="invoice-receipt-email" className="font-semibold">Adresse de réception Pennylane du dossier</label>
         <Input id="invoice-receipt-email" type="email" value={email} onChange={e => setEmail(e.target.value)} />
       </div>}
-      <Button onClick={start}>OK, partir sur cette option</Button>
+      <div className="flex flex-wrap gap-2">
+        <Button onClick={start}>OK, partir sur cette option</Button>
+        <Button variant="outline" onClick={startRobot}>🤖 Robot CA+</Button>
+      </div>
     </div>}
 
     {found && started && <div className="space-y-3 rounded-lg border p-4 text-sm">

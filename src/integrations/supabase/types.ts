@@ -301,6 +301,41 @@ export type Database = {
           },
         ]
       }
+      collector_tokens: {
+        Row: {
+          created_at: string
+          created_by: string
+          dossier_id: string
+          id: string
+          last_used_at: string | null
+          token_hash: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          dossier_id: string
+          id?: string
+          last_used_at?: string | null
+          token_hash: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          dossier_id?: string
+          id?: string
+          last_used_at?: string | null
+          token_hash?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "collector_tokens_dossier_id_fkey"
+            columns: ["dossier_id"]
+            isOneToOne: false
+            referencedRelation: "dossiers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       dossier_members: {
         Row: {
           created_at: string
@@ -488,6 +523,8 @@ export type Database = {
           receipt_email: string | null
           research: Json | null
           researched_at: string | null
+          robot_last_run: Json | null
+          robot_url: string | null
           source_url: string
           state: string
           supplier: string
@@ -507,6 +544,8 @@ export type Database = {
           receipt_email?: string | null
           research?: Json | null
           researched_at?: string | null
+          robot_last_run?: Json | null
+          robot_url?: string | null
           source_url: string
           state?: string
           supplier: string
@@ -526,6 +565,8 @@ export type Database = {
           receipt_email?: string | null
           research?: Json | null
           researched_at?: string | null
+          robot_last_run?: Json | null
+          robot_url?: string | null
           source_url?: string
           state?: string
           supplier?: string
