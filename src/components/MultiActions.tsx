@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { Check, FileX, FolderOpen, Mail, MailPlus, Upload, X } from "lucide-react";
+import { Check, FileX, FolderOpen, Handshake, Mail, MailPlus, Upload, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -10,15 +10,17 @@ import {
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { SupplierAvatar } from "@/components/brand";
+import { ContactParCabinet } from "@/components/ContactParCabinet";
 import { formatDate, formatEUR, type SupplierGroup, type Tx } from "@/lib/session";
 import { ACCEPT, mailtoFactures, useDepot } from "@/lib/use-depot";
 import { useClientDossier } from "@/routes/_authenticated/espace.index";
 import { NO_INVOICE_NOTE_SALE, NO_INVOICE_WARNING } from "@/lib/no-invoice";
 
-type Mode = "upload" | "email" | "none";
+type Mode = "upload" | "email" | "none" | "cabinet";
 
 // Actions for several suppliers at once (retour de Simon): the client picks suppliers on the home page,
-// then deposits, sends by e-mail or declares "no invoice" for all their payments still to do.
+// then deposits, sends by e-mail or declares "no invoice" for all their payments still to do. "Mon comptable s'en
+// charge" (retour de Julien, point 8): one authorisation per selected purchase supplier, as on the supplier page.
 export function MultiActions({
   dossierId,
   groups,
@@ -30,6 +32,7 @@ export function MultiActions({
 }) {
   const [mode, setMode] = useState<Mode | null>(null);
   const [comment, setComment] = useState("");
+  const [autorises, setAutorises] = useState<Set<string>>(new Set());
   const dossier = useClientDossier(dossierId);
   const d = useDepot(dossierId);
   if (!groups.length) return null;
@@ -39,6 +42,20 @@ export function MultiActions({
   const out = pending.filter((t) => t.direction === "out");
   const inn = pending.filter((t) => t.direction === "in");
   const n = groups.length;
+  const achats = groups
+    .filter((g) => g.direction === "out")
+    .map((g) => ({ g, txs: g.txs.filter((t) => t.status === "a_faire") }))
+    .filter((x) => x.txs.length);
+
+  function autorise(key: string) {
+    const next = new Set(autorises).add(key);
+    setAutorises(next);
+    if (achats.every((x) => next.has(x.g.key))) {
+      setAutorises(new Set());
+      setMode(null);
+      onClear();
+    }
+  }
 
   async function noInvoice() {
     if (await d.mark(pending, "sans_facture", comment)) {
@@ -73,6 +90,11 @@ export function MultiActions({
           <Button variant="outline" onClick={() => setMode("none")}>
             <FileX /> Pas de facture
           </Button>
+          {achats.length > 0 && (
+            <Button variant="outline" onClick={() => setMode("cabinet")}>
+              <Handshake /> Mon comptable s'en charge
+            </Button>
+          )}
           <Button variant="ghost" size="icon" onClick={onClear} aria-label="Annuler la sélection">
             <X />
           </Button>
@@ -87,7 +109,9 @@ export function MultiActions({
                 ? "Déposer les factures"
                 : mode === "email"
                   ? "Envoyer les factures par e-mail"
-                  : "Je n'ai pas de facture"}
+                  : mode === "cabinet"
+                    ? "Mon comptable s'en charge"
+                    : "Je n'ai pas de facture"}
             </DialogTitle>
             <DialogDescription>
               {n} fournisseur{n > 1 ? "s" : ""}, {pending.length} paiement
@@ -174,6 +198,46 @@ export function MultiActions({
             </div>
           )}
 
+          {mode === "cabinet" && (
+            <div className="space-y-5">
+              <p className="text-sm text-muted-foreground">
+                Pour chaque fournisseur, vous autorisez votre cabinet à lui écrire à votre place
+                pour obtenir les factures manquantes. Rien n'est envoyé au fournisseur depuis cet
+                écran.
+              </p>
+              {inn.length > 0 && (
+                <p className="text-sm text-muted-foreground">
+                  Les clients sélectionnés ne sont pas concernés : seuls les fournisseurs sont
+                  listés.
+                </p>
+              )}
+              {achats.map(({ g, txs }) => (
+                <div key={g.key} className="rounded-xl border p-4">
+                  <p className="mb-3 flex items-center gap-3 font-bold text-primary">
+                    <SupplierAvatar name={g.name} className="h-8 w-8 text-xs" /> {g.name}
+                    <span className="ml-auto text-sm font-normal text-muted-foreground">
+                      {txs.length} paiement{txs.length > 1 ? "s" : ""}
+                    </span>
+                  </p>
+                  {autorises.has(g.key) ? (
+                    <p className="flex items-center gap-2 text-sm font-semibold text-primary">
+                      <Check className="h-4 w-4" /> Autorisation transmise à votre cabinet
+                    </p>
+                  ) : (
+                    <ContactParCabinet
+                      dossierId={dossierId}
+                      supplier={g.name}
+                      client={dossier.data?.name ?? ""}
+                      paiements={txs}
+                      adresseDossier={dossier.data?.collect_email}
+                      onDone={() => autorise(g.key)}
+                    />
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+
           {mode === "none" && (
             <div>
               <label htmlFor="multi-comment" className="text-sm font-semibold">
@@ -229,7 +293,9 @@ function DepotRow({
   return (
     <li className="flex flex-wrap items-center gap-3 px-3 py-2 text-sm">
       <span className="w-24">{formatDate(tx.date)}</span>
-      <span className="min-w-0 flex-1 truncate font-mono text-muted-foreground">{tx.label}</span>
+      <span className="min-w-0 flex-1 truncate font-mono text-muted-foreground" title={tx.label}>
+        {tx.label}
+      </span>
       <span className="font-bold tabular-nums">{formatEUR(Math.abs(Number(tx.amount)))}</span>
       <Button size="sm" variant="outline" disabled={busy} onClick={() => input.current?.click()}>
         <FolderOpen /> Ajouter

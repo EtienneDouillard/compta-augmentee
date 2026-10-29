@@ -86,7 +86,7 @@ function SupplierStep({ steps, idx, dossierId, progress }: {
   const pending = group.txs.filter((t) => t.status === "a_faire");
   // All the payments still to do are selected at first: one click answers the whole supplier.
   const [sel, setSel] = useState<Set<string>>(() => new Set(pending.map((t) => t.id)));
-  const [mode, setMode] = useState<"upload" | "email" | "none" | "source" | "cabinet" | null>(null);
+  const [mode, setMode] = useState<"upload" | "email" | "none" | "source" | "demande" | "cabinet" | null>(null);
   // Coming from the sources catalogue (#source): open the source setup directly.
   useEffect(() => { if (typeof window !== "undefined" && window.location.hash === "#source") setMode("source"); }, []);
   const [comment, setComment] = useState("");
@@ -222,7 +222,7 @@ function SupplierStep({ steps, idx, dossierId, progress }: {
                   <Sparkles className="h-4 w-4 animate-pulse" /> Vérification de la facture (fournisseur et montant)…
                 </p>
               )}
-              <div className={cn("grid gap-3", isSale ? "sm:grid-cols-2" : "sm:grid-cols-2 lg:grid-cols-4")}>
+              <div className={cn("grid gap-3", isSale ? "sm:grid-cols-2" : "sm:grid-cols-2 md:grid-cols-3")}>
                 {!isSale && (
                   <ChoiceTile emoji="🤖" tone="mint" open={mode === "source"} onToggle={() => setMode(mode === "source" ? null : "source")}
                     title="Automatiser" desc="Claude trouve où récupérer les factures de ce fournisseur, puis les collecte seul chaque mois." aide={AIDE_CHOIX.source} />
@@ -232,12 +232,22 @@ function SupplierStep({ steps, idx, dossierId, progress }: {
                 <ChoiceTile emoji="🚫" tone="yellow" open={mode === "none"} onToggle={() => setMode(mode === "none" ? null : "none")}
                   title="Pas de facture" desc="Un mot d'explication aide votre comptable." aide={AIDE_CHOIX.none} />
                 {!isSale && (
+                  <ChoiceTile emoji="✉️" tone="pale" open={mode === "demande"} onToggle={() => setMode(mode === "demande" ? null : "demande")}
+                    title="Demande par mail au fournisseur" desc="Un mail prêt à envoyer, depuis votre messagerie." aide={AIDE_CHOIX.demande} />
+                )}
+                {!isSale && (
                   <ChoiceTile emoji="🤝" tone="pale" open={mode === "cabinet"} onToggle={() => setMode(mode === "cabinet" ? null : "cabinet")}
                     title="Mon comptable s'en charge" desc="Il écrit au fournisseur pour vous." aide={AIDE_CHOIX.cabinet} />
                 )}
               </div>
 
               {mode && <div className="mt-4"><EtApres>{AIDE_CHOIX[mode as Choix].apres}</EtApres></div>}
+
+              {mode === "demande" && !isSale && (
+                <ChoicePanel>
+                  <DemandeParMail supplier={group.name} client={dossier.data?.name ?? ""} paiements={selected} adresseDossier={collect} />
+                </ChoicePanel>
+              )}
 
               {mode === "cabinet" && !isSale && (
                 <ChoicePanel>
@@ -300,10 +310,6 @@ function SupplierStep({ steps, idx, dossierId, progress }: {
                 </ChoicePanel>
               )}
 
-              {!isSale && (
-                <SupplierRequest supplier={group.name} client={dossier.data?.name ?? ""} paiements={selected} adresseDossier={collect} />
-              )}
-
               {mode === "none" && (
                 <ChoicePanel>
                   <label htmlFor="no-invoice-comment" className="text-sm font-semibold">Votre commentaire (facultatif)</label>
@@ -359,8 +365,8 @@ function TxRow({ tx, isSale, bilan, selected, onToggle, onFiles }: {
           <span className="sm:hidden">{isSale ? "Encaissé le " : "Payé le "}</span>{formatDate(tx.date)}
         </span>
         <span className="order-3 min-w-0 sm:order-none">
-          <span className="block truncate font-mono text-sm text-muted-foreground">{tx.label}</span>
-          {tx.comment && <span className="block truncate text-sm italic text-muted-foreground">« {tx.comment} »</span>}
+          <span className="block truncate font-mono text-sm text-muted-foreground" title={tx.label}>{tx.label}</span>
+          {tx.comment && <span className="block truncate text-sm italic text-muted-foreground" title={tx.comment}>« {tx.comment} »</span>}
           <BilanLine bilan={bilan} />
         </span>
         <span className="order-1 font-bold tabular-nums sm:order-none sm:text-right">{amount}</span>
@@ -446,115 +452,33 @@ function PhotoSansFacture({ busy, onFiles }: { busy: boolean; onFiles: (f: File[
   );
 }
 
-// Simon: the client lets the firm ask the supplier. The supplier's e-mail read on another invoice is offered first,
-// else the client types it. The firm gets the request in its questions panel; nothing is sent to the supplier here.
-function ContactParCabinet({ dossierId, supplier, client, paiements, adresseDossier, onDone }: {
-  dossierId: string; supplier: string; client: string; paiements: Tx[]; adresseDossier: string | null | undefined; onDone: () => void;
-}) {
-  const qc = useQueryClient();
-  const cabinet = useCabinet();
-  const known = useQuery({ queryKey: ["emails-fournisseur", dossierId, supplier], queryFn: () => emailsFournisseur({ data: { dossierId, supplier } }) });
-  const emails = known.data?.emails ?? [];
-  const [choice, setChoice] = useState<string | null>(null);
-  const [typed, setTyped] = useState("");
-  const [ref, setRef] = useState("");
-  const [busy, setBusy] = useState(false);
-  const to = (choice ?? emails[0] ?? "") === "autre" || !emails.length ? typed.trim() : (choice ?? emails[0]!);
-  const ok = EMAIL.test(to) && paiements.length > 0;
-  // The full e-mail the firm will send (Simon): shown to the client before authorising, and handed to the firm as is.
-  const d = demandeFournisseur({ fournisseur: supplier, client, referenceClient: ref, paiements, adresseDossier, cabinet: cabinet.name });
-
-  async function authorize() {
-    setBusy(true);
-    try {
-      const me = await qc.fetchQuery(meQuery);
-      const question = `Le client autorise le cabinet à contacter ${supplier} (${to}) pour obtenir les factures manquantes.\n\nÀ : ${to}\nObjet : ${d.subject}\n\n${d.body}`;
-      const ins = await supabase.from("cabinet_questions").insert({
-        dossier_id: dossierId, user_email: me?.email ?? null, question, context: `achat:${supplier}`,
-      });
-      if (ins.error) throw ins.error;
-      const upd = await supabase.from("transactions")
-        .update({ comment: `Cabinet autorisé à contacter le fournisseur (${to}).` })
-        .in("id", paiements.map((t) => t.id));
-      if (upd.error) throw upd.error;
-      toast.success(`C'est noté : votre cabinet va contacter ${supplier}.`);
-      qc.invalidateQueries({ queryKey: ["client-txs"] });
-      onDone();
-    } catch (e) {
-      toast.error((e as Error).message);
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  return (
-    <div className="space-y-4">
-      {known.isLoading ? (
-        <p className="text-sm text-muted-foreground">🔎…</p>
-      ) : emails.length > 0 ? (
-        <fieldset className="space-y-2">
-          <legend className="font-semibold">📧 E-mail de {supplier}</legend>
-          {[...emails, "autre"].map((e) => (
-            <label key={e} className="flex items-center gap-2 text-sm">
-              <input type="radio" name="email-fournisseur" checked={(choice ?? emails[0]) === e} onChange={() => setChoice(e)} />
-              {e === "autre" ? "Une autre adresse" : <code className="font-mono font-semibold text-primary">{e}</code>}
-            </label>
-          ))}
-        </fieldset>
-      ) : (
-        <p className="font-semibold">📧 E-mail de {supplier}</p>
-      )}
-      {(!emails.length || choice === "autre") && (
-        <Input type="email" value={typed} onChange={(e) => setTyped(e.target.value)} placeholder="ex. factures@fournisseur.fr" className="bg-card" aria-label="E-mail du fournisseur" />
-      )}
-      <Input value={ref} onChange={(e) => setRef(e.target.value)} placeholder="N° client (facultatif)" className="bg-card" aria-label="Référence client" />
-      <details>
-        <summary className="cursor-pointer text-sm font-semibold">✉️ Voir le mail</summary>
-        <pre className="mt-1 max-h-56 overflow-auto whitespace-pre-wrap rounded-xl border bg-pale-2 p-3 font-sans text-sm text-muted-foreground">{`Objet : ${d.subject}\n\n${d.body}`}</pre>
-      </details>
-      <Button size="xl" disabled={busy || !ok} onClick={authorize}>
-        <Handshake /> J'autorise
-      </Button>
-    </div>
-  );
-}
-
-// "Demander la facture au fournisseur": the text opens in the client's own mail app, nothing is sent by the app.
-function SupplierRequest({ supplier, client, paiements, adresseDossier }: {
+// "Demande par mail au fournisseur" (retour de Julien, point 9): the text opens in the client's own mail app,
+// nothing is sent by the app.
+function DemandeParMail({ supplier, client, paiements, adresseDossier }: {
   supplier: string; client: string; paiements: Tx[]; adresseDossier: string | null | undefined;
 }) {
-  const [open, setOpen] = useState(false);
   const [to, setTo] = useState("");
   const [ref, setRef] = useState("");
   const d = demandeFournisseur({ fournisseur: supplier, client, referenceClient: ref, paiements, adresseDossier });
   return (
-    <div className="mt-4 rounded-2xl border border-dashed bg-card/60 p-4">
-      <button type="button" aria-expanded={open} onClick={() => setOpen(!open)}
-        className="flex w-full items-center gap-3 text-left font-semibold text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
-        <Send className="h-5 w-5 shrink-0" /> Vous ne retrouvez pas la facture ? Demandez-la à {supplier}
-      </button>
-      {open && (
-        <div className="mt-4 space-y-3">
-          <div className="grid gap-3 sm:grid-cols-2">
-            <label className="space-y-1 text-sm font-semibold">
-              <span>E-mail du fournisseur (facultatif)</span>
-              <Input type="email" value={to} onChange={(e) => setTo(e.target.value)} placeholder="ex. factures@fournisseur.fr" className="bg-card font-normal" />
-            </label>
-            <label className="space-y-1 text-sm font-semibold">
-              <span>Votre référence client chez lui (facultatif)</span>
-              <Input value={ref} onChange={(e) => setRef(e.target.value)} placeholder="ex. n° de client ou de contrat" className="bg-card font-normal" />
-            </label>
-          </div>
-          <pre className="max-h-56 overflow-auto whitespace-pre-wrap rounded-xl border bg-pale-2 p-3 font-sans text-sm text-muted-foreground">{`Objet : ${d.subject}\n\n${d.body}`}</pre>
-          <div className="flex flex-wrap gap-2">
-            <Button asChild size="lg"><a href={mailtoDemande(to, d)}><MailPlus /> Ouvrir ma messagerie</a></Button>
-            <Button variant="outline" size="lg" onClick={() => { navigator.clipboard.writeText(`${d.subject}\n\n${d.body}`); toast.success("Texte copié"); }}>
-              <Copy /> Copier le texte
-            </Button>
-          </div>
-          <p className="text-sm text-muted-foreground">{AIDE_DEMANDE}</p>
-        </div>
-      )}
+    <div className="space-y-3">
+      <div className="grid gap-3 sm:grid-cols-2">
+        <label className="space-y-1 text-sm font-semibold">
+          <span>E-mail du fournisseur (facultatif)</span>
+          <Input type="email" value={to} onChange={(e) => setTo(e.target.value)} placeholder="ex. factures@fournisseur.fr" className="bg-card font-normal" />
+        </label>
+        <label className="space-y-1 text-sm font-semibold">
+          <span>Votre référence client chez lui (facultatif)</span>
+          <Input value={ref} onChange={(e) => setRef(e.target.value)} placeholder="ex. n° de client ou de contrat" className="bg-card font-normal" />
+        </label>
+      </div>
+      <pre className="max-h-56 overflow-auto whitespace-pre-wrap rounded-xl border bg-pale-2 p-3 font-sans text-sm text-muted-foreground">{`Objet : ${d.subject}\n\n${d.body}`}</pre>
+      <div className="flex flex-wrap gap-2">
+        <Button asChild size="lg"><a href={mailtoDemande(to, d)}><MailPlus /> Ouvrir ma messagerie</a></Button>
+        <Button variant="outline" size="lg" onClick={() => { navigator.clipboard.writeText(`${d.subject}\n\n${d.body}`); toast.success("Texte copié"); }}>
+          <Copy /> Copier le texte
+        </Button>
+      </div>
     </div>
   );
 }

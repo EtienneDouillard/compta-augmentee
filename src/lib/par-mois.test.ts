@@ -10,8 +10,8 @@ describe("parMois", () => {
     ]);
     expect(r).toHaveLength(12);
     expect(r[0]!.mois).toBe("2026-01");
-    expect(r[2]).toEqual({ mois: "2026-03", justifie: 120.5, aJustifier: 30 });
-    expect(r[6]).toEqual({ mois: "2026-07", justifie: 10, aJustifier: 0 });
+    expect(r[2]).toEqual({ mois: "2026-03", justifie: 120.5, aJustifier: 30, nbJustifie: 1, nbAJustifier: 1 });
+    expect(r[6]).toEqual({ mois: "2026-07", justifie: 10, aJustifier: 0, nbJustifie: 1, nbAJustifier: 0 });
   });
 
   it("spans several years from the first month to the last", () => {
@@ -20,6 +20,15 @@ describe("parMois", () => {
       { date: "2026-02-10", amount: 2, status: "a_faire" },
     ]);
     expect(r.map((m) => m.mois)).toEqual(["2025-11", "2025-12", "2026-01", "2026-02"]);
+  });
+
+  it("counts the invoices of each segment", () => {
+    const r = parMois([
+      { date: "2026-05-02", amount: -10, status: "a_faire" },
+      { date: "2026-05-09", amount: -20, status: "a_faire" },
+      { date: "2026-05-15", amount: -5, status: "depose" },
+    ]);
+    expect(r[4]).toMatchObject({ aJustifier: 30, nbAJustifier: 2, justifie: 5, nbJustifie: 1 });
   });
 
   it("returns nothing without lines", () => {

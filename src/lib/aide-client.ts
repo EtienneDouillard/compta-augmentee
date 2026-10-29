@@ -1,7 +1,7 @@
 // Help texts of the client space (retour de Julien, 29/10/2026): plain words, no accounting jargon, and for each
 // choice when to use it and what happens next. Legal mentions reuse the sources already checked in no-invoice.ts.
 
-export type Choix = "source" | "upload" | "email" | "none" | "cabinet";
+export type Choix = "source" | "upload" | "email" | "none" | "demande" | "cabinet";
 
 export type AideChoix = { quand: string; apres: string };
 
@@ -30,6 +30,12 @@ export const AIDE_CHOIX: Record<Choix, AideChoix> = {
       "Il n'existe pas de facture pour ce paiement (achat personnel, virement entre vos comptes, frais bancaires…) ou elle est introuvable.",
     apres:
       "Votre comptable lit votre explication et décide du traitement ; il revient vers vous si besoin. Un mot d'explication lui fait gagner du temps.",
+  },
+  demande: {
+    quand:
+      "Vous ne retrouvez pas la facture et préférez la demander vous-même au fournisseur, depuis votre propre messagerie.",
+    apres:
+      "Le message préparé s'ouvre dans votre messagerie : relisez-le, rien n'est envoyé sans vous. Dès que le fournisseur vous répond, revenez déposer la facture ici.",
   },
   cabinet: {
     quand:
