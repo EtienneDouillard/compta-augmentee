@@ -12,6 +12,15 @@ import type { SetupStep } from '@/lib/source-steps';
 import { checkInvoiceCollection } from '@/lib/invoice-collect.functions';
 import { setRobotSource } from '@/lib/collector.functions';
 import { RobotChrome } from '@/components/RobotChrome';
+import { Info } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+
+const InfoTip = ({ text }: { text: string }) => (
+  <TooltipProvider delayDuration={0}><Tooltip>
+    <TooltipTrigger asChild><button type="button" aria-label={text} className="ml-1 inline-flex align-middle text-muted-foreground"><Info className="h-3.5 w-3.5" /></button></TooltipTrigger>
+    <TooltipContent className="max-w-64 text-xs">{text}</TooltipContent>
+  </Tooltip></TooltipProvider>
+);
 
 type CheckData = { results: CollectResult[]; steps: string[] };
 const STATUS: Record<CollectResult['status'], string> = { conforme: '✓ Facture reçue et conforme', recu_pennylane: '✓ Facture dans Pennylane', non_conforme: '✗ Pièce non conforme', manquant: '• Pas encore reçue', email_annonce: '… Envoi annoncé' };
@@ -140,16 +149,14 @@ export function InvoiceSourceSetup({ dossierId, supplier, onFiles }: { dossierId
         <p className="font-semibold text-primary">{found.headline || METHOD[found.recommended]}</p>
         <Button variant="ghost" size="sm" onClick={() => { setStarted(false); setStep(0); }}><RotateCcw />Changer</Button>
       </div>
-      {found.loginNote && <p className="text-muted-foreground">{found.loginNote}</p>}
       <ol className="space-y-2">
         {steps.map((s, i) => <li key={i} className={`rounded-md border p-3 ${i === step ? 'border-primary bg-secondary/40' : i < step || proven ? 'opacity-70' : 'opacity-50'}`}>
           <div className="flex items-start gap-2">
             <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border text-xs">{i < step || proven ? <Check className="h-3 w-3" /> : i + 1}</span>
             <div className="min-w-0 flex-1 space-y-1">
-              <p className="font-semibold">{s.title}</p>
-              {s.detail && <p className="text-muted-foreground">{s.detail}</p>}
+              <p className="font-semibold">{s.title}{(s.detail || (i === 0 && found.loginNote)) && <InfoTip text={[i === 0 ? found.loginNote : '', s.detail].filter(Boolean).join(' · ')} />}</p>
               {i === step && !proven && <div className="flex flex-wrap gap-2 pt-1">
-                {s.link && <Button asChild size="sm"><a href={s.link} target="_blank" rel="noopener noreferrer" title={s.link}><ExternalLink />Ouvrir la page {new URL(s.link).hostname.replace(/^www\./, '')}</a></Button>}
+                {s.link && <Button asChild size="sm"><a href={s.link} target="_blank" rel="noopener noreferrer" title={s.link}><ExternalLink />Ouvrir</a></Button>}
                 {s.pastePennylaneEmail && email && <Button size="sm" variant="outline" onClick={async () => { await navigator.clipboard.writeText(email); toast.success('Adresse copiée, collez-la sur la page ouverte'); }}><Copy />Copier {email}</Button>}
                 <Button size="sm" variant={s.link ? 'outline' : 'default'} onClick={() => setStep(i + 1)}>C’est fait</Button>
               </div>}
