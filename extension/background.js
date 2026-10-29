@@ -286,7 +286,12 @@ async function run(onlyUrl) {
             const f2 = await fileFromTab(pid);
             chrome.tabs.remove(pid).catch(() => {});
             popupId = null;
-            if (f2 && !f2.html) file = f2; else { log.push(`⚠️ ${src.supplier} ${it.date || ""} : ${siteError(f2?.error || file?.error)}`); continue; }
+            if (f2 && !f2.html) file = f2;
+            else {
+              const b = await planB(tabId, it.frameId, it.rowText, learned[src.url] || "invoice");
+              if (b) { file = b; log.push(`🛟 ${src.supplier} : PDF refusé par le site, pris « ${b.via} » à la place`); }
+              else { log.push(`⚠️ ${src.supplier} ${it.date || ""} : ${siteError(f2?.error || file?.error)}`); continue; }
+            }
           }
           if (popupId) chrome.tabs.remove(popupId).catch(() => {});
           const j = await post(src, file, it.date, it.rowText);
@@ -396,6 +401,17 @@ async function onLearned(m, sender) {
   if (!file || file.html) {
     const tab = await chrome.tabs.get(t.tabId).catch(() => null);
     if (tab && tab.url !== t.url) { const f = await fileFromTab(t.tabId); if (f && !f.html) file = f; else err = f?.error || err; }
+  }
+  let via = null;
+  if (!file || file.html) {
+    await inFrame(t.tabId, 0, setBanner, ["🛟 PDF refusé par le site, je prends le récapitulatif…"]);
+    // Back to the list (the click may have navigated away) then try the row's other documents.
+    const tab = await chrome.tabs.get(t.tabId).catch(() => null);
+    if (tab && tab.url !== t.url) { await chrome.tabs.update(t.tabId, { url: t.url }); await loaded(t.tabId); await wait(3000); }
+    const res = await inFrames(t.tabId, rowLinks, [m.rowText, m.text]);
+    const fr = res.find((r) => r.result?.length);
+    const b = fr ? await planB(t.tabId, fr.frameId, m.rowText, m.text) : null;
+    if (b) { file = b; via = b.via; }
   }
   if (!file || file.html) return teachEnd(`🎓 Appris : « ${m.text} ». Mais ${siteError(err)}`);
 
