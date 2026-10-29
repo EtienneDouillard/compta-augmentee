@@ -106,10 +106,16 @@ export function RobotChrome({ dossierId, robotUrl, lastRun, onSaveUrl, onFiles }
         <Tip text="Le robot ouvre la page dans ton Chrome, trouve les factures du mois, Claude les vérifie, elles partent dans Pennylane. Il repasse tout seul chaque mois." />
       </div>
     ) : (
-      <div className="flex flex-wrap items-center gap-2">
-        <span>1️⃣</span><Button size="lg" onClick={download}><Download />Installer le robot</Button>
-        <Tip text="Une seule fois : dézippe, ouvre chrome://extensions, active « Mode développeur », clique « Charger l'extension non empaquetée » et choisis le dossier. Puis recharge cette page." />
-        <span>2️⃣</span><Button size="lg" variant="outline" onClick={() => location.reload()}>✅ C'est installé</Button>
+      <ol className="space-y-2">
+        <li className="flex flex-wrap items-center gap-2"><span>1️⃣</span><Button size="sm" onClick={download}><Download />Télécharger</Button><span className="text-xs text-muted-foreground">puis double-clic sur le fichier 📦</span></li>
+        <li className="flex flex-wrap items-center gap-2"><span>2️⃣</span>
+          <Button size="sm" variant="outline" onClick={() => { navigator.clipboard.writeText('chrome://extensions').then(() => toast.success('Colle-le dans la barre d’adresse ⤴️')).catch(() => {}); }}><Copy />Copier chrome://extensions</Button>
+          <span className="text-xs text-muted-foreground">→ nouvel onglet, colle, Entrée</span></li>
+        <li className="flex flex-wrap items-center gap-2"><span>3️⃣</span><span className="text-xs">Active <b>Mode développeur</b> ↗️ (en haut à droite)</span></li>
+        <li className="flex flex-wrap items-center gap-2"><span>4️⃣</span><span className="text-xs"><b>Charger l'extension non empaquetée</b> → choisis le dossier <b>ca-plus-robot</b></span></li>
+        <li className="flex flex-wrap items-center gap-2"><span>5️⃣</span><Button size="sm" variant="outline" onClick={() => location.reload()}>✅ C'est installé</Button></li>
+      </ol>
+      <div className="hidden">
       </div>
     )}
     {log && <pre role="status" className="whitespace-pre-wrap rounded bg-background p-2 text-xs">{log}</pre>}
