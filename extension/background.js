@@ -274,7 +274,8 @@ async function run(onlyUrl) {
           await wait(1200);
         }
         const t = await chrome.tabs.get(tabId);
-        if (/login|signin|sign-in|connexion|auth/i.test(t.url || "")) { log.push(`🔑 ${src.supplier} : connecte-toi au site puis relance`); continue; }
+        const pwd = await inFrame(tabId, 0, () => !!document.querySelector("input[type=password]"));
+        if (/login|signin|sign-in|connexion|auth|sso|2fa|mfa|verify/i.test(t.url || "") || (pwd && !items.length)) { await askLogin(src); log.push(`🔑 ${src.supplier} : connecte-toi (notification envoyée), le robot reprend tout seul`); continue; }
         if (!items.length) { log.push(`🎓 ${src.supplier} : aucun lien facture vu. Clique « Montrer au robot »`); continue; }
         let todo;
         const wanted = src.wanted || [];
@@ -452,3 +453,36 @@ async function teachEnd(log) {
   if (t.newTab) chrome.tabs.remove(t.newTab).catch(() => {});
   setTimeout(() => chrome.tabs.remove(t.tabId).catch(() => {}), 1500);
 }
+
+
+// ---------- Login needed (password, 2FA…): notify, open the site, resume by itself once logged in ----------
+async function askLogin(src) {
+  const tab = await chrome.tabs.create({ url: src.url, active: false });
+  const { waitLogin = {} } = await chrome.storage.local.get("waitLogin");
+  waitLogin[tab.id] = { url: src.url, supplier: src.supplier, at: Date.now() };
+  await chrome.storage.local.set({ waitLogin });
+  chrome.notifications.create("login-" + tab.id, { type: "basic", iconUrl: "icon.png", title: `🔑 ${src.supplier} : connecte-toi`,
+    message: "Clique ici, connecte-toi (double authentification comprise). Le robot récupère la facture tout seul ensuite.", requireInteraction: true, priority: 2 });
+}
+chrome.notifications.onClicked.addListener(async (id) => {
+  if (!id.startsWith("login-")) return;
+  const tabId = Number(id.slice(6));
+  const t = await chrome.tabs.get(tabId).catch(() => null);
+  if (t) { await chrome.tabs.update(tabId, { active: true }); await chrome.windows.update(t.windowId, { focused: true }); }
+  else { const { waitLogin = {} } = await chrome.storage.local.get("waitLogin"); const w = waitLogin[tabId]; if (w) chrome.tabs.create({ url: w.url, active: true }); }
+  chrome.notifications.clear(id);
+});
+chrome.tabs.onUpdated.addListener(async (tabId, info, tab) => {
+  if (info.status !== "complete") return;
+  const { waitLogin = {} } = await chrome.storage.local.get("waitLogin");
+  const w = waitLogin[tabId];
+  if (!w || Date.now() - w.at > 60 * 60e3) return;
+  if (/login|signin|sign-in|connexion|auth|sso|2fa|mfa|verify/i.test(tab.url || "")) return;
+  const pwd = await inFrame(tabId, 0, () => !!document.querySelector("input[type=password]"));
+  if (pwd) return;
+  delete waitLogin[tabId]; await chrome.storage.local.set({ waitLogin });
+  chrome.notifications.clear("login-" + tabId);
+  const log = await run(w.url).catch((e) => "❌ " + e.message);
+  await chrome.storage.local.set({ lastLog: log });
+  chrome.notifications.create("done-" + tabId, { type: "basic", iconUrl: "icon.png", title: `🤖 ${w.supplier}`, message: log.slice(0, 200) });
+});
