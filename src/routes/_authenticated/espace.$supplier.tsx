@@ -1,6 +1,7 @@
 import { requireClient } from "@/lib/session";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { HelpChat } from "@/components/HelpChat";
+import { InvoiceSourceSetup } from "@/components/InvoiceSourceSetup";
 import { useQueryClient } from "@tanstack/react-query";
 import { useRef, useState, type ReactNode } from "react";
 import { toast } from "sonner";
@@ -80,7 +81,7 @@ function SupplierStep({ steps, idx, dossierId }: { steps: SupplierGroup[]; idx: 
   const pending = group.txs.filter((t) => t.status === "a_faire");
   // All the payments still to do are selected at first: one click answers the whole supplier.
   const [sel, setSel] = useState<Set<string>>(() => new Set(pending.map((t) => t.id)));
-  const [mode, setMode] = useState<"upload" | "email" | "none" | null>(null);
+  const [mode, setMode] = useState<"upload" | "email" | "none" | "source" | null>(null);
   const [comment, setComment] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -251,12 +252,16 @@ function SupplierStep({ steps, idx, dossierId }: { steps: SupplierGroup[]; idx: 
             </h2>
             <p className="mt-1 text-muted-foreground">Choisissez la solution la plus simple pour vous.</p>
             <div inert={selected.length === 0} className={cn("mt-5 space-y-4", selected.length === 0 && "opacity-50")}>
-              <ChoiceCard n={1} icon={Upload} tone="mint" open={mode === "upload"} onToggle={() => setMode(mode === "upload" ? null : "upload")}
+              {!isSale && <ChoiceCard n={1} icon={FolderOpen} tone="mint" open={mode === "source"} onToggle={() => setMode(mode === "source" ? null : "source")}
+                title="Configurer une source de factures" desc="Conservez le site, le chemin de facturation et le mode de réception de ce fournisseur.">
+                <InvoiceSourceSetup dossierId={dossierId} supplier={group.name} />
+              </ChoiceCard>}
+              <ChoiceCard n={isSale ? 1 : 2} icon={Upload} tone="mint" open={mode === "upload"} onToggle={() => setMode(mode === "upload" ? null : "upload")}
                 title="Je dépose mes factures" desc="Ajoutez les factures depuis votre ordinateur ou votre téléphone.">
                 <DropZone busy={busy} several={selected.length > 1} noun={noun} onFiles={(f) => uploadFiles(f, selected)} />
               </ChoiceCard>
 
-              <ChoiceCard n={2} icon={Mail} tone="pale" open={mode === "email"} onToggle={() => setMode(mode === "email" ? null : "email")}
+              <ChoiceCard n={isSale ? 2 : 3} icon={Mail} tone="pale" open={mode === "email"} onToggle={() => setMode(mode === "email" ? null : "email")}
                 title="Je les envoie par e-mail" desc="Transférez les e-mails qui contiennent vos factures à l'adresse de votre dossier.">
                 {collect ? (
                   <>
@@ -289,7 +294,7 @@ function SupplierStep({ steps, idx, dossierId }: { steps: SupplierGroup[]; idx: 
                 )}
               </ChoiceCard>
 
-              <ChoiceCard n={3} icon={FileX} tone="yellow" open={mode === "none"} onToggle={() => setMode(mode === "none" ? null : "none")}
+              <ChoiceCard n={isSale ? 3 : 4} icon={FileX} tone="yellow" open={mode === "none"} onToggle={() => setMode(mode === "none" ? null : "none")}
                 title="Je n'ai pas de facture" desc="Indiquez-le simplement ; un mot d'explication aide votre comptable.">
                 <label htmlFor="no-invoice-comment" className="text-sm font-semibold">Votre commentaire (facultatif)</label>
                 <Textarea id="no-invoice-comment" rows={3} value={comment} onChange={(e) => setComment(e.target.value)}
