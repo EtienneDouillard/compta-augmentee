@@ -455,8 +455,12 @@ export type Database = {
           evidence_url: string | null
           frequency: string
           id: string
+          last_check: Json | null
+          last_check_at: string | null
           method: string
           receipt_email: string | null
+          research: Json | null
+          researched_at: string | null
           source_url: string
           state: string
           supplier: string
@@ -470,8 +474,12 @@ export type Database = {
           evidence_url?: string | null
           frequency?: string
           id?: string
+          last_check?: Json | null
+          last_check_at?: string | null
           method?: string
           receipt_email?: string | null
+          research?: Json | null
+          researched_at?: string | null
           source_url: string
           state?: string
           supplier: string
@@ -485,8 +493,12 @@ export type Database = {
           evidence_url?: string | null
           frequency?: string
           id?: string
+          last_check?: Json | null
+          last_check_at?: string | null
           method?: string
           receipt_email?: string | null
+          research?: Json | null
+          researched_at?: string | null
           source_url?: string
           state?: string
           supplier?: string

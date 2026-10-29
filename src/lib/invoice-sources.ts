@@ -29,3 +29,13 @@ export function sourceGuidance(url: string) {
   };
   return { label: host, evidence: null, note: 'Aucune méthode automatique vérifiée pour cette source. Enregistrez le chemin de facturation, sans identifiants.' };
 }
+export type CollectStatus = 'conforme' | 'non_conforme' | 'manquant' | 'email_annonce' | 'recu_pennylane';
+export type CollectResult = { transactionId: string; date: string; amount: number; label: string; status: CollectStatus; uploadId: string | null; reason: string };
+
+/** A source is active only when every expected payment has a verified document. */
+export function collectionState(results: CollectResult[]): 'active' | 'attention' | 'awaiting_first_invoice' {
+  if (results.length === 0) return 'active';
+  if (results.some(r => r.status === 'non_conforme' || r.status === 'manquant')) return 'attention';
+  if (results.every(r => r.status === 'conforme' || r.status === 'recu_pennylane')) return 'active';
+  return 'awaiting_first_invoice';
+}
