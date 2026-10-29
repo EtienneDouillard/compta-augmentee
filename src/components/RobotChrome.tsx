@@ -57,7 +57,7 @@ export function RobotChrome({ dossierId, robotUrl, lastRun, onSaveUrl, onFiles }
     const t = await getToken();
     if (!t) return;
     setRunning(true); setLog(null);
-    window.postMessage({ source: 'caplus-app', type: 'run', token: t }, location.origin);
+    window.postMessage({ source: 'caplus-app', type: 'run', token: t, url }, location.origin);
   }
 
   async function getToken() {
