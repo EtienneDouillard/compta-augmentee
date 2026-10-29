@@ -58,6 +58,12 @@ export const sendChatMessage = createServerFn({ method: "POST" })
 
     // Context: only this client's dossier, only payments sent to the client, no bank details.
     let context_txt = "Le client est sur l'écran d'accueil de son espace.";
+    if (!data.groupKey) {
+      const { data: txs, error } = await supabase.from("transactions").select("date, amount, supplier, status, direction")
+        .eq("dossier_id", dossierId).eq("review_state", "sent").eq("is_open", true).order("date").limit(200);
+      if (error) throw new Error("Impossible de lire vos demandes.");
+      context_txt += `\nDemandes visibles (au maximum 200) :\n${(txs ?? []).map((t) => `${t.date} | ${Math.abs(Number(t.amount)).toFixed(2)} € | ${dataCell(t.supplier)} | ${t.direction === "in" ? "vente" : "achat"} | ${t.status}`).join("\n")}`;
+    }
     if (data.groupKey) {
       const [kind, ...rest] = data.groupKey.split(":");
       const name = rest.join(":");
