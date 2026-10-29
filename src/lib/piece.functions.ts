@@ -14,26 +14,30 @@ export const lireLignesPiece = createServerFn({ method: "POST" })
     let bin = "";
     for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
     const mime = blob.type || (data.piecePath.toLowerCase().endsWith(".pdf") ? "application/pdf" : "image/png");
-    const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const apiKey = process.env["ANTHROPIC_API_KEY"];
+    if (!apiKey) throw new Error("La clé ANTHROPIC_API_KEY manque.");
+    const source = { type: "base64", media_type: mime, data: btoa(bin) };
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
-      headers: { Authorization: `Bearer ${process.env["LOVABLE_API_KEY"]}`, "Content-Type": "application/json" },
+      headers: { "x-api-key": apiKey, "anthropic-version": "2023-06-01", "content-type": "application/json" },
       body: JSON.stringify({
-        model: "google/gemini-3.8-flash",
+        model: "claude-opus-5-5",
+        max_tokens: 16000,
+        system: "Tu lis des factures fournisseurs françaises. Extrais chaque ligne de désignation telle qu'imprimée (toutes les pages), sans regrouper. Pour une prestation sur une période, renseigne debut et fin (AAAA-MM-JJ). Réponds en appelant l'outil « lignes ».",
         messages: [
-          { role: "system", content: "Tu lis des factures fournisseurs françaises. Extrais chaque ligne de désignation telle qu'imprimée (toutes les pages), sans regrouper. Pour une prestation sur une période, renseigne debut et fin (AAAA-MM-JJ)." },
-          { role: "user", content: [{ type: "text", text: "Extrais les lignes de cette facture." }, { type: "image_url", image_url: { url: `data:${mime};base64,${btoa(bin)}` } }] },
+          { role: "user", content: [{ type: mime === "application/pdf" ? "document" : "image", source }, { type: "text", text: "Extrais les lignes de cette facture avec l'outil lignes." }] },
         ],
-        tools: [{ type: "function", function: { name: "lignes", parameters: { type: "object", required: ["lignes"], properties: { lignes: { type: "array", items: { type: "object", required: ["designation", "quantite", "prixUnitaireHt", "montantHt", "tauxTva"], properties: {
+        tools: [{ name: "lignes", description: "Lignes de la facture", input_schema: { type: "object", required: ["lignes"], properties: { lignes: { type: "array", items: { type: "object", required: ["designation", "quantite", "prixUnitaireHt", "montantHt", "tauxTva"], properties: {
           designation: { type: "string" }, description: { type: "string" }, quantite: { type: "number" }, prixUnitaireHt: { type: "number" }, montantHt: { type: "number" },
-          tauxTva: { type: "number", description: "0.2 pour 20 %" }, debut: { type: "string" }, fin: { type: "string" } } } } } } } }],
-        tool_choice: { type: "function", function: { name: "lignes" } },
+          tauxTva: { type: "number", description: "0.2 pour 20 %" }, debut: { type: "string" }, fin: { type: "string" } } } } } } }],
+        tool_choice: { type: "auto" },
       }),
     });
     if (res.status === 429) throw new Error("Trop de demandes, réessayez dans un instant.");
-    if (res.status === 402) throw new Error("Crédits IA épuisés.");
     if (!res.ok) throw new Error(`Lecture de la pièce impossible (${res.status})`);
     const j = await res.json();
-    const args = j.choices?.[0]?.message?.tool_calls?.[0]?.function?.arguments;
-    const lignes = (args ? JSON.parse(args).lignes : []) as LignePiece[];
+    if (j.stop_reason === "refusal") throw new Error("Claude a refusé de lire cette pièce.");
+    const tool = (j.content ?? []).find((b: { type: string }) => b.type === "tool_use");
+    const lignes = (tool?.input?.lignes ?? []) as LignePiece[];
     return { lignes: lignes.map((l) => ({ ...l, tauxTva: l.tauxTva > 1 ? l.tauxTva / 100 : l.tauxTva })) };
   });
