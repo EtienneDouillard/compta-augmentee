@@ -171,17 +171,11 @@ function Espace() {
                 </span>
               </p>
             )}
-            <p className="mt-3 max-w-2xl text-muted-foreground">
-              {remaining === 0 ? (
-                all.length === 0 ? "Aucune facture ne vous est demandée pour le moment." : "Merci pour vos réponses."
-              ) : (
-                <>
-                  Voici les factures qui nous manquent encore
-                  {dossier.data?.name && <> pour <strong className="font-bold text-foreground">{dossier.data.name}</strong></>}. Vous pouvez vous
-                  arrêter à tout moment et reprendre plus tard : tout est enregistré au fur et à mesure.
-                </>
-              )}
-            </p>
+            {remaining === 0 && (
+              <p className="mt-3 max-w-2xl text-muted-foreground">
+                {all.length === 0 ? "Aucune facture ne vous est demandée pour le moment." : "Merci pour vos réponses."}
+              </p>
+            )}
             <Nudge done={all.length - remaining} total={all.length} />
             </div>
 
