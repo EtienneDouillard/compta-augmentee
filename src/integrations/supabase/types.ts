@@ -446,6 +446,62 @@ export type Database = {
           },
         ]
       }
+      invoice_sources: {
+        Row: {
+          auto_send_documents: boolean
+          billing_path: string
+          created_by: string
+          dossier_id: string
+          evidence_url: string | null
+          frequency: string
+          id: string
+          method: string
+          receipt_email: string | null
+          source_url: string
+          state: string
+          supplier: string
+          updated_at: string
+        }
+        Insert: {
+          auto_send_documents?: boolean
+          billing_path?: string
+          created_by?: string
+          dossier_id: string
+          evidence_url?: string | null
+          frequency?: string
+          id?: string
+          method?: string
+          receipt_email?: string | null
+          source_url: string
+          state?: string
+          supplier: string
+          updated_at?: string
+        }
+        Update: {
+          auto_send_documents?: boolean
+          billing_path?: string
+          created_by?: string
+          dossier_id?: string
+          evidence_url?: string | null
+          frequency?: string
+          id?: string
+          method?: string
+          receipt_email?: string | null
+          source_url?: string
+          state?: string
+          supplier?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_sources_dossier_id_fkey"
+            columns: ["dossier_id"]
+            isOneToOne: false
+            referencedRelation: "dossiers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       journal: {
         Row: {
           auteur: string
