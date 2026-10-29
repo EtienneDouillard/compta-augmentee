@@ -3,7 +3,8 @@
 import { round2 } from "@/lib/ventilation";
 
 type Ligne = { date: string; amount: number | string; status: string };
-export type Mois = { mois: string; justifie: number; aJustifier: number };
+// Amounts are the bank lines, TTC; counts are the payments, one invoice each.
+export type Mois = { mois: string; justifie: number; aJustifier: number; nbJustifie: number; nbAJustifier: number };
 
 const MAX_MOIS = 24;
 
@@ -27,13 +28,13 @@ export function parMois(lignes: Ligne[]): Mois[] {
   const mois = first.slice(0, 4) === last.slice(0, 4)
     ? moisEntre(`${first.slice(0, 4)}-01`, `${first.slice(0, 4)}-12`)
     : moisEntre(first, last).slice(-MAX_MOIS);
-  const acc = new Map(mois.map((m) => [m, { mois: m, justifie: 0, aJustifier: 0 }]));
+  const acc = new Map(mois.map((m) => [m, { mois: m, justifie: 0, aJustifier: 0, nbJustifie: 0, nbAJustifier: 0 }]));
   for (const l of lignes) {
     const row = acc.get(l.date.slice(0, 7));
     if (!row) continue;
     const v = Math.abs(Number(l.amount));
-    if (l.status === "a_faire") row.aJustifier += v;
-    else row.justifie += v;
+    if (l.status === "a_faire") { row.aJustifier += v; row.nbAJustifier += 1; }
+    else { row.justifie += v; row.nbJustifie += 1; }
   }
   return [...acc.values()].map((r) => ({ ...r, justifie: round2(r.justifie), aJustifier: round2(r.aJustifier) }));
 }
