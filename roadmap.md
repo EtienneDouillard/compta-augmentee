@@ -17,4 +17,4 @@
 - [ ] Clés à fournir : ANTHROPIC_API_KEY, PENNYLANE_API_TOKEN
 - [x] Publier l'app après la fusion
 - [x] Favicon « CA+ » (augmenté)
-- [ ] Comptes démo client + dirigeant sur le dossier Démo Hackathon 7, avec données Pennylane
+- [x] Comptes démo client + dirigeant sur le dossier Démo Hackathon 7, avec données Pennylane
