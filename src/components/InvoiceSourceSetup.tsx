@@ -54,7 +54,7 @@ export function InvoiceSourceSetup({ dossierId, supplier, onFiles }: { dossierId
     if (!query.data) return;
     const s = query.data.source;
     setEmail(s?.receipt_email ?? query.data.collectEmail ?? '');
-    if (!s) return;
+    if (!s) { if (guessUrl) setUrl(u => u || guessUrl); return; }
     setUrl(s.source_url);
     const r = s.research as unknown as SourceResearch | null;
     const current = r?.version === RESEARCH_VERSION ? r : null;
