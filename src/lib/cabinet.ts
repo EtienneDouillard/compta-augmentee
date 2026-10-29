@@ -6,7 +6,7 @@ import { getCabinetIdentity } from "@/lib/cabinet.functions";
 // the client sign-in page shows it; the logo comes as a signed URL. Empty email/phone are hidden.
 export type CabinetIdentity = { name: string; email: string; phone: string; logoUrl: string | null };
 
-export const DEFAULT_CABINET: CabinetIdentity = { name: "Votre cabinet", email: "", phone: "", logoUrl: null };
+export const DEFAULT_CABINET: CabinetIdentity = { name: "Cabinet CA+", email: "", phone: "", logoUrl: null };
 
 export const LOGO_BUCKET = "logos";
 
@@ -17,7 +17,8 @@ export const cabinetQuery = queryOptions({
     const data = await getCabinetIdentity().catch(() => null);
     if (!data) return DEFAULT_CABINET;
     return {
-      name: data.name?.trim() || DEFAULT_CABINET.name,
+      // "Votre cabinet" is the column default, never a real name: the firm's name is shown instead (Julien, 29/10/2026).
+      name: (data.name?.trim() !== "Votre cabinet" && data.name?.trim()) || DEFAULT_CABINET.name,
       email: data.email?.trim() ?? "",
       phone: data.phone?.trim() ?? "",
       logoUrl: data.logoUrl,

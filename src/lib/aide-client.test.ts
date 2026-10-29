@@ -5,6 +5,7 @@ describe("textes d'aide du client", () => {
   it("explique chaque choix : quand le prendre et ce qui se passe ensuite", () => {
     expect(Object.keys(AIDE_CHOIX).sort()).toEqual([
       "cabinet",
+      "demande",
       "email",
       "none",
       "source",

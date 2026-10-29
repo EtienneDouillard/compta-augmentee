@@ -11,6 +11,10 @@ describe("normalizeSupplier", () => {
     expect(normalizeSupplier("PRLV SEPA BOULANGERIE DUPONT 123456")).toBe("Boulangerie Dupont");
   });
   // Labels of the hackathon demo dossier (Julien, 29/10/2026: « VIRT AMAZON, le fournisseur c'est Amazon »).
+  it("puts the deposit and the balance of one purchase on the same supplier", () => {
+    expect(normalizeSupplier("VIR MAISON RICHOUX ACOMPTE")).toBe(normalizeSupplier("VIR SEPA MAISON RICHOUX SOLDE"));
+    expect(normalizeSupplier("PRLV ACOMPTE MAISON RICHOUX")).toBe("Maison Richoux");
+  });
   it("drops bank prefixes so every payment mode lands on the same supplier", () => {
     expect(normalizeSupplier("VIRT AMAZON")).toBe("Amazon");
     expect(normalizeSupplier("PRLVT AMAZON")).toBe("Amazon");

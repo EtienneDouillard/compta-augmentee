@@ -89,17 +89,26 @@ export type Tx = {
 
 export type SupplierGroup = { key: string; direction: "out" | "in"; name: string; txs: Tx[]; total: number; state: "todo" | "progress" | "done" };
 
+// Words naming a stage of one purchase, not the supplier: "Maison Richoux acompte" and "Maison Richoux solde"
+// form one group (Simon, 29/10/2026). The name keeps its other words; a name made only of such words is kept as is.
+const ETAPES = /^(acomptes?|acpte|soldes?|avoirs?|echeances?|ech|arrhes|factures?|fact)$/;
+export function nomGroupe(supplier: string): string {
+  const words = supplier.split(/\s+/).filter(Boolean);
+  const kept = words.filter((w) => !ETAPES.test(w.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")));
+  return kept.length ? kept.join(" ") : supplier;
+}
+
 export function groupBySupplier(txs: Tx[]): SupplierGroup[] {
   const map = new Map<string, Tx[]>();
   for (const t of txs) {
-    const k = `${t.direction === "in" ? "vente" : "achat"}:${t.supplier}`;
+    const k = `${t.direction === "in" ? "vente" : "achat"}:${nomGroupe(t.supplier)}`;
     map.set(k, [...(map.get(k) ?? []), t]);
   }
   return [...map.entries()]
     .sort((a, b) => a[0].localeCompare(b[0], "fr"))
     .map(([key, list]) => {
       const direction = key.startsWith("vente:") ? ("in" as const) : ("out" as const);
-      const name = list[0]!.supplier;
+      const name = key.slice(key.indexOf(":") + 1);
       const done = list.filter((t) => t.status !== "a_faire").length;
       return {
         key,

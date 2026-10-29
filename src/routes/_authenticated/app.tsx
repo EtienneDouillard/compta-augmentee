@@ -5,10 +5,12 @@ import { importerFacturesPennylane, NB_FACTURES_PENNYLANE } from "@/lib/pennylan
 import { envoyerVentilation, PENNYLANE_ECRITURE_ACTIVE } from "@/lib/pennylane-write.beta";
 import { supabase } from "@/integrations/supabase/client";
 import { alertes, controle, ecriture, eur, round2, tvaLigne, type Facture, type Ligne } from "@/lib/ventilation";
+import { compteFournisseur } from "@/lib/compte-fournisseur";
 import { eclater } from "@/lib/eclatement";
 import { lireLignesPiece } from "@/lib/piece.functions";
 import { AppHeader } from "@/components/AppHeader";
 import { requireCabinet } from "@/lib/session";
+import { InfoTip } from "@/components/Aide";
 
 export const Route = createFileRoute("/_authenticated/app")({
   beforeLoad: requireCabinet,
@@ -129,7 +131,11 @@ function AppPage() {
             <select value={dossierId ?? ""} onChange={(e) => setDossierId(e.target.value)} className="bg-transparent text-xs uppercase tracking-[0.15em] text-muted-foreground outline-none">
               {dossiers.map((d) => <option key={d.id} value={d.id}>{d.nom}</option>)}
             </select>
-            <h1 className="font-display text-4xl">Comptabilité augmentée</h1>
+            <h1 className="flex items-center gap-2 font-display text-4xl">Comptabilité augmentée
+              <InfoTip label="Ventilation et livre">
+                Écran repris de l'application « Comptabilité augmentée », réservé au cabinet : ventilation des factures par
+                compte, livre de lecture et échanges avec le client.
+              </InfoTip></h1>
             <p className="text-xs text-muted-foreground">Client : {dossier?.client_nom ?? "—"} · connecté : {email}</p>
           </div>
           <div className="flex items-center gap-3">
@@ -182,7 +188,8 @@ function Ventilation({ f, dirty, onChange, onSave }: { f: FactureDB; dirty: bool
   const al = alertes(f.lignes);
   const valide = f.statut === "validee";
   const setLigne = (id: string, patch: Partial<Ligne>) => onChange({ ...f, lignes: f.lignes.map((l) => (l.id === id ? { ...l, ...patch, ...(patch.ht !== undefined ? { tvaMontant: round2(patch.ht * l.tauxTva) } : {}) } : l)) });
-  const ec = ecriture(f, f.compte_fournisseur ?? "401");
+  const cf = compteFournisseur(f.fournisseur, f.compte_fournisseur);
+  const ec = ecriture(f, cf.compte);
   const [beta, setBeta] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
   const run = async (v: boolean) => { setBusy(true); await onSave(v); setBusy(false); };
@@ -238,6 +245,7 @@ function Ventilation({ f, dirty, onChange, onSave }: { f: FactureDB; dirty: bool
           <tr className="border-t-2 border-border text-xs"><td colSpan={2} className={`py-1.5 ${ec.equilibree ? "text-success" : "text-destructive"}`}>{ec.equilibree ? "Écriture équilibrée" : "Écriture déséquilibrée"}</td><td className="text-right tabular-nums">{eur(ec.totalDebit)}</td><td className="text-right tabular-nums">{eur(ec.totalCredit)}</td></tr>
         </tbody>
       </table>
+      {cf.pennylane && <p className="mt-1 text-xs text-muted-foreground">Compte Pennylane lors de l'import : <span className="font-mono">{cf.pennylane}</span>.</p>}
       {!f.lignes_importees && <p className="mt-3 text-sm text-muted-foreground">Lignes pas encore importées de Pennylane pour cette facture : ajoutez la pièce à droite pour la ventiler.</p>}
       <div className="mt-4 flex flex-wrap items-center gap-3">
         <button disabled={busy || valide || !f.piece_path} title={f.piece_path ? "Lit chaque ligne de la pièce et propose un compte par nature" : "Ajoutez d'abord la pièce à droite"} onClick={async () => {
@@ -307,7 +315,7 @@ function Piece({ f, onUploaded }: { f: FactureDB; onUploaded: () => void }) {
           <div className="grid grid-cols-3 gap-2">
             {([["HT", f.totalHt], ["TVA", f.totalTva], ["TTC", f.totalTtc]] as const).map(([k, v]) => <div key={k} className="rounded bg-muted p-2"><div className="text-xs text-muted-foreground">{k}</div><div className="tabular-nums">{eur(v)}</div></div>)}
           </div>
-          {f.compte_fournisseur && <div className="text-xs text-muted-foreground">Compte fournisseur : <span className="font-mono">{f.compte_fournisseur}</span></div>}
+          <div className="text-xs text-muted-foreground">Compte fournisseur : <span className="font-mono">{compteFournisseur(f.fournisseur, f.compte_fournisseur).compte}</span></div>
         </div>
       )}
     </section>

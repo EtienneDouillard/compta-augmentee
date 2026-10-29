@@ -20,6 +20,7 @@ import {
   type RecapPret,
 } from "@/lib/recap.functions";
 import { RELANCES_JOURS } from "@/lib/recap-client";
+import { InfoTip } from "@/components/Aide";
 
 const lien = () => (typeof window === "undefined" ? "https://localhost" : window.location.origin);
 // The app sends nothing (Julien, 29/10/2026): the recap opens in the firm's own mail app.
@@ -111,12 +112,12 @@ export function RecapClientPanel({ dossierId }: { dossierId: string }) {
     <section id="recap" className="scroll-mt-6 rounded-xl border bg-card p-5 shadow-sm">
       <h2 className="flex items-center gap-2 text-lg">
         <BellRing className="h-5 w-5" /> Prévenir le client par e-mail
+        <InfoTip label="Récapitulatif au client">
+          Un seul e-mail, détaillé par fournisseur (date, montant, libellé, reste à justifier, lien vers chaque demande),
+          au plus un toutes les 12 h. Il part de votre propre messagerie : l'application n'envoie rien. Les relances dues
+          s'affichent ici et sur le tableau de bord (« Envoyer les récapitulatifs »).
+        </InfoTip>
       </h2>
-      <p className="mt-1 text-sm text-muted-foreground">
-        Un seul e-mail récapitulatif, détaillé par fournisseur (date, montant, libellé, reste à
-        justifier, lien direct vers chaque demande), au plus un toutes les 12 h. Il part de votre
-        propre messagerie : l'application n'envoie rien.
-      </p>
       {q.isError ? (
         <p className="mt-3 rounded-lg bg-yellow-soft/60 p-3 text-sm text-yellow-ink">
           {(q.error as Error).message}
@@ -203,10 +204,6 @@ export function RecapClientPanel({ dossierId }: { dossierId: string }) {
             <Button size="sm" variant="outline" onClick={save}>
               Enregistrer la programmation
             </Button>
-            <p className="text-xs text-muted-foreground">
-              Les relances dues s'affichent ici et sur le tableau de bord (« Envoyer les
-              récapitulatifs »).
-            </p>
           </fieldset>
         </div>
       )}
