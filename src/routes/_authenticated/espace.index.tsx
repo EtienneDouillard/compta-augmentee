@@ -5,6 +5,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import {
   ArrowDownWideNarrow, ArrowRight, Building2, CalendarCheck, LayoutGrid, List, CheckCircle2, ChevronDown, ChevronRight, Clock, ReceiptText, Search, ShoppingBag,
+  Columns3,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { AppHeader, CabinetContact } from "@/components/AppHeader";
@@ -102,7 +103,7 @@ function Espace() {
   const [status, setStatus] = useState<"all" | "todo" | "done">("all");
   const [dir, setDir] = useState<"all" | "out" | "in">("all");
   const [order, setOrder] = useState<"priority" | "amount" | "name">("priority");
-  const [view, setView] = useState<"cards" | "list">("cards");
+  const [view, setView] = useState<"cards" | "list" | "kanban">("cards");
   // Several suppliers answered at once (Simon): their payments still to do.
   const [picked, setPicked] = useState<Set<string>>(new Set());
   const siteOf = useSupplierSites(dossierId);
@@ -266,10 +267,10 @@ function Espace() {
                     </>
                   )}
                   <span className="ml-auto inline-flex rounded-full border bg-card p-0.5" role="group" aria-label="Affichage">
-                    {(["cards", "list"] as const).map((v) => (
+                    {(["cards", "kanban", "list"] as const).map((v) => (
                       <button key={v} type="button" aria-pressed={view === v} onClick={() => setView(v)}
                         className={cn("inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-semibold", view === v ? "bg-primary text-primary-foreground" : "text-primary")}>
-                        {v === "cards" ? <LayoutGrid className="h-4 w-4" /> : <List className="h-4 w-4" />} {v === "cards" ? "Cartes" : "Liste"}
+                        {v === "cards" ? <LayoutGrid className="h-4 w-4" /> : v === "kanban" ? <Columns3 className="h-4 w-4" /> : <List className="h-4 w-4" />} {v === "cards" ? "Cartes" : v === "kanban" ? "Kanban" : "Liste"}
                       </button>
                     ))}
                   </span>
@@ -307,7 +308,23 @@ function Espace() {
                       {todo} à transmettre · {list.length} {d === "out" ? "fournisseur" : "client"}{list.length > 1 ? "s" : ""}
                     </span>
                   </div>
-                  {view === "cards" ? (
+                  {view === "kanban" ? (
+                    // One column per state, one card per supplier.
+                    <div className="mt-4 grid gap-4 md:grid-cols-3">
+                      {([["todo", "⏳ À faire"], ["progress", "🔄 En cours"], ["done", "✅ Fait"]] as const).map(([st, title]) => {
+                        const col = list.filter((g) => g.state === st);
+                        return (
+                          <div key={st} className="rounded-2xl border bg-cream-2/40 p-3">
+                            <p className="mb-3 flex items-center justify-between px-1 text-sm font-bold text-primary">{title}<span className="rounded-full bg-card px-2 text-xs text-muted-foreground">{col.length}</span></p>
+                            <div className="space-y-3">
+                              {col.map((g) => <SupplierCard key={g.key} g={g} site={siteOf(g.name)} picked={picked.has(g.key)} onPick={(on) => pick(g.key, on)} />)}
+                              {!col.length && <p className="px-1 py-4 text-center text-xs text-muted-foreground">—</p>}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : view === "cards" ? (
                     <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
                       {list.map((g) => (
                         <SupplierCard key={g.key} g={g} site={siteOf(g.name)} picked={picked.has(g.key)} onPick={(on) => pick(g.key, on)} />
