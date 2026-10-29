@@ -1,7 +1,7 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { FolderOpen, LogOut, Mail, Phone, Settings } from "lucide-react";
+import { BookOpen, FolderOpen, LogOut, Mail, Phone, Settings } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { BrandMark, Monogram } from "@/components/brand";
@@ -81,6 +81,7 @@ function CabinetBar({ onSignOut }: { onSignOut: () => void }) {
         </Link>
         <nav className="hidden self-stretch sm:flex">
           <NavTab to="/cabinet" active={!onSettings}><FolderOpen className="h-4 w-4" /> Dossiers clients</NavTab>
+          <NavTab to="/app" active={false}><BookOpen className="h-4 w-4" /> Ventilation & livre</NavTab>
           <NavTab to="/cabinet/parametres" active={onSettings}><Settings className="h-4 w-4" /> Paramètres</NavTab>
         </nav>
         <div className="ml-auto flex items-center gap-3 py-2">
@@ -112,7 +113,7 @@ function CabinetBar({ onSignOut }: { onSignOut: () => void }) {
   );
 }
 
-function NavTab({ to, active, children }: { to: "/cabinet" | "/cabinet/parametres"; active: boolean; children: ReactNode }) {
+function NavTab({ to, active, children }: { to: "/cabinet" | "/cabinet/parametres" | "/app"; active: boolean; children: ReactNode }) {
   return (
     <Link
       to={to}
