@@ -111,3 +111,13 @@ export const guessSupplierSite = createServerFn({ method: 'POST' })
     }
     return { url };
   });
+
+/** Direct page listing all the invoices of a supplier (for the robot), found by Claude with web search. */
+export const findInvoicesPage = createServerFn({ method: 'POST' })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(d => z.object({ supplier: z.string().trim().min(1).max(200), site: z.string().url().max(500) }).parse(d))
+  .handler(async ({ data, context }): Promise<{ url: string | null; why: string }> => {
+    const { apiKey, model } = await (await import("./claude-config.server")).claudeFor(context.userId);
+    if (!apiKey) return { url: null, why: 'Claude non configuré.' };
+    return (await import('./supplier-site.server')).findInvoicesPageClaude(apiKey, model, data.supplier, data.site);
+  });
