@@ -31,7 +31,7 @@ function stepsOf(r: SourceResearch): SetupStep[] {
   return r.version === RESEARCH_VERSION ? r.steps : [];
 }
 
-export function InvoiceSourceSetup({ dossierId, supplier, onFiles }: { dossierId: string; supplier: string; onFiles?: ((files: File[]) => void) | undefined }) {
+export function InvoiceSourceSetup({ dossierId, supplier, onFiles, guessUrl }: { dossierId: string; supplier: string; onFiles?: ((files: File[]) => void) | undefined; guessUrl?: string | null }) {
   const load = useServerFn(getInvoiceSource);
   const save = useServerFn(saveInvoiceSource);
   const research = useServerFn(researchInvoiceSource);
