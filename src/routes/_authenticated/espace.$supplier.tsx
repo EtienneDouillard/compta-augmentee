@@ -10,6 +10,8 @@ import {
 } from "lucide-react";
 import { AppHeader } from "@/components/AppHeader";
 import { Nudge } from "@/components/Nudge";
+import { EtApres, InfoTip, SousTitre } from "@/components/Aide";
+import { AIDE_CHOIX, AIDE_DEMANDE, INFOBULLES, SOUS_TITRES, type AideChoix, type Choix } from "@/lib/aide-client";
 import { SupplierAvatar } from "@/components/brand";
 import { GroupStatePill, TxStatusPill } from "@/components/StatusPill";
 import { Button } from "@/components/ui/button";
@@ -166,7 +168,8 @@ function SupplierStep({ steps, idx, dossierId, progress }: {
           </div>
         )}
 
-        <div className="mt-6 overflow-hidden rounded-2xl border bg-card shadow-sm">
+        {pending.length > 0 && <SousTitre className="mt-6">{SOUS_TITRES.paiements}</SousTitre>}
+        <div className="mt-3 overflow-hidden rounded-2xl border bg-card shadow-sm">
           {pending.length > 1 && (
             <div className="flex flex-wrap items-center justify-between gap-3 border-b bg-pale-2 px-4 py-3">
               <label className="flex cursor-pointer items-center gap-3 font-semibold text-primary">
@@ -184,7 +187,7 @@ function SupplierStep({ steps, idx, dossierId, progress }: {
             </div>
           )}
           <div aria-hidden className="hidden gap-x-4 border-b px-4 py-2 pl-12 text-xs font-semibold uppercase tracking-wide text-muted-foreground sm:grid sm:grid-cols-[6.5rem_minmax(0,1fr)_7.5rem] sm:pr-32">
-            <span>{isSale ? "Encaissé le" : "Payé le"}</span><span>Libellé bancaire</span><span className="text-right">Montant</span>
+            <span>{isSale ? "Encaissé le" : "Payé le"}</span><span className="inline-flex items-center gap-1">Libellé bancaire <InfoTip label="Libellé bancaire" className="h-5 w-5">{INFOBULLES.libelle}</InfoTip></span><span className="text-right">Montant</span>
           </div>
           <ul className="divide-y">
             {group.txs.map((t) => (
@@ -210,6 +213,7 @@ function SupplierStep({ steps, idx, dossierId, progress }: {
                   ? "Votre choix"
                   : `Votre choix (${selected.length})`}
             </h2>
+            {selected.length > 0 && <SousTitre>{SOUS_TITRES.choix}</SousTitre>}
             <div inert={selected.length === 0 || preview} className={cn("mt-5", (selected.length === 0 || preview) && "opacity-50")}>
               {checking && (
                 <p role="status" className="mb-4 flex items-center gap-2 rounded-xl bg-pale-2 p-3 text-sm font-semibold text-primary">
@@ -219,17 +223,19 @@ function SupplierStep({ steps, idx, dossierId, progress }: {
               <div className={cn("grid gap-3", isSale ? "sm:grid-cols-2" : "sm:grid-cols-2 lg:grid-cols-4")}>
                 {!isSale && (
                   <ChoiceTile emoji="🤖" tone="mint" open={mode === "source"} onToggle={() => setMode(mode === "source" ? null : "source")}
-                    title="Automatiser" desc="Claude trouve où récupérer les factures de ce fournisseur, puis les collecte seul chaque mois." />
+                    title="Automatiser" desc="Claude trouve où récupérer les factures de ce fournisseur, puis les collecte seul chaque mois." aide={AIDE_CHOIX.source} />
                 )}
                 <ChoiceTile emoji="📤" tone="mint" open={mode === "upload"} onToggle={() => setMode(mode === "upload" ? null : "upload")}
-                  title="Déposer" desc="Envoyez la facture depuis votre ordinateur ou votre téléphone." />
+                  title="Déposer" desc="Envoyez la facture depuis votre ordinateur ou votre téléphone." aide={AIDE_CHOIX.upload} />
                 <ChoiceTile emoji="🚫" tone="yellow" open={mode === "none"} onToggle={() => setMode(mode === "none" ? null : "none")}
-                  title="Pas de facture" desc="Un mot d'explication aide votre comptable." />
+                  title="Pas de facture" desc="Un mot d'explication aide votre comptable." aide={AIDE_CHOIX.none} />
                 {!isSale && (
                   <ChoiceTile emoji="🤝" tone="pale" open={mode === "cabinet"} onToggle={() => setMode(mode === "cabinet" ? null : "cabinet")}
-                    title="J'autorise mon expert-comptable à contacter ce fournisseur" desc="Il lui demande les factures par e-mail, pour vous." />
+                    title="J'autorise mon expert-comptable à contacter ce fournisseur" desc="Il lui demande les factures par e-mail, pour vous." aide={AIDE_CHOIX.cabinet} />
                 )}
               </div>
+
+              {mode && <div className="mt-4"><EtApres>{AIDE_CHOIX[mode as Choix].apres}</EtApres></div>}
 
               {mode === "cabinet" && !isSale && (
                 <ChoicePanel>
@@ -361,23 +367,30 @@ function TxRow({ tx, isSale, bilan, selected, onToggle, onFiles }: {
 
 const TILE = { mint: "bg-mint-soft text-primary", pale: "bg-pale text-primary", yellow: "bg-yellow-soft text-yellow-ink" };
 
-function ChoiceTile({ emoji, tone, open, onToggle, title, desc }: {
-  emoji: string; tone: keyof typeof TILE; open: boolean; onToggle: () => void; title: string; desc: string;
+// The short description stays visible under the title (retour de Julien); the "?" says when to pick it and what follows.
+function ChoiceTile({ emoji, tone, open, onToggle, title, desc, aide }: {
+  emoji: string; tone: keyof typeof TILE; open: boolean; onToggle: () => void; title: string; desc: string; aide: AideChoix;
 }) {
   return (
-    <button type="button" aria-expanded={open} onClick={onToggle}
-      className={cn(
-        "relative flex w-full items-center gap-3 rounded-2xl bg-card p-4 text-left shadow-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary sm:flex-col sm:text-center",
-        open ? "border-2 border-primary" : "border hover:border-primary/40",
-      )}>
-      <span title={desc} aria-label={desc} className="absolute right-3 top-3 text-muted-foreground hover:text-primary">
-        <Info className="h-4 w-4" />
-      </span>
-      <span aria-hidden className={cn("flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl text-3xl", TILE[tone])}>
-        {emoji}
-      </span>
-      <span className="block text-base font-bold leading-snug text-primary">{title}</span>
-    </button>
+    <div className="relative">
+      <button type="button" aria-expanded={open} onClick={onToggle}
+        className={cn(
+          "flex h-full w-full items-center gap-3 rounded-2xl bg-card p-4 pr-10 text-left shadow-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary sm:flex-col sm:pr-4 sm:pt-5 sm:text-center",
+          open ? "border-2 border-primary" : "border hover:border-primary/40",
+        )}>
+        <span aria-hidden className={cn("flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl text-3xl", TILE[tone])}>
+          {emoji}
+        </span>
+        <span className="min-w-0">
+          <span className="block text-base font-bold leading-snug text-primary">{title}</span>
+          <span className="mt-1 block text-sm leading-snug text-muted-foreground">{desc}</span>
+        </span>
+      </button>
+      <InfoTip label={title} className="absolute right-2 top-2">
+        <p><strong>Quand le choisir ?</strong> {aide.quand}</p>
+        <p className="mt-2"><strong>Et ensuite ?</strong> {aide.apres}</p>
+      </InfoTip>
+    </div>
   );
 }
 
@@ -515,7 +528,7 @@ function SupplierRequest({ supplier, client, paiements, adresseDossier }: {
               <Copy /> Copier le texte
             </Button>
           </div>
-          <p className="text-sm text-muted-foreground">Le message part de votre propre messagerie : relisez-le avant de l'envoyer.</p>
+          <p className="text-sm text-muted-foreground">{AIDE_DEMANDE}</p>
         </div>
       )}
     </div>

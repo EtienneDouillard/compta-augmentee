@@ -11,6 +11,9 @@ import { AppHeader, CabinetContact } from "@/components/AppHeader";
 import { MultiActions } from "@/components/MultiActions";
 import { MonthlyChart } from "@/components/MonthlyChart";
 import { Nudge } from "@/components/Nudge";
+import { InfoTip, SousTitre } from "@/components/Aide";
+import { VisiteGuidee } from "@/components/VisiteGuidee";
+import { INFOBULLES, SOUS_TITRES } from "@/lib/aide-client";
 import { SourcesSummary } from "@/components/SourcesSummary";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useSupplierSites } from "@/lib/use-sites";
@@ -152,7 +155,10 @@ function Espace() {
             {/* Simon: the whole width is used and the client scrolls less: greeting and summary side by side. */}
             <div className="grid items-start gap-6 lg:grid-cols-2">
             <div>
-            <h1 className="text-2xl sm:text-3xl">Bonjour,</h1>
+            <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+              <h1 className="text-2xl sm:text-3xl">Bonjour,</h1>
+              {all.length > 0 && <VisiteGuidee auto={!me.data?.preview} />}
+            </div>
             {dossier.data?.name && (
               // The dossier name stands out (retour de Julien): the client sees at once which company is concerned.
               <p className="mt-3 inline-flex max-w-full items-center gap-3 rounded-xl border-l-4 border-mint bg-card px-4 py-2.5 shadow-sm">
@@ -201,6 +207,7 @@ function Espace() {
                     {remaining > 1 && pendingGroups.length > 1 ? ", réparties chez " : ", chez "}
                     {counterparts(pendingGroups)}
                   </h2>
+                  <p className="mt-2 max-w-2xl text-primary-foreground/85">{SOUS_TITRES.accueil}</p>
                   {next && (
                     <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-3">
                       <Link
@@ -223,7 +230,12 @@ function Espace() {
 
             {(dossierId || all.length > 0) && (
               <div className="mt-6 grid items-start gap-4 lg:grid-cols-2">
-                {dossierId && <SourcesSummary dossierId={dossierId} suppliers={[...new Set(all.filter((t) => t.direction === "out").map((t) => t.supplier))]} />}
+                {dossierId && (
+                  <div className="flex items-center gap-1">
+                    <SourcesSummary dossierId={dossierId} suppliers={[...new Set(all.filter((t) => t.direction === "out").map((t) => t.supplier))]} />
+                    <InfoTip label="Récupération automatique">{INFOBULLES.recupAuto}</InfoTip>
+                  </div>
+                )}
                 <MonthlyChart txs={all} />
               </div>
             )}
@@ -256,6 +268,7 @@ function Espace() {
                     </select>
                     <ChevronDown aria-hidden className="pointer-events-none absolute right-3 top-1/2 h-5 w-5 -translate-y-1/2 text-primary" />
                   </label>
+                  <InfoTip label="Ordre d'affichage" className="hidden self-center sm:inline-flex">{INFOBULLES.ordre}</InfoTip>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                   {pickable.length > 0 && (
@@ -264,12 +277,14 @@ function Espace() {
                       Tout cocher
                     </label>
                   )}
+                  {pickable.length > 0 && <InfoTip label="Répondre pour plusieurs fournisseurs">{INFOBULLES.selection}</InfoTip>}
                   <FilterChip active={status === "todo"} onClick={() => setStatus((s) => (s === "todo" ? "all" : "todo"))} icon={Clock}>
                     À faire
                   </FilterChip>
                   <FilterChip active={status === "done"} onClick={() => setStatus((s) => (s === "done" ? "all" : "done"))} icon={CheckCircle2}>
                     Terminé
                   </FilterChip>
+                  <InfoTip label="Que veulent dire les statuts ?">{INFOBULLES.statuts}</InfoTip>
                   {bothDirections && (
                     <>
                       <span aria-hidden className="mx-1 h-6 w-px bg-cream-3" />
@@ -310,12 +325,15 @@ function Espace() {
               return (
                 <section key={d} className="mt-8">
                   <div className="flex flex-wrap items-end justify-between gap-2">
+                    <div>
                     <h2 className="flex items-center gap-3 text-xl sm:text-2xl">
                       <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-pale text-primary">
                         <Icon className="h-5 w-5" />
                       </span>
                       {d === "out" ? "Achats — factures fournisseurs manquantes" : "Ventes — factures clients manquantes"}
                     </h2>
+                    <SousTitre className="sm:pl-[52px]">{d === "out" ? SOUS_TITRES.achats : SOUS_TITRES.ventes}</SousTitre>
+                    </div>
                     <span className="text-sm text-muted-foreground">
                       {todo} à transmettre · {list.length} {d === "out" ? "fournisseur" : "client"}{list.length > 1 ? "s" : ""}
                     </span>

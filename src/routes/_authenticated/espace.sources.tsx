@@ -5,6 +5,7 @@ import { AppHeader } from "@/components/AppHeader";
 import { SupplierAvatar } from "@/components/brand";
 import { useClientTxs } from "./espace.index";
 import { CONFIGURED_STATES, useInvoiceSources } from "@/components/SourcesSummary";
+import { SOUS_TITRES } from "@/lib/aide-client";
 
 export const Route = createFileRoute("/_authenticated/espace/sources")({
   beforeLoad: requireClient,
@@ -35,7 +36,10 @@ function Sources() {
       <AppHeader space="client" />
       <main className="mx-auto max-w-3xl space-y-5 px-4 py-8">
         <Link to="/espace" className="text-sm text-primary underline">← Retour à l'accueil</Link>
-        <h1 className="text-2xl font-bold text-primary">Sources de factures</h1>
+        <div>
+          <h1 className="text-2xl font-bold text-primary">Sources de factures</h1>
+          <p className="mt-1.5 text-muted-foreground">{SOUS_TITRES.sources}</p>
+        </div>
         <p className="text-muted-foreground">{configured} source{configured > 1 ? "s" : ""} configurée{configured > 1 ? "s" : ""}. Choisissez un fournisseur : CA+ trouve la solution la plus simple et vous guide pas à pas.</p>
         {txs.isPending ? <p className="text-muted-foreground">Chargement…</p> : (
           <ul className="divide-y rounded-xl border bg-card">

@@ -1,7 +1,8 @@
 import { requireClient } from "@/lib/session";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { HelpChat } from "@/components/HelpChat";
-import { CheckCircle2 } from "lucide-react";
+import { CheckCircle2, CircleArrowRight } from "lucide-react";
+import { APRES_TERMINE } from "@/lib/aide-client";
 import { AppHeader, CabinetContact } from "@/components/AppHeader";
 import { useCabinet } from "@/lib/cabinet";
 import { Button } from "@/components/ui/button";
@@ -36,6 +37,15 @@ export const Route = createFileRoute("/_authenticated/espace/termine")({
               <Link to="/espace">Revenir à la liste</Link>
             </Button>
           </div>
+        </section>
+        <section className="mt-8 rounded-2xl border bg-card p-5 shadow-sm sm:p-6">
+          <h2 className="text-xl text-primary">Et maintenant ?</h2>
+          <p className="mt-1 text-muted-foreground">Vous n'avez plus rien à faire pour le moment. Voici la suite :</p>
+          <ul className="mt-4 space-y-3">
+            {APRES_TERMINE.map((t) => (
+              <li key={t} className="flex gap-3"><CircleArrowRight aria-hidden className="mt-0.5 h-5 w-5 shrink-0 text-primary" />{t}</li>
+            ))}
+          </ul>
         </section>
         <AskCabinet />
       </main>
