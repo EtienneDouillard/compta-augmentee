@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { blocagesEnvoi, choisirPlanItem, clePlanItem, codeTva, corpsMiseAJour, estRefusDeDroit, type PlanItem } from "./pennylane-import";
+import { blocagesEnvoi, choisirPlanItem, clePlanItem, codeTva, corpsMiseAJour, estRefusDeDroit, factureDejaPresente, type PlanItem } from "./pennylane-import";
 import type { Facture } from "./ventilation";
 
 const facture = (over: Partial<Facture> = {}): Facture => ({
@@ -66,5 +66,21 @@ describe("erreur à la première opération", () => {
   it("autre erreur montrée telle quelle", () => {
     expect(estRefusDeDroit("Invalid filter: field number")).toBe(false);
     expect(estRefusDeDroit("Unknown operation_id getListCompanyPlanItems")).toBe(false);
+  });
+});
+
+describe("facture déjà dans Pennylane", () => {
+  const f = facture({ numero: "F-2026-09602", date: "2026-09-29", totalTtc: 2932.58 });
+  const pl = { id: "33486619148288", date: "2026-09-29", amount: "2932.58", label: "REVIEW - Honoraires comptables - F-2026-09602" };
+  it("retrouvée par date, montant et numéro", () => {
+    expect(factureDejaPresente(f, [pl])).toBe("33486619148288");
+  });
+  it("autre montant, autre date ou autre numéro : pas la même", () => {
+    expect(factureDejaPresente(f, [{ ...pl, amount: "2932.00" }])).toBeNull();
+    expect(factureDejaPresente(f, [{ ...pl, date: "2026-09-30" }])).toBeNull();
+    expect(factureDejaPresente(f, [{ ...pl, label: "REVIEW - F-2026-09999" }])).toBeNull();
+  });
+  it("sans numéro lu : date et montant suffisent", () => {
+    expect(factureDejaPresente(facture({ numero: "", date: "2026-09-29", totalTtc: 2932.58 }), [pl])).toBe("33486619148288");
   });
 });

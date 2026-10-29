@@ -71,3 +71,17 @@ export function corpsMiseAJour(f: Facture, planItems: Map<string, number>, ligne
 export function estRefusDeDroit(message: string) {
   return /scope|forbidden|unauthori[sz]ed|permission|not allowed|not enabled|access denied|\b40[13]\b/i.test(message);
 }
+
+// A supplier invoice already in Pennylane for this one (same date and amount, and its number in the label when the
+// saisie has one): it is linked instead of being sent a second time, and leaves the list of invoices to send.
+export type FacturePennylane = { id: string | number; date: string; amount: string | number; label?: string | null };
+export function factureDejaPresente(f: Facture, existantes: FacturePennylane[]) {
+  const numero = f.numero.trim().toLowerCase();
+  const trouvee = existantes.find(
+    (e) =>
+      e.date === f.date &&
+      Math.abs(Number(e.amount) - f.totalTtc) < 0.005 &&
+      (!numero || (e.label ?? "").toLowerCase().includes(numero)),
+  );
+  return trouvee ? String(trouvee.id) : null;
+}

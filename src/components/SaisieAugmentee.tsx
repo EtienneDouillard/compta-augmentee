@@ -267,7 +267,7 @@ function Validated({ saisie, paiement, envoiPossible, onDone }: { saisie: Saisie
     setBusy(true);
     try {
       const r = await envoyerPennylane({ data: { id: saisie.id } });
-      toast.success(`Facture importée dans Pennylane avec son PDF (n° ${r.invoiceId}).`);
+      toast.success(r.message);
       onDone();
     } catch (e) {
       toast.error((e as Error).message);

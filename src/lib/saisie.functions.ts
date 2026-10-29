@@ -67,7 +67,7 @@ async function valider(db: any, userId: string, s: any, lignes: Ligne[], libelle
   return regles.length;
 }
 
-// Sends a validated entry with its PDF; returns the Pennylane invoice id.
+// Sends a validated entry with its PDF; returns the Pennylane invoice id, and whether it was already there (linked).
 async function envoyer(db: any, userId: string, s: any) {
   if (s.pennylane_invoice_id) throw new Error("Cette facture est déjà dans Pennylane.");
   const { upload } = await loadUpload(db, s.upload_id);
@@ -80,7 +80,7 @@ async function envoyer(db: any, userId: string, s: any) {
 
   const v = toView(s)!;
   const { envoyerFacture } = await import("@/lib/pennylane-import.server");
-  const { invoiceId } = await envoyerFacture({
+  const { invoiceId, dejaPresente } = await envoyerFacture({
     companyId: String(d?.company_id ?? ""),
     facture: { id: v.id, numero: v.numero, fournisseur: v.fournisseur, date: v.date ?? "", totalHt: v.totalHt, totalTva: v.totalTva, totalTtc: v.totalTtc, libelleGenerique: "", libelleEcriture: v.libelleEcriture, lignes: v.lignes },
     pdf: blob, fileName: upload.file_name,
@@ -90,8 +90,10 @@ async function envoyer(db: any, userId: string, s: any) {
       if (e2) throw new Error(`Facture créée dans Pennylane (n° ${id}), mais l'appli n'a pas pu le noter : ne la renvoyez pas.`);
     },
   });
-  return invoiceId as string;
+  return { invoiceId: invoiceId as string, dejaPresente };
 }
+const messageEnvoi = (r: { invoiceId: string; dejaPresente: boolean }) =>
+  r.dejaPresente ? `Déjà dans Pennylane (facture n° ${r.invoiceId}) : rattachée, elle n'est plus à envoyer.` : `Envoyée dans Pennylane (facture n° ${r.invoiceId}).`;
 
 // Same monthly cap as the dossier analysis: every Claude call of the app is logged in ai_analysis_runs.
 export async function budget(db: any) {
@@ -282,7 +284,8 @@ export const envoyerPennylane = createServerFn({ method: "POST" })
     await requireCabinetRole(db, context.userId);
     const s = await loadSaisie(db, data.id);
     if (s.state !== "validee") throw new Error("Validez d'abord la saisie.");
-    return { invoiceId: await envoyer(db, context.userId, s) };
+    const r = await envoyer(db, context.userId, s);
+    return { invoiceId: r.invoiceId, message: messageEnvoi(r) };
   });
 
 export type LigneEnvoi = {
@@ -341,8 +344,7 @@ export const envoyerGroupe = createServerFn({ method: "POST" })
           await valider(db, context.userId, s, v.lignes, v.libelleEcriture);
           s.state = "validee";
         }
-        const invoiceId = await envoyer(db, context.userId, s);
-        results.push({ id, ok: true, message: `Envoyée (facture Pennylane n° ${invoiceId}).` });
+        results.push({ id, ok: true, message: messageEnvoi(await envoyer(db, context.userId, s)) });
       } catch (err) {
         results.push({ id, ok: false, message: (err as Error).message });
       }
@@ -416,8 +418,7 @@ export async function traiterDepotRobot(uploadId: string, userId: string, autoSe
   if (!etat.pret) return { lu: true, envoye: false, message: etat.raison };
   try {
     if (etat.aValider) { await valider(db, userId, s, v.lignes, v.libelleEcriture); s.state = "validee"; }
-    const invoiceId = await envoyer(db, userId, s);
-    return { lu: true, envoye: true, message: `Envoyée dans Pennylane (n° ${invoiceId}).` };
+    return { lu: true, envoye: true, message: messageEnvoi(await envoyer(db, userId, s)) };
   } catch (err) { return { lu: true, envoye: false, message: (err as Error).message }; }
 }
 

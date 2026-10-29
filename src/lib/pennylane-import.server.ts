@@ -6,7 +6,7 @@
 import { createHash } from "node:crypto";
 import { isDemoCompany } from "./demo-dossiers";
 import { noterErreurMcp, openMcp } from "./mcp.server";
-import { blocagesEnvoi, choisirPlanItem, clePlanItem, codeTva, corpsMiseAJour, estRefusDeDroit, type PlanItem } from "./pennylane-import";
+import { blocagesEnvoi, choisirPlanItem, clePlanItem, codeTva, corpsMiseAJour, estRefusDeDroit, factureDejaPresente, type FacturePennylane, type PlanItem } from "./pennylane-import";
 import type { Facture } from "./ventilation";
 
 export const ENVOI_DEMO_ONLY_MSG = "L'envoi vers Pennylane est réservé aux dossiers démo du hackathon.";
@@ -33,6 +33,20 @@ export async function envoyerFacture(opts: {
   const run = <T>(operation_id: string, intent: string, extra: Record<string, unknown> = {}, path: Record<string, unknown> = {}) =>
     s.call<T>("run_operations", { operation_id, path_params: { company_id: Number(companyId), ...path }, ...extra }, intent);
   try {
+    // 0. Already in Pennylane (sent before, or arrived there another way): linked, never created twice.
+    const memeJour = await s.call<{ supplier_invoices?: FacturePennylane[] }>(
+      "list_supplier_invoices", { company_id: Number(companyId), period_start: f.date, period_end: f.date, page: 1 },
+      "Checking that a supplier invoice is not already in the company before sending it.",
+    ).catch(async (e: Error) => {
+      await noterErreurMcp("Envoi saisie (factures déjà présentes)", e.message).catch(() => {});
+      throw new Error(estRefusDeDroit(e.message) ? PAS_DE_DROIT_MSG : `Pennylane a refusé la lecture des factures fournisseurs : ${e.message.slice(0, 200)}`);
+    });
+    const existante = factureDejaPresente(f, memeJour.supplier_invoices ?? []);
+    if (existante) {
+      await opts.onCreated(existante);
+      return { invoiceId: existante, dejaPresente: true };
+    }
+
     // 1. Pennylane account of each line, for its VAT rate.
     const numeros = [...new Set(f.lignes.map((l) => l.compte))];
     const items: PlanItem[] = [];
@@ -103,7 +117,7 @@ export async function envoyerFacture(opts: {
       console.error("pennylane-import update", (e as Error).message);
       throw new Error(`Facture créée dans Pennylane avec son PDF (n° ${invoiceId}), mais ses lignes n'ont pas pu être mises à jour.`);
     }
-    return { invoiceId };
+    return { invoiceId, dejaPresente: false };
   } finally {
     await s.close();
   }
