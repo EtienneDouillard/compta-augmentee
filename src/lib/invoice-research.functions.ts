@@ -93,26 +93,21 @@ Termine par UN SEUL bloc JSON (rien après), en français :
  *  checked to answer. Used only to pre-fill the "site du fournisseur" field; the client can change it. */
 export const guessSupplierSite = createServerFn({ method: 'POST' })
   .middleware([requireSupabaseAuth])
-  .inputValidator(d => z.object({ supplier: z.string().trim().min(1).max(200), labels: z.array(z.string().max(300)).max(10) }).parse(d))
+  .inputValidator(d => z.object({ dossierId: z.string().uuid().optional(), supplier: z.string().trim().min(1).max(200), labels: z.array(z.string().max(300)).max(10) }).parse(d))
   .handler(async ({ data, context }): Promise<{ url: string | null }> => {
+    // Normally already found at sync time (supplier_sites); only missing ones are searched here.
+    if (data.dossierId) {
+      const { data: row } = await context.supabase.from('supplier_sites').select('url').eq('dossier_id', data.dossierId).eq('supplier', data.supplier).maybeSingle();
+      if (row?.url) return { url: row.url };
+    }
     const { apiKey, model } = await (await import("./claude-config.server")).claudeFor(context.userId);
     if (!apiKey) return { url: null };
-    const prompt = `Fournisseur vu sur un relevé bancaire français : « ${data.supplier} ». Libellés : ${data.labels.map(l => `« ${l} »`).join(', ')}.
-Donne l'adresse du site officiel où ce fournisseur met les factures à disposition de ses clients (espace client / compte), sinon son site officiel.
-Réponds UNIQUEMENT par l'URL https complète, ou par NONE si tu ne sais pas avec certitude.`;
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
-      body: JSON.stringify({ model, max_tokens: 1500, messages: [{ role: 'user', content: prompt }] }),
-    });
-    if (!res.ok) return { url: null };
-    const json = await res.json() as { content: { type: string; text?: string }[] };
-    const text = json.content.filter(c => c.type === 'text').map(c => c.text ?? '').join('').trim();
-    const m = text.match(/https:\/\/[^\s"'<>)]+/);
-    if (!m) return { url: null };
-    try {
-      const u = new URL(m[0]);
-      const r = await fetch(u.origin, { method: 'GET', redirect: 'follow', headers: { 'user-agent': 'Mozilla/5.0 CA+ link check' }, signal: AbortSignal.timeout(6000) }).catch(() => null);
-      return { url: r && r.status < 500 ? u.href : u.origin };
-    } catch { return { url: null }; }
+    const url = await (await import('./supplier-site.server')).guessSiteClaude(apiKey, model, data.supplier, data.labels);
+    // Saved only for a dossier the caller can read (RLS).
+    const canSee = data.dossierId ? !!(await context.supabase.from('dossiers').select('id').eq('id', data.dossierId).maybeSingle()).data : false;
+    if (url && data.dossierId && canSee) {
+      const { supabaseAdmin } = await import('@/integrations/supabase/client.server');
+      await supabaseAdmin.from('supplier_sites').upsert({ dossier_id: data.dossierId, supplier: data.supplier, url });
+    }
+    return { url };
   });

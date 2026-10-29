@@ -979,6 +979,27 @@ export type Database = {
           },
         ]
       }
+      supplier_sites: {
+        Row: {
+          dossier_id: string
+          found_at: string
+          supplier: string
+          url: string | null
+        }
+        Insert: {
+          dossier_id: string
+          found_at?: string
+          supplier: string
+          url?: string | null
+        }
+        Update: {
+          dossier_id?: string
+          found_at?: string
+          supplier?: string
+          url?: string | null
+        }
+        Relationships: []
+      }
       transactions: {
         Row: {
           ai_analyzed_at: string | null
