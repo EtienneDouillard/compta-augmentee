@@ -167,14 +167,13 @@ export function InvoiceSourceSetup({ dossierId, supplier, onFiles }: { dossierId
           <div className="flex items-start gap-2">
             <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border text-xs">{proven ? <Check className="h-3 w-3" /> : last + 1}</span>
             <div className="min-w-0 flex-1 space-y-2">
-              <p className="font-semibold">Vérifier qu’on reçoit bien la facture</p>
-              <p className="text-muted-foreground">CA+ actualise Pennylane et Claude contrôle la facture reçue : fournisseur, montant et date.</p>
+              <p className="font-semibold">✅ Vérifier<InfoTip text="Claude contrôle la facture reçue : fournisseur, montant, date." /></p>
               {(step >= last || proven) && <Button size="sm" disabled={checking} onClick={verify}>{checking ? <><Loader2 className="animate-spin" />Vérification…</> : proven ? 'Revérifier' : 'Vérifier maintenant'}</Button>}
             </div>
           </div>
         </li>
       </ol>
-      {proven && <p role="status" className="flex items-center gap-2 font-semibold text-primary"><CheckCircle2 className="h-4 w-4" />Ça fonctionne : la facture a bien été reçue. Les prochaines arriveront de la même façon.</p>}
+      {proven && <p role="status" className="flex items-center gap-2 font-semibold text-primary"><CheckCircle2 className="h-4 w-4" />Ça marche ✅</p>}
       {check && check.results.length > 0 && <ul className="divide-y rounded-md border">{check.results.slice(0, 6).map(r => <li key={r.transactionId} className="p-3">
         <div className="flex justify-between gap-3"><span className={r.status === 'conforme' || r.status === 'recu_pennylane' ? 'font-semibold text-primary' : r.status === 'non_conforme' ? 'font-semibold text-destructive' : 'font-semibold'}>{STATUS[r.status]}</span><span className="text-muted-foreground">{new Date(r.date).toLocaleDateString('fr-FR')} · {Math.abs(r.amount).toFixed(2)} €</span></div>
         {r.reason && <p className="text-muted-foreground">{r.reason}</p>}
