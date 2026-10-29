@@ -189,9 +189,7 @@ async function printTab(tabId) {
   } catch { return null; } finally { chrome.debugger.detach(target).catch(() => {}); }
 }
 async function planB(tabId, frameId, rowText, skipText) {
-  console.log("PLANB", frameId, rowText, skipText);
   const alts = (await inFrame(tabId, frameId, rowLinks, [rowText, skipText])) || [];
-  console.log("ALTS", JSON.stringify(alts));
   for (const a of alts) {
     let href = a.href, popupId = null;
     if (!href) ({ url: href, popupId } = await clickAndCatch(tabId, frameId, a.idx));
