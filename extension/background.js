@@ -71,8 +71,10 @@ function scrollStep() {
 
 // Runs inside the supplier page: downloads a URL with the page's own session.
 async function grab(href) {
-  const r = await fetch(href, { credentials: "include" });
+  let r;
+  try { r = await fetch(href, { credentials: "include" }); } catch (e) { return { html: true, error: String(e.message || e) }; }
   const type = (r.headers.get("content-type") || "").split(";")[0];
+  if (!r.ok || /json/.test(type)) return { html: true, error: `${r.status} ${(await r.text().catch(() => "")).slice(0, 120)}` };
   if (!/pdf|png|jpe?g|octet/.test(type)) return { html: true };
   const buf = new Uint8Array(await r.arrayBuffer());
   let s = ""; for (let i = 0; i < buf.length; i += 0x8000) s += String.fromCharCode.apply(null, buf.subarray(i, i + 0x8000));
@@ -211,9 +213,12 @@ async function run(onlyUrl) {
 function listenClick() {
   document.addEventListener("click", (e) => {
     const el = e.target.closest("a, button, [role=button], [role=link]") || e.target;
+    // A real link: the robot downloads it itself (one use: some invoice links are single-use).
+    const href = el.tagName === "A" && /^https?:/.test(el.href) ? el.href : null;
+    if (href) { e.preventDefault(); e.stopImmediatePropagation(); }
     const text = (el.textContent || el.getAttribute("aria-label") || "").trim().slice(0, 40);
     const row = el.closest("tr, li, [role=row]") || el.parentElement?.parentElement?.parentElement;
-    if (text) chrome.runtime.sendMessage({ type: "learned", url: location.href.split("#")[0], text, rowText: (row?.innerText || "").replace(/\s+/g, " ").slice(0, 300) });
+    if (text) chrome.runtime.sendMessage({ type: "learned", url: location.href.split("#")[0], text, href, rowText: (row?.innerText || "").replace(/\s+/g, " ").slice(0, 300) });
   }, { capture: true, once: true });
   const b = document.createElement("div");
   b.textContent = "🎓 CA+ : clique sur le lien de la facture";
@@ -264,10 +269,25 @@ async function teach(url) {
     if (!clicked) return "🎓 Rien appris (pas de clic).";
     const learned = { ...before0, [url]: clicked.text };
     await chrome.storage.local.set({ learned });
-    for (let i = 0; i < 16 && !newTab && !dlUrl; i++) await wait(500); // the tab or download the click opens
+    if (!clicked.href) for (let i = 0; i < 16 && !newTab && !dlUrl; i++) await wait(500); // the tab or download the click opens
 
     let file = null;
-    if (newTab) file = await fileFromTab(newTab);
+    if (clicked.href) {
+      [{ result: file }] = await chrome.scripting.executeScript({ target: { tabId: tab.id }, func: grab, args: [clicked.href] });
+      if (!file || file.html) {
+        // Link refused (expired/used token): reload the page for fresh links and take the same row's one.
+        await chrome.tabs.reload(tab.id); await loaded(tab.id); await wait(2500);
+        for (let k = 0; k < 8 && (!file || file.html); k++) {
+          const [{ result: items }] = await chrome.scripting.executeScript({ target: { tabId: tab.id }, func: scan, args: [clicked.text] });
+          const same = (items || []).find((x) => x.href && x.rowText === clicked.rowText) || (items || []).find((x) => x.href && clicked.rowText.includes((x.rowText.match(/20\d\d-\d\d-\d\d/) || ["§"])[0]));
+          if (same) [{ result: file }] = await chrome.scripting.executeScript({ target: { tabId: tab.id }, func: grab, args: [same.href] });
+          else { await chrome.scripting.executeScript({ target: { tabId: tab.id }, func: scrollStep }); await wait(800); }
+        }
+      }
+      if (!file || file.html) return `🎓 Appris : « ${clicked.text} », mais le site refuse le fichier${file?.error ? " (" + file.error.slice(0, 80) + ")" : ""}. Réessaie plus tard.`;
+    }
+    if (file && !file.html) { /* déjà récupéré */ }
+    else if (newTab) file = await fileFromTab(newTab);
     else if (dlUrl) [{ result: file }] = await chrome.scripting.executeScript({ target: { tabId: tab.id }, func: grab, args: [dlUrl] });
     else file = await fileFromTab(tab.id); // same tab navigated to the invoice
     if (!file || file.html) return `🎓 Appris : « ${clicked.text} », mais pas de PDF trouvé derrière.`;
