@@ -185,11 +185,11 @@ export async function syncDossier(dossierId: string) {
     const { data: aliases } = await db.from("supplier_aliases").select("detected_name, display_name").eq("dossier_id", dossierId);
     const aliasMap = new Map((aliases ?? []).map((a) => [a.detected_name, a.display_name]));
     // PostgREST returns at most 1000 rows per call: page through, or lines beyond 1000 look new and are inserted twice.
-    const existing: { id: string; pennylane_id: string; is_open: boolean; review_state: string; status: string }[] = [];
+    const existing: { id: string; pennylane_id: string; is_open: boolean; review_state: string; status: string; label: string; supplier: string; supplier_detected: string }[] = [];
     for (let from = 0; ; from += 1000) {
       const { data, error } = await db
         .from("transactions")
-        .select("id, pennylane_id, is_open, review_state, status")
+        .select("id, pennylane_id, is_open, review_state, status, label, supplier, supplier_detected")
         .eq("dossier_id", dossierId)
         .order("id")
         .range(from, from + 999);
@@ -222,6 +222,22 @@ export async function syncDossier(dossierId: string) {
       // ignoreDuplicates: a concurrent sync (scheduled run + button) may have inserted the same line meanwhile.
       const { error } = await db.from("transactions").upsert(inserts, { onConflict: "dossier_id,pennylane_id", ignoreDuplicates: true });
       if (error) throw error;
+    }
+    // Lines detected by an older rule ("Virt Amazon") get the current name; a cabinet correction (alias) still wins.
+    const renamed = new Map<string, { detected: string; ids: string[] }>();
+    for (const e of existing) {
+      const detected = normalizeSupplier(e.label ?? "");
+      if (detected === e.supplier_detected) continue;
+      const supplier = aliasMap.get(detected) ?? (e.supplier === e.supplier_detected ? detected : e.supplier);
+      const key = `${detected}\u0000${supplier}`;
+      renamed.set(key, { detected, ids: [...(renamed.get(key)?.ids ?? []), e.id] });
+    }
+    for (const [key, { detected, ids }] of renamed) {
+      const supplier = key.split("\u0000")[1]!;
+      for (let i = 0; i < ids.length; i += 100) {
+        const { error } = await db.from("transactions").update({ supplier_detected: detected, supplier }).in("id", ids.slice(i, i + 100));
+        if (error) throw error;
+      }
     }
     const reopen = existing.filter((e) => !e.is_open && neededIds.has(e.pennylane_id)).map((e) => e.id);
     if (reopen.length) await db.from("transactions").update({ is_open: true }).in("id", reopen);

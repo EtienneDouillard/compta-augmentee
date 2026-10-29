@@ -19,7 +19,10 @@ const LEGAL = new Set([
   "CIE",
 ]);
 
-// Comparable form of a tiers name: upper case, no accents, no punctuation, no legal form.
+import { BANK_WORDS } from "@/lib/supplier";
+
+// Comparable form of a tiers name: upper case, no accents, no punctuation, no legal form, no bank word
+// (a tiers stored as "Virt Tech" before the better detection groups with "Tech").
 export function tiersKey(name: string): string {
   return (name || "")
     .toUpperCase()
@@ -27,7 +30,7 @@ export function tiersKey(name: string): string {
     .replace(/[\u0300-\u036f]/g, "")
     .replace(/[^A-Z0-9 ]+/g, " ")
     .split(/\s+/)
-    .filter((w) => w && !LEGAL.has(w))
+    .filter((w) => w && !LEGAL.has(w) && !BANK_WORDS.has(w))
     .join(" ");
 }
 

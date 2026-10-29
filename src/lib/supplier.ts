@@ -24,7 +24,16 @@ const KNOWN: Array<[RegExp, string]> = [
   [/\bSLACK\b/, "Slack"],
 ];
 
+// Bank words that are never the supplier: "VIRT AMAZON" and "PRLVT AMAZON" are both Amazon (Julien, 29/10/2026).
+export const BANK_WORDS = new Set([
+  "CB", "CARTE", "PRLV", "PRLVT", "PRLVM", "PRLVMT", "PRELEV", "PRELEVEMENT", "PRELEVMT", "SEPA", "SDD", "ICS", "RUM",
+  "VIR", "VIRT", "VIRMT", "VIREMT", "VIREMENT", "VIRSEPA", "RECU", "EMIS", "RED", "PERMANENT", "PERM", "INSTANTANE", "INST",
+  "RBST", "REMB", "REMBOURSEMENT", "ECHEANCE", "ECH", "FACT", "FACTURE", "FAC", "REF", "MANDAT", "CONTRAT", "DE", "DU", "LA", "LE", "LES", "ET", "CIE",
+  "PAIEMENT", "PAYMENT", "PAYMENTS", "ACHAT", "RETRAIT", "DAB", "COMMISSION", "DATE", "X",
+]);
+
 const NOISE = new Set([
+  ...BANK_WORDS,
   "CB", "CARTE", "PRLV", "PRELEVEMENT", "SEPA", "VIR", "VIREMENT", "PAIEMENT", "PAYMENT",
   "PAYMENTS", "ACHAT", "FACTURE", "FAC", "INST", "INSTANTANE", "EUROPE", "EU", "FR", "FRANCE",
   "SARL", "SAS", "SASU", "SA", "EURL", "MKTP", "MARKETPLACE", "COM", "WWW", "RETRAIT", "DAB",
