@@ -116,7 +116,10 @@ function Espace() {
           <p className="text-muted-foreground">Chargement…</p>
         ) : (
           <>
-            <h1 className="text-2xl sm:text-3xl">Bonjour,</h1>
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <h1 className="text-2xl sm:text-3xl">Bonjour,</h1>
+              {dossierId && <SourcesSummary dossierId={dossierId} suppliers={[...new Set(all.filter((t) => t.direction === "out").map((t) => t.supplier))]} />}
+            </div>
             {dossier.data?.name && (
               // The dossier name stands out (retour de Julien): the client sees at once which company is concerned.
               <p className="mt-3 inline-flex max-w-full items-center gap-3 rounded-xl border-l-4 border-mint bg-card px-4 py-2.5 shadow-sm">
@@ -139,7 +142,6 @@ function Espace() {
               )}
             </p>
             <div className="max-w-2xl"><Nudge done={all.length - remaining} total={all.length} /></div>
-            {dossierId && <div className="max-w-2xl"><SourcesSummary dossierId={dossierId} suppliers={[...new Set(all.filter((t) => t.direction === "out").map((t) => t.supplier))]} /></div>}
 
             {remaining === 0 ? (
               <section className="mt-6 rounded-3xl bg-primary px-6 py-10 text-center text-primary-foreground sm:px-12">

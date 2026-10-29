@@ -24,13 +24,17 @@ export function SourcesSummary({ dossierId, suppliers }: { dossierId: string; su
   const configured = (q.data ?? []).filter((s) => CONFIGURED_STATES.includes(s.state)).length;
   const total = new Set([...suppliers, ...(q.data ?? []).map((s) => s.supplier)]).size;
   return (
-    <section className="rounded-xl border bg-card p-4 shadow-sm">
-      <p className="flex items-center gap-2 font-semibold text-primary"><Zap className="h-4 w-4" /> Récupération automatique des factures</p>
-      <p className="mt-1 text-sm">
-        {q.isPending ? "Chargement…" : <><strong>{configured}</strong> source{configured > 1 ? "s" : ""} configurée{configured > 1 ? "s" : ""} sur <strong>{total}</strong> fournisseur{total > 1 ? "s" : ""}.</>}
-      </p>
-      <p className="mt-1 text-sm text-muted-foreground">Configurez-les une fois pour toutes : ensuite les factures arrivent seules chaque mois.</p>
-      <Button asChild size="sm" className="mt-3"><Link to="/espace/sources">Configurer maintenant <ArrowRight /></Link></Button>
-    </section>
+    <Link
+      to="/espace/sources"
+      title="Configurez vos sources une fois pour toutes : ensuite les factures arrivent seules chaque mois."
+      className="inline-flex items-center gap-2 rounded-full border bg-card px-3 py-1.5 text-sm text-primary shadow-sm hover:bg-accent"
+    >
+      <Zap className="h-4 w-4" />
+      <span>
+        Récupération auto :{" "}
+        {q.isPending ? "…" : <><strong>{configured}</strong>/{total} fournisseur{total > 1 ? "s" : ""}</>}
+      </span>
+      <ArrowRight className="h-3.5 w-3.5" />
+    </Link>
   );
 }

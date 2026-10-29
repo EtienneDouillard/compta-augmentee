@@ -208,16 +208,14 @@ function SupplierStep({ steps, idx, dossierId, progress }: {
                   <Sparkles className="h-4 w-4 animate-pulse" /> Vérification de la facture (fournisseur et montant)…
                 </p>
               )}
-              <div className={cn("grid gap-3", isSale ? "sm:grid-cols-3" : "sm:grid-cols-2 lg:grid-cols-4")}>
+              <div className={cn("grid gap-3", isSale ? "sm:grid-cols-2" : "sm:grid-cols-3")}>
                 {!isSale && (
                   <ChoiceTile n={1} icon={FolderOpen} tone="mint" open={mode === "source"} onToggle={() => setMode(mode === "source" ? null : "source")}
                     title="Configurer une source de factures" desc="Le site, le chemin de facturation et le mode de réception de ce fournisseur." />
                 )}
                 <ChoiceTile n={isSale ? 1 : 2} icon={Upload} tone="mint" open={mode === "upload"} onToggle={() => setMode(mode === "upload" ? null : "upload")}
                   title="Je dépose mes factures" desc="Depuis votre ordinateur ou votre téléphone." />
-                <ChoiceTile n={isSale ? 2 : 3} icon={Mail} tone="pale" open={mode === "email"} onToggle={() => setMode(mode === "email" ? null : "email")}
-                  title="Je les envoie par e-mail" desc="Vers l'adresse de votre dossier." />
-                <ChoiceTile n={isSale ? 3 : 4} icon={FileX} tone="yellow" open={mode === "none"} onToggle={() => setMode(mode === "none" ? null : "none")}
+                <ChoiceTile n={isSale ? 2 : 3} icon={FileX} tone="yellow" open={mode === "none"} onToggle={() => setMode(mode === "none" ? null : "none")}
                   title="Je n'ai pas de facture" desc="Un mot d'explication aide votre comptable." />
               </div>
 
