@@ -21,6 +21,7 @@ async function loaded(tabId) {
 // Runs inside the supplier page: invoice links/buttons with their row text and date.
 function scan(learned) {
   window.scrollTo(0, document.body.scrollHeight);
+  document.querySelectorAll("[data-caplus]").forEach((e) => e.removeAttribute("data-caplus"));
   const RX = /invoice|facture|receipt|reçu|recu|statement|relevé|download|télécharger|pdf/i;
   const L = learned ? learned.toLowerCase() : null;
   const MONTHS = { jan: 1, feb: 2, fév: 2, fev: 2, mar: 3, apr: 4, avr: 4, may: 5, mai: 5, jun: 6, juin: 6, jul: 7, juil: 7, aug: 8, aoû: 8, aou: 8, sep: 9, oct: 10, nov: 11, dec: 12, déc: 12 };
@@ -46,7 +47,7 @@ function scan(learned) {
     const href = a.href || "";
     const own = text.toLowerCase().trim();
     if (L ? own !== L && !own.startsWith(L) : (!RX.test(text) && !/\.pdf|invoice|facture/i.test(href))) return;
-    if (a.closest("[data-caplus]") && !/^(A|BUTTON)$/.test(a.tagName)) return;
+    if (a.parentElement?.closest("[data-caplus]")) return;
     if (/summary|résumé|history|historique|settings|help|aide/i.test(text) && !/invoice|facture/i.test(text)) return;
     let row = a.closest("tr, li, [role=row]");
     if (!row) { row = a.parentElement; for (let k = 0; k < 6 && row && !/20\d\d|[$€£]\s?\d/.test(row.innerText || ""); k++) row = row.parentElement; }
