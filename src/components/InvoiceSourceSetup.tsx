@@ -7,19 +7,17 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { getInvoiceSource, saveInvoiceSource } from '@/lib/invoice-sources.functions';
 import { receptionProven, type CollectResult } from '@/lib/invoice-sources';
-import { researchInvoiceSource, type SourceResearch } from '@/lib/invoice-research.functions';
+import { researchInvoiceSource, RESEARCH_VERSION, type SourceResearch } from '@/lib/invoice-research.functions';
+import type { SetupStep } from '@/lib/source-steps';
 import { checkInvoiceCollection } from '@/lib/invoice-collect.functions';
 
 type CheckData = { results: CollectResult[]; steps: string[] };
 const STATUS: Record<CollectResult['status'], string> = { conforme: '✓ Facture reçue et conforme', recu_pennylane: '✓ Facture dans Pennylane', non_conforme: '✗ Pièce non conforme', manquant: '• Pas encore reçue', email_annonce: '… Envoi annoncé' };
 const METHOD = { email: 'E-mail vers Pennylane', browser: 'Téléchargement depuis le site', api: 'API', mcp: 'MCP' } as const;
 
-/** Steps to show: Claude's steps, or a sensible fallback for older research without steps. */
-function stepsOf(r: SourceResearch, email: string) {
-  if (r.steps?.length) return r.steps;
-  return r.recommended === 'email'
-    ? [{ title: 'Ouvrez la facturation du fournisseur', detail: r.billingPath, link: null }, { title: `Remplacez l'e-mail de facturation par ${email || "l'adresse Pennylane"}`, detail: 'Enregistrez.', link: null }, { title: 'Transférez la dernière facture reçue à cette adresse', detail: 'Pour tester tout de suite.', link: null }]
-    : [{ title: 'Ouvrez la page des factures', detail: r.billingPath, link: null }, { title: 'Téléchargez la dernière facture en PDF', detail: '', link: null }, { title: 'Déposez-la sur le paiement correspondant, plus haut', detail: 'CA+ la contrôle ensuite.', link: null }];
+/** Steps to show: Claude's checked steps (older research without direct links is redone). */
+function stepsOf(r: SourceResearch): SetupStep[] {
+  return r.version === RESEARCH_VERSION ? r.steps : [];
 }
 
 export function InvoiceSourceSetup({ dossierId, supplier }: { dossierId: string; supplier: string }) {
@@ -46,12 +44,14 @@ export function InvoiceSourceSetup({ dossierId, supplier }: { dossierId: string;
     setEmail(s?.receipt_email ?? query.data.collectEmail ?? '');
     if (!s) return;
     setUrl(s.source_url);
-    if (s.research) setFound(s.research as unknown as SourceResearch);
+    const r = s.research as unknown as SourceResearch | null;
+    const current = r?.version === RESEARCH_VERSION ? r : null;
+    if (current) setFound(current);
     if (s.last_check) setCheck(s.last_check as unknown as CheckData);
-    if (s.state !== 'needs_setup') setStarted(true);
+    if (current && s.state !== 'needs_setup') setStarted(true);
   }, [query.data]);
 
-  const steps = found ? stepsOf(found, email) : [];
+  const steps = found ? stepsOf(found) : [];
   const proven = check ? receptionProven(check.results) : false;
 
   async function runResearch() {
@@ -63,7 +63,7 @@ export function InvoiceSourceSetup({ dossierId, supplier }: { dossierId: string;
   }
 
   async function persist(r: SourceResearch, configured: boolean) {
-    await save({ data: { dossierId, supplier, sourceUrl: url, method: r.recommended, billingPath: [r.billingPath, ...stepsOf(r, email).map((s, i) => `${i + 1}. ${s.title}${s.detail ? ` — ${s.detail}` : ''}`)].filter(Boolean).join('\n'), receiptEmail: email || null, configured, autoSend: false } });
+    await save({ data: { dossierId, supplier, sourceUrl: url, method: r.recommended, billingPath: [r.billingPath, ...stepsOf(r).map((s, i) => `${i + 1}. ${s.title}${s.detail ? ` — ${s.detail}` : ''}${s.link ? ` (${s.link})` : ''}`)].filter(Boolean).join('\n'), receiptEmail: email || null, configured, autoSend: false } });
     await qc.invalidateQueries({ queryKey });
   }
 
@@ -117,6 +117,7 @@ export function InvoiceSourceSetup({ dossierId, supplier }: { dossierId: string;
         <p className="font-semibold text-primary">{found.headline || METHOD[found.recommended]}</p>
         <Button variant="ghost" size="sm" onClick={() => { setStarted(false); setStep(0); }}><RotateCcw />Changer</Button>
       </div>
+      {found.loginNote && <p className="text-muted-foreground">{found.loginNote}</p>}
       <ol className="space-y-2">
         {steps.map((s, i) => <li key={i} className={`rounded-md border p-3 ${i === step ? 'border-primary bg-secondary/40' : i < step || proven ? 'opacity-70' : 'opacity-50'}`}>
           <div className="flex items-start gap-2">
@@ -125,10 +126,9 @@ export function InvoiceSourceSetup({ dossierId, supplier }: { dossierId: string;
               <p className="font-semibold">{s.title}</p>
               {s.detail && <p className="text-muted-foreground">{s.detail}</p>}
               {i === step && !proven && <div className="flex flex-wrap gap-2 pt-1">
-                {s.link && <Button asChild size="sm" variant="outline"><a href={s.link} target="_blank" rel="noopener noreferrer"><ExternalLink />Ouvrir</a></Button>}
-                {!s.link && i === 0 && url && <Button asChild size="sm" variant="outline"><a href={url} target="_blank" rel="noopener noreferrer"><ExternalLink />Ouvrir {supplier}</a></Button>}
-                {found.recommended === 'email' && email && /e-?mail|adresse/i.test(s.title) && <Button size="sm" variant="outline" onClick={async () => { await navigator.clipboard.writeText(email); toast.success('Adresse copiée'); }}><Copy />Copier {email}</Button>}
-                <Button size="sm" onClick={() => setStep(i + 1)}>C’est fait</Button>
+                {s.link && <Button asChild size="sm"><a href={s.link} target="_blank" rel="noopener noreferrer" title={s.link}><ExternalLink />Ouvrir la page {new URL(s.link).hostname.replace(/^www\./, '')}</a></Button>}
+                {s.pastePennylaneEmail && email && <Button size="sm" variant="outline" onClick={async () => { await navigator.clipboard.writeText(email); toast.success('Adresse copiée, collez-la sur la page ouverte'); }}><Copy />Copier {email}</Button>}
+                <Button size="sm" variant={s.link ? 'outline' : 'default'} onClick={() => setStep(i + 1)}>C’est fait</Button>
               </div>}
             </div>
           </div>
