@@ -17,6 +17,13 @@ const LEGAL = new Set([
   "SOCIETE",
   "ETS",
   "CIE",
+  "ET",
+  "DE",
+  "DU",
+  "DES",
+  "LA",
+  "LE",
+  "LES",
 ]);
 
 import { BANK_WORDS } from "@/lib/supplier";

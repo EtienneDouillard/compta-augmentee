@@ -38,7 +38,7 @@ describe("regrouper", () => {
     expect(lm.names).toEqual(["Leroy Merlin", "Leroy Merlin Bricolage"]);
   });
   it("groups a tiers stored with a bank word with the clean name", () => {
-    expect(regrouper([l("Virt Tech"), l("Tech"), l("Prlvmt Facebk")])).toHaveLength(2);
+    expect(regrouper([l("Virt Tech"), l("Tech et Cie"), l("Prlvmt Facebk")])).toHaveLength(2);
     expect(regrouper([l("Urssaf Ile"), l("Urssaf")])).toHaveLength(1);
   });
   it("never merges unidentified tiers", () => {
