@@ -15,6 +15,7 @@ import { CabinetChat } from "@/components/CabinetChat";
 import { ClaudeAnalysis } from "@/components/ClaudeAnalysis";
 import { SaisieAugmentee } from "@/components/SaisieAugmentee";
 import { EnvoiGroupe } from "@/components/EnvoiGroupe";
+import { RecapClientPanel } from "@/components/RecapClient";
 import { SourcePill } from "@/components/StatusPill";
 import { createClientAccount } from "@/lib/admin.functions";
 import { syncDossierNow } from "@/lib/sync.functions";
@@ -45,6 +46,7 @@ function DossierPage() {
   const qc = useQueryClient();
   const [syncing, setSyncing] = useState(false);
   const [saisie, setSaisie] = useState<string | null>(null);
+  const [ecriture, setEcriture] = useState<Tx | null>(null);
   const q = useQuery({
     queryKey: ["dossier-full", dossierId],
     queryFn: async () => {
@@ -166,11 +168,14 @@ function DossierPage() {
         <QuestionsPanel dossierId={dossierId} />
         <ClaudeAnalysis dossierId={dossierId} onApplied={reload} />
         <div id="lignes" className="scroll-mt-6">
-          <LinesTable key={vue ?? "defaut"} txs={txs} uploads={uploads} onChanged={reload} onRename={rename} onDownload={download} onSaisie={setSaisie} initialTab={vue} />
+          <LinesTable key={vue ?? "defaut"} txs={txs} uploads={uploads} onChanged={reload} onRename={rename} onDownload={download} onSaisie={setSaisie} onEcriture={setEcriture} initialTab={vue} />
         </div>
         <SaisieAugmentee uploadId={saisie} onClose={() => { setSaisie(null); qc.invalidateQueries({ queryKey: ["envoi-groupe", dossierId] }); }} />
-        <EnvoiGroupe dossierId={dossierId} onDone={reload} />
+        <EcritureSansFacture tx={ecriture} demo={isDemoCompany(dossier.company_id)} onClose={() => setEcriture(null)}
+          onDone={() => { setEcriture(null); reload(); }} />
+        <EnvoiGroupe dossierId={dossierId} onDone={reload} onOpen={setSaisie} />
         <SkipRulesPanel dossierId={dossierId} txs={txs} onChanged={reload} />
+        <RecapClientPanel dossierId={dossierId} />
 
         <div className="grid gap-5 lg:grid-cols-2">
           <DossierSettings dossier={dossier} onSaved={reload} />

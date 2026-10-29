@@ -74,7 +74,7 @@ export const getAnalysisState = createServerFn({ method: "POST" })
     const [lines, { data: sugg }, { data: runs }, b] = await Promise.all([
       openLines(db, data.dossierId),
       db.from("ai_suggestions").select("id, kind, transaction_ids, target_supplier, reason, created_at")
-        .eq("dossier_id", data.dossierId).eq("state", "open").order("created_at", { ascending: true }),
+        .eq("dossier_id", data.dossierId).eq("state", "open").neq("kind", "duplicate").order("created_at", { ascending: true }),
       db.from("ai_analysis_runs").select("id, created_at, lines_analyzed, cost_usd")
         .eq("dossier_id", data.dossierId).eq("kind", "analyse").order("created_at", { ascending: false }).limit(5),
       budget(db),

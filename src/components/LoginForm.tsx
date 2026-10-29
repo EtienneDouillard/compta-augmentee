@@ -2,7 +2,7 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ArrowRight, Briefcase, Eye, EyeOff, FileX, Mail, ShieldCheck, Upload } from "lucide-react";
+import { ArrowRight, Briefcase, Eye, EyeOff, FileX, Mail, ShieldCheck, Upload, User } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { getBootstrapStatus, bootstrapCabinet } from "@/lib/admin.functions";
 import { meQuery } from "@/lib/session";
@@ -145,6 +145,10 @@ export function LoginForm({ space }: { space: Space }) {
           <div className="mx-auto flex max-w-5xl items-center gap-2.5 px-4 py-3">
             <BrandMark tone="mint" />
             <span className="font-bold">PBC List <span className="font-normal text-primary-foreground/80">· Espace cabinet</span></span>
+            {/* One click to the client sign-in (Julien, 29/10/2026), as the client page links to the firm's. */}
+            <Link to="/" className="ml-auto inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-sm font-semibold hover:bg-primary-foreground/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mint">
+              <User className="h-4 w-4" /> Espace client <ArrowRight className="h-4 w-4 text-mint" />
+            </Link>
           </div>
         </div>
         <div className="flex flex-1 items-center justify-center px-4 py-10">
@@ -156,6 +160,10 @@ export function LoginForm({ space }: { space: Space }) {
                 : "Gestion des dossiers clients et des demandes de factures."}
             </p>
             <div className="mt-6 rounded-2xl border bg-card p-6 shadow-sm sm:p-8">{form}</div>
+            <p className="mt-4 text-center text-sm text-muted-foreground">
+              Vous êtes client ?{" "}
+              <Link to="/" className="font-semibold text-primary underline-offset-4 hover:underline">Aller à l'espace client</Link>
+            </p>
           </div>
         </div>
       </main>

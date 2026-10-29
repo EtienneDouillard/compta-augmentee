@@ -24,12 +24,23 @@ const KNOWN: Array<[RegExp, string]> = [
   [/\bSLACK\b/, "Slack"],
 ];
 
+// Bank words that are never the supplier: "VIRT AMAZON" and "PRLVT AMAZON" are both Amazon (Julien, 29/10/2026).
+export const BANK_WORDS = new Set([
+  "CB", "CARTE", "PRLV", "PRLVT", "PRLVM", "PRLVMT", "PRELEV", "PRELEVEMENT", "PRELEVMT", "SEPA", "SDD", "ICS", "RUM",
+  "VIR", "VIRT", "VIRMT", "VIREMT", "VIREMENT", "VIRSEPA", "RECU", "EMIS", "RED", "PERMANENT", "PERM", "INSTANTANE", "INST",
+  "RBST", "REMB", "REMBOURSEMENT", "ECHEANCE", "ECH", "FACT", "FACTURE", "FAC", "REF", "MANDAT", "CONTRAT",
+  "PAIEMENT", "PAYMENT", "PAYMENTS", "ACHAT", "RETRAIT", "DAB", "COMMISSION", "DATE", "X",
+]);
+
 const NOISE = new Set([
+  ...BANK_WORDS,
   "CB", "CARTE", "PRLV", "PRELEVEMENT", "SEPA", "VIR", "VIREMENT", "PAIEMENT", "PAYMENT",
   "PAYMENTS", "ACHAT", "FACTURE", "FAC", "INST", "INSTANTANE", "EUROPE", "EU", "FR", "FRANCE",
   "SARL", "SAS", "SASU", "SA", "EURL", "MKTP", "MARKETPLACE", "COM", "WWW", "RETRAIT", "DAB",
-  "DE", "DU", "LA", "LE", "LES", "ET", "X", "REF", "ECH", "DATE",
+  "X", "REF", "ECH", "DATE",
 ]);
+// Small words kept inside a name ("Tech et Cie"), never at its start or end.
+const LINKS = new Set(["ET", "DE", "DU", "DES", "LA", "LE", "LES", "D", "L"]);
 
 function titleCase(s: string) {
   return s
@@ -48,9 +59,21 @@ export function normalizeSupplier(label: string): string {
   const tokens = up
     .replace(/[*./\\_\-:,;#]/g, " ")
     .split(/\s+/)
-    .filter((t) => t && !NOISE.has(t) && !/\d/.test(t) && t.length > 1);
-  if (tokens.length === 0) return "Autre";
-  return titleCase(tokens.slice(0, 2).join(" "));
+    .filter((t) => t && !NOISE.has(t) && !/\d/.test(t) && (t.length > 1 || LINKS.has(t)));
+  // Two significant words, with the small words between them: "VIRT TECH ET CIE" -> "Tech et Cie".
+  const words: string[] = [];
+  let significant = 0;
+  for (const t of tokens) {
+    if (LINKS.has(t)) {
+      if (significant > 0) words.push(t);
+      continue;
+    }
+    words.push(t);
+    if (++significant === 2) break;
+  }
+  while (words.length && LINKS.has(words[words.length - 1]!)) words.pop();
+  if (words.length === 0) return "Autre";
+  return words.map((w) => (LINKS.has(w) ? w.toLowerCase() : titleCase(w))).join(" ");
 }
 
 const LEGAL_FORMS = new Set(["SARL", "SAS", "SASU", "SA", "EURL", "SCI", "SNC", "EI", "EIRL", "SCP", "SELARL"]);

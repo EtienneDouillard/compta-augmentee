@@ -1,14 +1,17 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Check, AlertTriangle, BookOpen, MessageSquare, Split, LogOut, Copy, FileDown, Download, ExternalLink, Upload, FlaskConical } from "lucide-react";
+import { Check, AlertTriangle, ArrowLeft, BookOpen, MessageSquare, Split, Copy, FileDown, Download, ExternalLink, Upload, FlaskConical } from "lucide-react";
 import { importerFacturesPennylane, NB_FACTURES_PENNYLANE } from "@/lib/pennylane-snapshot";
 import { envoyerVentilation, PENNYLANE_ECRITURE_ACTIVE } from "@/lib/pennylane-write.beta";
 import { supabase } from "@/integrations/supabase/client";
 import { alertes, controle, ecriture, eur, round2, tvaLigne, type Facture, type Ligne } from "@/lib/ventilation";
 import { eclater } from "@/lib/eclatement";
 import { lireLignesPiece } from "@/lib/piece.functions";
+import { AppHeader } from "@/components/AppHeader";
+import { requireCabinet } from "@/lib/session";
 
 export const Route = createFileRoute("/_authenticated/app")({
+  beforeLoad: requireCabinet,
   head: () => ({
     meta: [
       { title: "Dossiers — Comptabilité Augmentée" },
@@ -52,7 +55,6 @@ async function chargerDossier(dossierId: string) {
 }
 
 function AppPage() {
-  const nav = useNavigate();
   const [dossiers, setDossiers] = useState<Dossier[]>([]);
   const [dossierId, setDossierId] = useState<string | null>(null);
   const [factures, setFactures] = useState<FactureDB[]>([]);
@@ -115,10 +117,15 @@ function AppPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="space-cabinet min-h-screen bg-background text-foreground">
+      {/* Same cabinet bar as the rest of the firm's space, so the way back is always visible. */}
+      <AppHeader space="cabinet" />
       <header className="border-b border-border">
         <div className="mx-auto flex max-w-[1600px] flex-wrap items-end justify-between gap-4 px-6 py-6">
           <div>
+            <Link to="/cabinet" className="mb-2 inline-flex items-center gap-1.5 text-sm font-semibold text-primary hover:underline">
+              <ArrowLeft className="h-4 w-4" /> Retour aux dossiers clients
+            </Link>
             <select value={dossierId ?? ""} onChange={(e) => setDossierId(e.target.value)} className="bg-transparent text-xs uppercase tracking-[0.15em] text-muted-foreground outline-none">
               {dossiers.map((d) => <option key={d.id} value={d.id}>{d.nom}</option>)}
             </select>
@@ -133,7 +140,6 @@ function AppPage() {
                 </button>
               ))}
             </nav>
-            <button aria-label="Se déconnecter" onClick={async () => { await supabase.auth.signOut(); nav({ to: "/cabinet/connexion" }); }} className="text-muted-foreground"><LogOut className="h-4 w-4" /></button>
           </div>
         </div>
       </header>

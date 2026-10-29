@@ -78,6 +78,9 @@ export type Tx = {
   counterpart_accounts?: string | null;
   skip_rule_id?: string | null;
   direction: "out" | "in";
+  // Simon 7: an operation cut from a grouped bank line, and the bank line that was cut.
+  parent_id?: string | null;
+  decoupee?: boolean;
 };
 
 export type SupplierGroup = { key: string; direction: "out" | "in"; name: string; txs: Tx[]; total: number; state: "todo" | "progress" | "done" };
