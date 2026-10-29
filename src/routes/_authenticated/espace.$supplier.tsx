@@ -5,7 +5,7 @@ import { InvoiceSourceSetup } from "@/components/InvoiceSourceSetup";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import {
-  AlertTriangle, ArrowLeft, ArrowRight, Camera, Check,  CloudUpload, Copy, FileX, FolderOpen, Info, Mail, MailPlus, PartyPopper, Sparkles, Upload,
+  AlertTriangle, ArrowLeft, ArrowRight, Camera, Check,  CloudUpload, Copy, FolderOpen, Info, Mail, MailPlus, PartyPopper, Sparkles, Upload,
   type LucideIcon,
 } from "lucide-react";
 import { AppHeader } from "@/components/AppHeader";
@@ -198,10 +198,9 @@ function SupplierStep({ steps, idx, dossierId, progress }: {
               {selected.length === 0
                 ? "Sélectionnez au moins une ligne ci-dessus"
                 : selected.length === 1
-                  ? `Pour ${thisOne}, comment souhaitez-vous procéder ?`
-                  : `Pour ces ${selected.length} ${noun}s, comment souhaitez-vous procéder ?`}
+                  ? "Votre choix"
+                  : `Votre choix (${selected.length})`}
             </h2>
-            <p className="mt-1 text-muted-foreground">Choisissez la solution la plus simple pour vous.</p>
             <div inert={selected.length === 0} className={cn("mt-5", selected.length === 0 && "opacity-50")}>
               {checking && (
                 <p role="status" className="mb-4 flex items-center gap-2 rounded-xl bg-pale-2 p-3 text-sm font-semibold text-primary">
@@ -210,13 +209,13 @@ function SupplierStep({ steps, idx, dossierId, progress }: {
               )}
               <div className={cn("grid gap-3", isSale ? "sm:grid-cols-2" : "sm:grid-cols-3")}>
                 {!isSale && (
-                  <ChoiceTile n={1} icon={FolderOpen} tone="mint" open={mode === "source"} onToggle={() => setMode(mode === "source" ? null : "source")}
-                    title="Configurer une source de factures" desc="Le site, le chemin de facturation et le mode de réception de ce fournisseur." />
+                  <ChoiceTile emoji="🤖" tone="mint" open={mode === "source"} onToggle={() => setMode(mode === "source" ? null : "source")}
+                    title="Automatiser" desc="Claude trouve où récupérer les factures de ce fournisseur, puis les collecte seul chaque mois." />
                 )}
-                <ChoiceTile n={isSale ? 1 : 2} icon={Upload} tone="mint" open={mode === "upload"} onToggle={() => setMode(mode === "upload" ? null : "upload")}
-                  title="Je dépose mes factures" desc="Depuis votre ordinateur ou votre téléphone." />
-                <ChoiceTile n={isSale ? 2 : 3} icon={FileX} tone="yellow" open={mode === "none"} onToggle={() => setMode(mode === "none" ? null : "none")}
-                  title="Je n'ai pas de facture" desc="Un mot d'explication aide votre comptable." />
+                <ChoiceTile emoji="📤" tone="mint" open={mode === "upload"} onToggle={() => setMode(mode === "upload" ? null : "upload")}
+                  title="Déposer" desc="Envoyez la facture depuis votre ordinateur ou votre téléphone." />
+                <ChoiceTile emoji="🚫" tone="yellow" open={mode === "none"} onToggle={() => setMode(mode === "none" ? null : "none")}
+                  title="Pas de facture" desc="Un mot d'explication aide votre comptable." />
               </div>
 
               {mode === "source" && !isSale && (
@@ -337,23 +336,22 @@ function TxRow({ tx, isSale, bilan, selected, onToggle, onFiles }: {
 
 const TILE = { mint: "bg-mint-soft text-primary", pale: "bg-pale text-primary", yellow: "bg-yellow-soft text-yellow-ink" };
 
-function ChoiceTile({ n, icon: Icon, tone, open, onToggle, title, desc }: {
-  n: number; icon: LucideIcon; tone: keyof typeof TILE; open: boolean; onToggle: () => void; title: string; desc: string;
+function ChoiceTile({ emoji, tone, open, onToggle, title, desc }: {
+  emoji: string; tone: keyof typeof TILE; open: boolean; onToggle: () => void; title: string; desc: string;
 }) {
   return (
     <button type="button" aria-expanded={open} onClick={onToggle}
       className={cn(
-        "flex w-full items-start gap-3 rounded-2xl bg-card p-4 text-left shadow-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary sm:flex-col",
+        "relative flex w-full items-center gap-3 rounded-2xl bg-card p-4 text-left shadow-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary sm:flex-col sm:text-center",
         open ? "border-2 border-primary" : "border hover:border-primary/40",
       )}>
-      <span className={cn("flex h-12 w-12 shrink-0 items-center justify-center rounded-xl", TILE[tone])}>
-        <Icon className="h-6 w-6" />
+      <span title={desc} aria-label={desc} className="absolute right-3 top-3 text-muted-foreground hover:text-primary">
+        <Info className="h-4 w-4" />
       </span>
-      <span className="min-w-0 flex-1">
-        <span className="block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Choix {n}</span>
-        <span className="block text-lg font-bold leading-snug text-primary">{title}</span>
-        <span className="block text-sm text-muted-foreground">{desc}</span>
+      <span aria-hidden className={cn("flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl text-3xl", TILE[tone])}>
+        {emoji}
       </span>
+      <span className="block text-base font-bold leading-snug text-primary">{title}</span>
     </button>
   );
 }
