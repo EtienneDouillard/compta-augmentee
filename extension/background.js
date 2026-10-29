@@ -161,6 +161,51 @@ async function fileFromTab(tabId) {
   return last && last.error ? last : null;
 }
 
+// ---------- Plan B when the site refuses its own PDF (e.g. RapidAPI: S3 "explicit deny" even by hand) ----------
+// 1) other document links of the same row (summary, receipt, details) ; 2) the page is printed to PDF by Chrome
+// itself (chrome.debugger Page.printToPDF works on a background tab). The result is the supplier's own page.
+function rowLinks(rowText, skip) {
+  const norm = (s) => (s || "").replace(/\s+/g, " ").trim();
+  const key = norm(rowText).slice(0, 60);
+  const rows = [...document.querySelectorAll("tr, li, [role=row], div")].filter((r) => norm(r.innerText).startsWith(key) && norm(r.innerText).length < 400);
+  const row = rows.sort((a, b) => norm(a.innerText).length - norm(b.innerText).length)[0];
+  if (!row) return [];
+  const RX = /summary|résumé|receipt|reçu|recu|détail|detail|view|voir|statement|relevé|print|imprimer/i;
+  return [...row.querySelectorAll("a, button, [role=button], [role=link], span")].filter((e) => {
+    const t = norm(e.textContent || e.getAttribute("aria-label"));
+    return t && t.length < 40 && t.toLowerCase() !== (skip || "").toLowerCase() && RX.test(t);
+  }).slice(0, 3).map((e, i) => { e.setAttribute("data-caplus", "alt" + i); return { idx: "alt" + i, text: norm(e.textContent), href: /^https?:/.test(e.href || "") ? e.href : null }; });
+}
+function pageIsError() {
+  const t = (document.body?.innerText || "").trim();
+  return t.length < 600 && /not authorized|access ?denied|forbidden|explicit deny|404|not found|error/i.test(t);
+}
+async function printTab(tabId) {
+  const target = { tabId };
+  try {
+    await chrome.debugger.attach(target, "1.3");
+    const { data } = await chrome.debugger.sendCommand(target, "Page.printToPDF", { printBackground: true, preferCSSPageSize: true });
+    return data ? { mime: "application/pdf", base64: data, printed: true } : null;
+  } catch { return null; } finally { chrome.debugger.detach(target).catch(() => {}); }
+}
+async function planB(tabId, frameId, rowText, skipText) {
+  const alts = (await inFrame(tabId, frameId, rowLinks, [rowText, skipText])) || [];
+  for (const a of alts) {
+    let href = a.href, popupId = null;
+    if (!href) ({ url: href, popupId } = await clickAndCatch(tabId, frameId, a.idx));
+    if (!href) continue;
+    const f = await inFrame(tabId, frameId, grab, [href]);
+    if (f && !f.html) { if (popupId) chrome.tabs.remove(popupId).catch(() => {}); return { ...f, via: a.text }; }
+    const pid = popupId ?? (await chrome.tabs.create({ url: href, active: false })).id;
+    await loaded(pid); await wait(2500);
+    const bad = await inFrame(pid, 0, pageIsError);
+    const p = bad ? null : await printTab(pid);
+    chrome.tabs.remove(pid).catch(() => {});
+    if (p) return { ...p, via: a.text };
+  }
+  return null;
+}
+
 async function api() {
   const { base, token } = await chrome.storage.local.get(["base", "token"]);
   if (!base || !token) throw new Error("Robot pas encore relié : clique « Lancer le robot » dans CA+.");
