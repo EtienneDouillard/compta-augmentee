@@ -22,7 +22,7 @@ function stepsOf(r: SourceResearch): SetupStep[] {
   return r.version === RESEARCH_VERSION ? r.steps : [];
 }
 
-export function InvoiceSourceSetup({ dossierId, supplier }: { dossierId: string; supplier: string }) {
+export function InvoiceSourceSetup({ dossierId, supplier, onFiles }: { dossierId: string; supplier: string; onFiles?: (files: File[]) => void }) {
   const load = useServerFn(getInvoiceSource);
   const save = useServerFn(saveInvoiceSource);
   const research = useServerFn(researchInvoiceSource);
@@ -99,7 +99,7 @@ export function InvoiceSourceSetup({ dossierId, supplier }: { dossierId: string;
   if (query.isPending) return <p className="text-muted-foreground">Chargement de la source…</p>;
   const src = query.data?.source;
   if (src?.method === 'browser') return <div className="space-y-3">
-    <RobotChrome dossierId={dossierId} robotUrl={src.robot_url || src.source_url} lastRun={src.robot_last_run as any}
+    <RobotChrome dossierId={dossierId} robotUrl={src.robot_url || src.source_url} lastRun={src.robot_last_run as any} onFiles={onFiles}
       onSaveUrl={async (newUrl) => { await setRobot({ data: { dossierId, supplier, sourceUrl: src.source_url, robotUrl: newUrl } }); await qc.invalidateQueries({ queryKey }); }} />
     <Button variant="ghost" size="sm" onClick={async () => { await save({ data: { dossierId, supplier, sourceUrl: src.source_url, method: 'email', billingPath: '', receiptEmail: email || null, configured: false, autoSend: false } }); await qc.invalidateQueries({ queryKey }); }}><RotateCcw />Changer</Button>
   </div>;

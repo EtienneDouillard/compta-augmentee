@@ -240,7 +240,7 @@ function SupplierStep({ steps, idx, dossierId, progress }: {
 
               {mode === "source" && !isSale && (
                 <ChoicePanel>
-                  <InvoiceSourceSetup dossierId={dossierId} supplier={group.name} />
+                  <InvoiceSourceSetup dossierId={dossierId} supplier={group.name} onFiles={busy ? undefined : (f) => upload(f, selected)} />
                 </ChoicePanel>
               )}
 
