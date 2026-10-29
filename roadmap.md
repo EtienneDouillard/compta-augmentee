@@ -1,8 +1,11 @@
 # Roadmap
-- [ ] Créer et tester un compte cabinet démo distinct du compte dirigeant
-- [ ] Contrôle de pertinence des pièces par Claude Sonnet 5.5 avant l'envoi automatique
-- [ ] Collecte des factures : identifier la méthode depuis une URL, mémoriser la configuration et contrôler les pièces
-- [ ] Collecte mensuelle : réception e-mail / connexions fournisseur / compagnon Chrome — services et autorisations à configurer
+- [x] Créer et tester un compte cabinet démo distinct du compte dirigeant
+- [x] Sources : sauvegarder URL, méthode, chemin et adresse Pennylane par fournisseur ; vérifier après rechargement
+- [x] Renseigner l'adresse de collecte fournisseur Pennylane fournie sur le dossier démo
+- [ ] Recherche Internet dynamique depuis une URL — service de recherche à connecter ; seules les pistes documentées sont actuellement affichées
+- [ ] Contrôle préalable par Claude Sonnet 5.5 — modèle absent du catalogue vérifié ; réception des pièces par CA+ à connecter
+- [ ] Collecte mensuelle et envoi des pièces contrôlées — fournisseur réel et méthode de téléchargement à connecter ; aucune collecte active
+- [ ] Compagnon Chrome — installation utilisateur nécessaire, sans export des cookies ni mots de passe fournisseur
 - [x] Corriger la configuration Claude et vérifier une conversation réelle
 - [x] Relier l'assistant aux actions du dossier avec confirmation et contrôle des droits
 - [x] Prototype : ventilation, livre de lecture, échange client

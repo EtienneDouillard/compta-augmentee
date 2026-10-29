@@ -256,12 +256,12 @@ function SupplierStep({ steps, idx, dossierId }: { steps: SupplierGroup[]; idx: 
                 title="Configurer une source de factures" desc="Conservez le site, le chemin de facturation et le mode de réception de ce fournisseur.">
                 <InvoiceSourceSetup dossierId={dossierId} supplier={group.name} />
               </ChoiceCard>}
-              <ChoiceCard n={1} icon={Upload} tone="mint" open={mode === "upload"} onToggle={() => setMode(mode === "upload" ? null : "upload")}
+              <ChoiceCard n={isSale ? 1 : 2} icon={Upload} tone="mint" open={mode === "upload"} onToggle={() => setMode(mode === "upload" ? null : "upload")}
                 title="Je dépose mes factures" desc="Ajoutez les factures depuis votre ordinateur ou votre téléphone.">
                 <DropZone busy={busy} several={selected.length > 1} noun={noun} onFiles={(f) => uploadFiles(f, selected)} />
               </ChoiceCard>
 
-              <ChoiceCard n={2} icon={Mail} tone="pale" open={mode === "email"} onToggle={() => setMode(mode === "email" ? null : "email")}
+              <ChoiceCard n={isSale ? 2 : 3} icon={Mail} tone="pale" open={mode === "email"} onToggle={() => setMode(mode === "email" ? null : "email")}
                 title="Je les envoie par e-mail" desc="Transférez les e-mails qui contiennent vos factures à l'adresse de votre dossier.">
                 {collect ? (
                   <>
@@ -294,7 +294,7 @@ function SupplierStep({ steps, idx, dossierId }: { steps: SupplierGroup[]; idx: 
                 )}
               </ChoiceCard>
 
-              <ChoiceCard n={3} icon={FileX} tone="yellow" open={mode === "none"} onToggle={() => setMode(mode === "none" ? null : "none")}
+              <ChoiceCard n={isSale ? 3 : 4} icon={FileX} tone="yellow" open={mode === "none"} onToggle={() => setMode(mode === "none" ? null : "none")}
                 title="Je n'ai pas de facture" desc="Indiquez-le simplement ; un mot d'explication aide votre comptable.">
                 <label htmlFor="no-invoice-comment" className="text-sm font-semibold">Votre commentaire (facultatif)</label>
                 <Textarea id="no-invoice-comment" rows={3} value={comment} onChange={(e) => setComment(e.target.value)}
