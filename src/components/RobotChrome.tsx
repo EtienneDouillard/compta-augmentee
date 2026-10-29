@@ -111,16 +111,7 @@ export function RobotChrome({ dossierId, robotUrl, lastRun, onSaveUrl, onFiles }
         <Tip text="Le robot ouvre la page dans ton Chrome, trouve les factures du mois, Claude les vérifie, elles partent dans Pennylane. Il repasse tout seul chaque mois." />
       </div>
     ) : (
-      <div><ol className="space-y-2">
-        <li className="flex flex-wrap items-center gap-2"><span>1️⃣</span><Button size="sm" onClick={download}><Download />Télécharger</Button><span className="text-xs text-muted-foreground">puis double-clic sur le fichier 📦</span></li>
-        <li className="flex flex-wrap items-center gap-2"><span>2️⃣</span>
-          <Button size="sm" variant="outline" onClick={() => { navigator.clipboard.writeText('chrome://extensions').then(() => toast.success('Colle-le dans la barre d’adresse ⤴️')).catch(() => {}); }}><Copy />Copier chrome://extensions</Button>
-          <span className="text-xs text-muted-foreground">→ nouvel onglet, colle, Entrée</span></li>
-        <li className="flex flex-wrap items-center gap-2"><span>3️⃣</span><span className="text-xs">Active <b>Mode développeur</b> ↗️ (en haut à droite)</span></li>
-        <li className="flex flex-wrap items-center gap-2"><span>4️⃣</span><span className="text-xs"><b>Charger l'extension non empaquetée</b> → choisis le dossier <b>ca-plus-robot</b></span></li>
-        <li className="flex flex-wrap items-center gap-2"><span>5️⃣</span><Button size="sm" variant="outline" onClick={() => location.reload()}>✅ C'est installé</Button></li>
-      </ol>
-      </div>
+      <InstallSteps url={url} robotUrl={robotUrl} saveUrl={saveUrl} download={download} />
     )}
     {log && <pre role="status" className="whitespace-pre-wrap rounded bg-background p-2 text-xs">{log}</pre>}
     {lastRun && <p role="status" className="font-semibold text-primary">🕒 {new Date(lastRun.at).toLocaleString('fr-FR')} · {lastRun.message}</p>}
@@ -140,4 +131,34 @@ export function RobotChrome({ dossierId, robotUrl, lastRun, onSaveUrl, onFiles }
       </div>
     </details>
   </div>;
+}
+
+/** Install guide: each step stays grey until the previous one is done (✅). */
+function InstallSteps({ url, robotUrl, saveUrl, download }: { url: string; robotUrl?: string | null; saveUrl: () => Promise<void>; download: () => void }) {
+  const [done, setDone] = useState(0);
+  const mark = (i: number) => setDone(d => Math.max(d, i + 1));
+  const urlOk = !!url && url === robotUrl;
+  const steps: { label: React.ReactNode; action: React.ReactNode }[] = [
+    { label: <span className="text-xs">🔗 Adresse des factures</span>,
+      action: <Button size="sm" variant="outline" onClick={async () => { if (!urlOk) await saveUrl(); mark(0); }}><Check />Valider l'adresse</Button> },
+    { label: <span className="text-xs text-muted-foreground">puis double-clic sur le fichier 📦</span>,
+      action: <Button size="sm" onClick={() => { download(); mark(1); }}><Download />Télécharger</Button> },
+    { label: <span className="text-xs text-muted-foreground">→ nouvel onglet, colle, Entrée</span>,
+      action: <Button size="sm" variant="outline" onClick={() => { navigator.clipboard.writeText('chrome://extensions').then(() => toast.success('Colle-le dans la barre d’adresse ⤴️')).catch(() => {}); mark(2); }}><Copy />Copier chrome://extensions</Button> },
+    { label: <span className="text-xs">Active <b>Mode développeur</b> ↗️</span>,
+      action: <Button size="sm" variant="outline" onClick={() => mark(3)}>Fait</Button> },
+    { label: <span className="text-xs"><b>Charger l'extension non empaquetée</b> → dossier <b>ca-plus-robot</b></span>,
+      action: <Button size="sm" variant="outline" onClick={() => mark(4)}>Fait</Button> },
+    { label: null, action: <Button size="sm" onClick={() => location.reload()}>✅ C'est installé</Button> },
+  ];
+  return <ol className="space-y-2">
+    {steps.map((s, i) => {
+      const ok = i < done, locked = i > done;
+      return <li key={i} aria-disabled={locked} className={`flex flex-wrap items-center gap-2 transition-opacity ${locked ? 'pointer-events-none opacity-40' : ''}`}>
+        <span className="w-6 text-center">{ok ? '✅' : `${i + 1}️⃣`}</span>
+        {ok ? <span className="text-xs text-muted-foreground line-through">{s.action}</span> : s.action}
+        {s.label}
+      </li>;
+    })}
+  </ol>;
 }
