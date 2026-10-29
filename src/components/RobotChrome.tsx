@@ -22,7 +22,8 @@ const Tip = ({ text }: { text: string }) => (
       <button type="button" aria-label={text} className="ml-1 inline-flex align-middle text-muted-foreground"><Info className="h-3.5 w-3.5" /></button>
     </TooltipTrigger>
     <TooltipContent className="max-w-64 text-xs">{text}</TooltipContent>
-  </Tooltip>
+    </Tooltip>
+  </TooltipProvider>
 );
 
 export function RobotChrome({ dossierId, robotUrl, lastRun, onSaveUrl }: { dossierId: string; robotUrl: string; lastRun?: { at: string; message?: string } | null; onSaveUrl?: (url: string) => Promise<void> }) {
