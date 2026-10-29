@@ -8,6 +8,8 @@ chrome.alarms.onAlarm.addListener(async () => {
   if (lastMonth !== m) run().catch(() => {});
 });
 chrome.runtime.onMessage.addListener((msg, _s, reply) => {
+  if (msg.type === "learned") { chrome.storage.local.get("learned").then(({ learned = {} }) => { learned[msg.url] = msg.text; chrome.storage.local.set({ learned }); }); return; }
+  if (msg.type === "teach") { teach(msg.url).then((log) => reply({ log })).catch((e) => reply({ log: "❌ " + e.message })); return true; }
   if (msg.type === "run") { run(msg.url || null).then((log) => reply({ log })).catch((e) => reply({ log: "❌ " + e.message })); return true; }
 });
 
@@ -17,8 +19,10 @@ async function loaded(tabId) {
 }
 
 // Runs inside the supplier page: invoice links/buttons with their row text and date.
-function scan() {
+function scan(learned) {
+  window.scrollTo(0, document.body.scrollHeight);
   const RX = /invoice|facture|receipt|reçu|recu|statement|relevé|download|télécharger|pdf/i;
+  const L = learned ? learned.toLowerCase() : null;
   const MONTHS = { jan: 1, feb: 2, fév: 2, fev: 2, mar: 3, apr: 4, avr: 4, may: 5, mai: 5, jun: 6, juin: 6, jul: 7, juil: 7, aug: 8, aoû: 8, aou: 8, sep: 9, oct: 10, nov: 11, dec: 12, déc: 12 };
   const pad = (n) => String(n).padStart(2, "0");
   function dateOf(t) {
@@ -30,14 +34,23 @@ function scan() {
     return null;
   }
   const out = [];
-  const els = [...document.querySelectorAll("a, button, [role=button]")];
+  // Real links/buttons, plus short clickable texts (SPA tables often use <span onClick>).
+  const els = [...document.querySelectorAll("a, button, [role=button], [role=link], span, div, td")].filter((e) => {
+    if (/^(A|BUTTON)$/.test(e.tagName) || e.getAttribute("role")) return true;
+    const t = (e.textContent || "").trim();
+    return t.length > 0 && t.length < 40 && e.children.length <= 1 && (getComputedStyle(e).cursor === "pointer" || e.onclick);
+  }).filter((e, _i, all) => !all.some((o) => o !== e && o.contains(e) && /^(A|BUTTON)$/.test(o.tagName)));
+  const seen = new Set();
   els.forEach((a, i) => {
     const text = ((a.textContent || "") + " " + (a.getAttribute("aria-label") || "") + " " + (a.getAttribute("title") || "")).trim();
     const href = a.href || "";
-    if (!RX.test(text) && !/\.pdf|invoice|facture/i.test(href)) return;
+    const own = text.toLowerCase().trim();
+    if (L ? own !== L && !own.startsWith(L) : (!RX.test(text) && !/\.pdf|invoice|facture/i.test(href))) return;
+    if (a.closest("[data-caplus]") && !/^(A|BUTTON)$/.test(a.tagName)) return;
     if (/summary|résumé|history|historique|settings|help|aide/i.test(text) && !/invoice|facture/i.test(text)) return;
     const row = a.closest("tr, li, [role=row]") || a.parentElement?.parentElement || a.parentElement;
     const rowText = (row?.innerText || "").replace(/\s+/g, " ").slice(0, 300);
+    if (seen.has(rowText + "|" + own)) return; seen.add(rowText + "|" + own);
     const zero = /[$€£]\s?0[.,]00\b|\b0[.,]00\s?[$€£]/.test(rowText) && !/[$€£]\s?[1-9]|[1-9][\d.,]*\s?[$€£]/.test(rowText);
     a.setAttribute("data-caplus", String(i));
     out.push({ idx: String(i), href: href.startsWith("http") ? href : null, date: dateOf(rowText), rowText, zero });
@@ -76,7 +89,7 @@ async function clickAndCatch(tabId, idx) {
 }
 
 async function run(onlyUrl) {
-  const { base, token, sent = {} } = await chrome.storage.local.get(["base", "token", "sent"]);
+  const { base, token, sent = {}, learned = {} } = await chrome.storage.local.get(["base", "token", "sent", "learned"]);
   if (!base || !token) throw new Error("Robot pas encore relié : clique « Lancer le robot » dans CA+.");
   const H = { Authorization: "Bearer " + token, "Content-Type": "application/json" };
   const res = await fetch(base + "/api/public/collector", { headers: H });
@@ -99,17 +112,29 @@ async function run(onlyUrl) {
         let items = [];
         for (let i = 0; i < 10; i++) { // pages that load their list late
           await wait(1500);
-          [{ result: items }] = await chrome.scripting.executeScript({ target: { tabId }, func: scan });
+          [{ result: items }] = await chrome.scripting.executeScript({ target: { tabId }, func: scan, args: [learned[src.url] || null] });
           if ((items || []).length) break;
         }
         const t = await chrome.tabs.get(tabId);
         if (/login|signin|sign-in|connexion|auth/i.test(t.url || "")) { log.push(`🔑 ${src.supplier} : connecte-toi au site puis relance`); continue; }
-        if (!items?.length) { log.push(`🔍 ${src.supplier} : aucune facture vue sur la page`); continue; }
-        let todo = items.filter((x) => !x.zero && (!x.date || months.includes(x.date.slice(0, 7))));
-        if (!todo.length) todo = [...items].filter((x) => !x.zero).sort((a, b) => (b.date || "").localeCompare(a.date || "")).slice(0, 1);
+        if (!items?.length) { log.push(`🎓 ${src.supplier} : aucun lien facture vu. Clique « Montrer au robot »`); continue; }
+        let todo;
+        const wanted = src.wanted || [];
+        if (wanted.length) {
+          // The payments still missing an invoice: same amount in the row (USD or EUR), else a date within 40 days.
+          const num = (s) => s.replace(/[\s,]/g, "");
+          const hit = (x, w) => w.amounts.some((a) => num(x.rowText).includes(num(a)));
+          const near = (x, w) => x.date && Math.abs(new Date(x.date) - new Date(w.date)) < 40 * 864e5;
+          todo = items.filter((x) => !x.zero && wanted.some((w) => hit(x, w)));
+          if (!todo.length) todo = items.filter((x) => !x.zero && wanted.some((w) => near(x, w)));
+          if (!todo.length) { log.push(`🔍 ${src.supplier} : ${items.length} factures vues, aucune à ${wanted.map((w) => w.amounts[0]).join(", ")}`); continue; }
+        } else {
+          todo = items.filter((x) => !x.zero && (!x.date || months.includes(x.date.slice(0, 7))));
+          if (!todo.length) todo = [...items].filter((x) => !x.zero).sort((a, b) => (b.date || "").localeCompare(a.date || "")).slice(0, 1);
+        }
         todo = todo.filter((x) => !sent[x.href || src.url + "#" + x.rowText]);
         if (!todo.length) { log.push(`• ${src.supplier} : déjà envoyé (${items.length} vues)`); continue; }
-        for (const it of todo.slice(0, 5)) {
+        for (const it of todo.slice(0, 3)) {
           let href = it.href, popupId = null;
           if (!href) ({ url: href, popupId } = await clickAndCatch(tabId, it.idx));
           if (!href) { log.push(`⚠️ ${src.supplier} ${it.date || ""} : bouton sans fichier`); continue; }
@@ -142,4 +167,36 @@ async function run(onlyUrl) {
   const text = log.join("\n");
   await chrome.storage.local.set({ sent, lastMonth: now.toISOString().slice(0, 7), lastLog: text });
   return text;
+}
+
+// "Montrer au robot": the supplier page opens in front, the user clicks the invoice link once,
+// the robot remembers that label for this page and runs again on its own.
+function listenClick() {
+  document.addEventListener("click", (e) => {
+    const el = e.target.closest("a, button, [role=button], [role=link]") || e.target;
+    const text = (el.textContent || el.getAttribute("aria-label") || "").trim().slice(0, 40);
+    if (text) chrome.runtime.sendMessage({ type: "learned", url: location.href.split("#")[0], text });
+  }, { capture: true, once: true });
+  const b = document.createElement("div");
+  b.textContent = "🎓 CA+ : clique sur le lien de la facture";
+  b.style.cssText = "position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:2147483647;background:#1e3d36;color:#fff;padding:10px 16px;border-radius:10px;font:600 15px sans-serif;box-shadow:0 4px 20px rgba(0,0,0,.3)";
+  document.body.appendChild(b);
+}
+async function teach(url) {
+  const tab = await chrome.tabs.create({ url, active: true });
+  await loaded(tab.id); await wait(1500);
+  await chrome.scripting.executeScript({ target: { tabId: tab.id }, func: listenClick });
+  const start = Date.now();
+  let text = null;
+  while (!text && Date.now() - start < 120000) {
+    await wait(700);
+    const { learned = {} } = await chrome.storage.local.get("learned");
+    const t = await chrome.tabs.get(tab.id).catch(() => null);
+    text = learned[url] || (t && learned[(t.url || "").split("#")[0]]);
+    if (text && t && !learned[url]) { learned[url] = text; await chrome.storage.local.set({ learned }); }
+    if (!t) break;
+  }
+  chrome.tabs.remove(tab.id).catch(() => {});
+  if (!text) return "🎓 Rien appris (pas de clic).";
+  return `🎓 Appris : « ${text} »\n` + (await run(url));
 }

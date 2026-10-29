@@ -9,7 +9,7 @@ import { buildBookmarklet } from '@/lib/bookmarklet';
 import chromeGuide from '@/assets/chrome-extensions-guide.png.asset.json';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
-const ROBOT_VERSION = '1.3.0';
+const ROBOT_VERSION = '1.4.0';
 
 function download() {
   fetch('/ca-plus-robot.zip')
@@ -109,6 +109,7 @@ export function RobotChrome({ dossierId, robotUrl, lastRun, onSaveUrl, onFiles }
     {robot ? (
       <div className="flex flex-wrap items-center gap-2">
         <Button size="lg" disabled={running || busy} onClick={runRobot}>{running ? <Loader2 className="animate-spin" /> : <span aria-hidden>🤖</span>}{running ? 'Le robot travaille…' : 'Lancer le robot'}</Button>
+        <Button size="sm" variant="outline" disabled={running} onClick={async () => { if (url !== robotUrl && onSaveUrl) await onSaveUrl(url); setRunning(true); setLog(null); window.postMessage({ source: 'caplus-app', type: 'teach', url }, location.origin); }}>🎓 Montrer au robot</Button>
         <Tip text="Le robot ouvre la page dans ton Chrome, trouve les factures du mois, Claude les vérifie, elles partent dans Pennylane. Il repasse tout seul chaque mois." />
       </div>
     ) : (
