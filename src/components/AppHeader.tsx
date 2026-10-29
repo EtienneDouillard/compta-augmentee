@@ -1,9 +1,17 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { BookOpen, FolderOpen, LogOut, Mail, Phone, Settings } from "lucide-react";
+import { BookOpen, Bot, Building2, ChevronDown, FolderOpen, LogOut, Mail, Phone, Settings, Users } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { BrandMark, Monogram } from "@/components/brand";
 import { useCabinet } from "@/lib/cabinet";
 import { chooseDossier, meQuery, stopPreview } from "@/lib/session";
@@ -116,17 +124,7 @@ function CabinetBar({ onSignOut }: { onSignOut: () => void }) {
           <NavTab to="/cabinet/parametres" active={onSettings}><Settings className="h-4 w-4" /> Paramètres</NavTab>
         </nav>
         <div className="ml-auto flex items-center gap-3 py-2">
-          {email && (
-            <div className="hidden items-center gap-2 md:flex">
-              <span aria-hidden className="flex h-8 w-8 items-center justify-center rounded-full bg-mint text-sm font-bold text-primary">
-                {email.charAt(0).toUpperCase()}
-              </span>
-              <span className="text-sm leading-tight">
-                <span className="block max-w-[14rem] truncate font-semibold">{email}</span>
-                <span className="text-primary-foreground/70">Cabinet</span>
-              </span>
-            </div>
-          )}
+          {email && <AccountMenu email={email} onSignOut={onSignOut} />}
           <Link to="/cabinet/parametres" aria-label="Paramètres du cabinet" className="rounded-md p-2 hover:bg-primary-foreground/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mint sm:hidden">
             <Settings className="h-5 w-5" />
           </Link>
@@ -141,6 +139,46 @@ function CabinetBar({ onSignOut }: { onSignOut: () => void }) {
         </div>
       </div>
     </header>
+  );
+}
+
+// The user block opens a menu to the firm's settings (each section of the page) and sign-out.
+function AccountMenu({ email, onSignOut }: { email: string; onSignOut: () => void }) {
+  const sections = [
+    { hash: "identite", label: "Identité du cabinet", icon: Building2 },
+    { hash: "comptes-cabinet", label: "Accès cabinet", icon: Users },
+    { hash: "claude", label: "Claude (IA)", icon: Bot },
+  ];
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        aria-label="Compte et paramètres du cabinet"
+        className="hidden items-center gap-2 rounded-md px-2 py-1 text-left hover:bg-primary-foreground/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mint md:flex"
+      >
+        <span aria-hidden className="flex h-8 w-8 items-center justify-center rounded-full bg-mint text-sm font-bold text-primary">
+          {email.charAt(0).toUpperCase()}
+        </span>
+        <span className="text-sm leading-tight">
+          <span className="block max-w-[14rem] truncate font-semibold">{email}</span>
+          <span className="text-primary-foreground/70">Cabinet</span>
+        </span>
+        <ChevronDown aria-hidden className="h-4 w-4 text-primary-foreground/70" />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-60">
+        <DropdownMenuLabel className="truncate font-normal text-muted-foreground">{email}</DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem asChild>
+          <Link to="/cabinet/parametres"><Settings /> Paramètres du cabinet</Link>
+        </DropdownMenuItem>
+        {sections.map(({ hash, label, icon: Icon }) => (
+          <DropdownMenuItem key={hash} asChild inset>
+            <Link to="/cabinet/parametres" hash={hash}><Icon /> {label}</Link>
+          </DropdownMenuItem>
+        ))}
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onSelect={onSignOut}><LogOut /> Se déconnecter</DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
