@@ -386,6 +386,9 @@ export type Database = {
           name: string
           nom: string | null
           pennylane_company_id: string | null
+          recap_auto: boolean
+          recap_envoye_at: string | null
+          recap_relance_jours: number | null
         }
         Insert: {
           client_email?: string | null
@@ -404,6 +407,9 @@ export type Database = {
           name: string
           nom?: string | null
           pennylane_company_id?: string | null
+          recap_auto?: boolean
+          recap_envoye_at?: string | null
+          recap_relance_jours?: number | null
         }
         Update: {
           client_email?: string | null
@@ -422,6 +428,9 @@ export type Database = {
           name?: string
           nom?: string | null
           pennylane_company_id?: string | null
+          recap_auto?: boolean
+          recap_envoye_at?: string | null
+          recap_relance_jours?: number | null
         }
         Relationships: []
       }
@@ -978,11 +987,18 @@ export type Database = {
           counterpart_accounts: string | null
           created_at: string
           date: string
+          decoupee: boolean
           direction: string
           dossier_id: string
+          ecriture_choix: string | null
+          ecriture_compte: string | null
+          ecriture_envoyee_le: string | null
+          ecriture_le: string | null
+          ecriture_par: string | null
           id: string
           is_open: boolean
           label: string
+          parent_id: string | null
           pennylane_id: string
           review_state: string
           skip_rule_id: string | null
@@ -998,11 +1014,18 @@ export type Database = {
           counterpart_accounts?: string | null
           created_at?: string
           date: string
+          decoupee?: boolean
           direction?: string
           dossier_id: string
+          ecriture_choix?: string | null
+          ecriture_compte?: string | null
+          ecriture_envoyee_le?: string | null
+          ecriture_le?: string | null
+          ecriture_par?: string | null
           id?: string
           is_open?: boolean
           label: string
+          parent_id?: string | null
           pennylane_id: string
           review_state?: string
           skip_rule_id?: string | null
@@ -1018,11 +1041,18 @@ export type Database = {
           counterpart_accounts?: string | null
           created_at?: string
           date?: string
+          decoupee?: boolean
           direction?: string
           dossier_id?: string
+          ecriture_choix?: string | null
+          ecriture_compte?: string | null
+          ecriture_envoyee_le?: string | null
+          ecriture_le?: string | null
+          ecriture_par?: string | null
           id?: string
           is_open?: boolean
           label?: string
+          parent_id?: string | null
           pennylane_id?: string
           review_state?: string
           skip_rule_id?: string | null
@@ -1037,6 +1067,13 @@ export type Database = {
             columns: ["dossier_id"]
             isOneToOne: false
             referencedRelation: "dossiers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "transactions"
             referencedColumns: ["id"]
           },
           {

@@ -20,7 +20,7 @@ const ECRITURE_OFF = "L'envoi vers Pennylane est désactivé pour l'instant (fon
 const SAISIE_COLUMNS =
   "id, upload_id, transaction_id, tiers, fournisseur, numero, date_facture, total_ht, total_tva, total_ttc, libelle_ecriture, lignes, state, cost_usd, lu_le, decided_at, pennylane_invoice_id, envoye_le, type_document:lecture->>typeDocument";
 
-async function requireCabinetRole(db: any, userId: string) {
+export async function requireCabinetRole(db: any, userId: string) {
   const { data } = await db.from("user_roles").select("role").eq("user_id", userId);
   if (!(data ?? []).some((r: { role: string }) => r.role === "cabinet")) throw new Error("Saisie réservée au cabinet.");
 }
@@ -94,7 +94,7 @@ async function envoyer(db: any, userId: string, s: any) {
 }
 
 // Same monthly cap as the dossier analysis: every Claude call of the app is logged in ai_analysis_runs.
-async function budget(db: any) {
+export async function budget(db: any) {
   const [{ data: s }, { data: runs }] = await Promise.all([
     db.from("ai_settings").select("monthly_cap_usd").eq("id", 1).maybeSingle(),
     db.from("ai_analysis_runs").select("cost_usd").gte("created_at", monthStart()),
@@ -143,8 +143,14 @@ export const getSaisie = createServerFn({ method: "POST" })
     const { upload, tx } = await loadUpload(db, data.uploadId);
     const { data: s, error } = await db.from("saisies").select(SAISIE_COLUMNS).eq("upload_id", data.uploadId).maybeSingle();
     if (error) throw new Error(UNAVAILABLE);
-    const { data: d } = await db.from("dossiers").select("company_id").eq("id", upload.dossier_id).maybeSingle();
+    const [{ data: d }, { data: signed }] = await Promise.all([
+      db.from("dossiers").select("company_id").eq("id", upload.dossier_id).maybeSingle(),
+      // The invoice itself, shown next to the proposed entry (link valid one hour).
+      db.storage.from("factures").createSignedUrl(upload.storage_path, 3600),
+    ]);
     return {
+      pieceUrl: (signed?.signedUrl ?? null) as string | null,
+      media: typeMedia(upload.file_name),
       // Sending to Pennylane is offered on hackathon demo dossiers only, and only for a PDF.
       envoiPossible: isDemoCompany(String(d?.company_id ?? "")) && typeMedia(upload.file_name) === "application/pdf",
       fileName: upload.file_name as string,
@@ -280,7 +286,7 @@ export const envoyerPennylane = createServerFn({ method: "POST" })
   });
 
 export type LigneEnvoi = {
-  id: string; fournisseur: string; numero: string; date: string | null; totalTtc: number; fileName: string;
+  id: string; uploadId: string; fournisseur: string; numero: string; date: string | null; totalTtc: number; fileName: string;
   state: SaisieState; etat: EtatEnvoi;
 };
 
@@ -303,7 +309,7 @@ export const listerEnvoiGroupe = createServerFn({ method: "POST" })
       const v = toView(r)!;
       const fileName = names.get(r.upload_id) ?? "";
       return {
-        id: v.id, fournisseur: v.fournisseur, numero: v.numero, date: v.date, totalTtc: v.totalTtc, fileName, state: v.state,
+        id: v.id, uploadId: r.upload_id as string, fournisseur: v.fournisseur, numero: v.numero, date: v.date, totalTtc: v.totalTtc, fileName, state: v.state,
         etat: etatEnvoi({ state: v.state, pennylaneInvoiceId: v.pennylaneInvoiceId, fileName, typeDocument: v.typeDocument, facture: factureOf(r, v.lignes, v.libelleEcriture) }),
       };
     });

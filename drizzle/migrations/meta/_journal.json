@@ -50,6 +50,13 @@
       "when": 1793270008393,
       "tag": "0006_robot_chrome",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1793273638342,
+      "tag": "0007_julien_pr7_8_9",
+      "breakpoints": true
     }
   ]
 }

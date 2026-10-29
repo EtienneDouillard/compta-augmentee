@@ -11,6 +11,9 @@ import { AppHeader, CabinetContact } from "@/components/AppHeader";
 import { MultiActions } from "@/components/MultiActions";
 import { MonthlyChart } from "@/components/MonthlyChart";
 import { Nudge } from "@/components/Nudge";
+import { InfoTip, SousTitre } from "@/components/Aide";
+import { VisiteGuidee } from "@/components/VisiteGuidee";
+import { INFOBULLES, SOUS_TITRES } from "@/lib/aide-client";
 import { SourcesSummary } from "@/components/SourcesSummary";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useSupplierSites } from "@/lib/use-sites";
@@ -151,27 +154,8 @@ function Espace() {
           <>
             {/* Simon: the whole width is used and the client scrolls less: greeting and summary side by side. */}
             <div className="grid items-stretch gap-6 lg:grid-cols-2">
-            <div className="flex flex-col">
-            <h1 className="text-2xl sm:text-3xl">Bonjour,</h1>
-            {dossier.data?.name && (
-              <p className="mt-1 inline-flex max-w-full items-center gap-2 text-sm font-semibold text-muted-foreground">
-                <Building2 aria-hidden className="h-4 w-4 shrink-0" />
-                {(me.data?.dossiers.length ?? 0) > 1 && !me.data?.preview ? (
-                  <select aria-label="Changer de dossier" value={dossierId ?? ""} onChange={(e) => switchDossier(e.target.value)}
-                    className="max-w-full truncate bg-transparent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-                    {me.data!.dossiers.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
-                  </select>
-                ) : <span className="truncate">{dossier.data.name}</span>}
-              </p>
-            )}
-            {remaining === 0 && (
-              <p className="mt-3 max-w-2xl text-muted-foreground">
-                {all.length === 0 ? "Aucune facture ne vous est demandée pour le moment." : "Merci pour vos réponses."}
-              </p>
-            )}
-            <Nudge done={all.length - remaining} total={all.length} className="flex-1" />
-            </div>
-
+            {all.length > 0 && <div className="flex justify-end lg:col-span-2"><VisiteGuidee auto={!me.data?.preview} /></div>}
+            {remaining === 0 && all.length === 0 && <p className="text-muted-foreground lg:col-span-2">Aucune facture ne vous est demandée pour le moment.</p>}
             {remaining === 0 ? (
               <section className="rounded-3xl bg-primary px-6 py-10 text-center text-primary-foreground sm:px-12">
                 <span className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-mint text-primary">
@@ -194,7 +178,7 @@ function Espace() {
                     {remaining > 1 && pendingGroups.length > 1 ? ", réparties chez " : ", chez "}
                     {counterparts(pendingGroups)}
                   </h2>
-                  {next && (
+                                    {next && (
                     <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-3">
                       <Link
                         to="/espace/$supplier"
@@ -209,17 +193,21 @@ function Espace() {
                       </span>
                     </div>
                   )}
+                  {all.length > 0 && (() => { const done = all.length - remaining; const pct = Math.round((done / all.length) * 100); return (
+                    <div className="mt-6">
+                      <p className="text-sm font-semibold text-mint">✅ {done}/{all.length} traités</p>
+                      <div role="progressbar" aria-label="Avancement" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} className="mt-1.5 h-2 overflow-hidden rounded-full bg-primary-foreground/20">
+                        <div className="h-full rounded-full bg-mint" style={{ width: `${pct}%` }} />
+                      </div>
+                    </div>); })()}
                 </div>
               </section>
             )}
+            <div className="flex flex-col gap-4">
+              <MonthlyChart txs={all} className="flex-1" />
+              {dossierId && <SourcesSummary dossierId={dossierId} suppliers={[...new Set(all.filter((t) => t.direction === "out").map((t) => t.supplier))]} />}
             </div>
-
-            {(dossierId || all.length > 0) && (
-              <div className="mt-6 grid items-stretch gap-4 lg:grid-cols-2">
-                {dossierId && <SourcesSummary dossierId={dossierId} suppliers={[...new Set(all.filter((t) => t.direction === "out").map((t) => t.supplier))]} />}
-                <MonthlyChart txs={all} className="h-full" />
-              </div>
-            )}
+            </div>
 
             {steps.length > 0 && (
               <div className="mt-8 space-y-3">
@@ -249,6 +237,7 @@ function Espace() {
                     </select>
                     <ChevronDown aria-hidden className="pointer-events-none absolute right-3 top-1/2 h-5 w-5 -translate-y-1/2 text-primary" />
                   </label>
+                  <InfoTip label="Ordre d'affichage" className="hidden self-center sm:inline-flex">{INFOBULLES.ordre}</InfoTip>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                   {pickable.length > 0 && (
@@ -257,12 +246,14 @@ function Espace() {
                       Tout cocher
                     </label>
                   )}
+                  {pickable.length > 0 && <InfoTip label="Répondre pour plusieurs fournisseurs">{INFOBULLES.selection}</InfoTip>}
                   <FilterChip active={status === "todo"} onClick={() => setStatus((s) => (s === "todo" ? "all" : "todo"))} icon={Clock}>
                     À faire
                   </FilterChip>
                   <FilterChip active={status === "done"} onClick={() => setStatus((s) => (s === "done" ? "all" : "done"))} icon={CheckCircle2}>
                     Terminé
                   </FilterChip>
+                  <InfoTip label="Que veulent dire les statuts ?">{INFOBULLES.statuts}</InfoTip>
                   {bothDirections && (
                     <>
                       <span aria-hidden className="mx-1 h-6 w-px bg-cream-3" />
@@ -303,12 +294,15 @@ function Espace() {
               return (
                 <section key={d} className="mt-8">
                   <div className="flex flex-wrap items-end justify-between gap-2">
+                    <div>
                     <h2 className="flex items-center gap-3 text-xl sm:text-2xl">
                       <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-pale text-primary">
                         <Icon className="h-5 w-5" />
                       </span>
                       {d === "out" ? "Achats — factures fournisseurs manquantes" : "Ventes — factures clients manquantes"}
                     </h2>
+                    <SousTitre className="sm:pl-[52px]">{d === "out" ? SOUS_TITRES.achats : SOUS_TITRES.ventes}</SousTitre>
+                    </div>
                     <span className="text-sm text-muted-foreground">
                       {todo} à transmettre · {list.length} {d === "out" ? "fournisseur" : "client"}{list.length > 1 ? "s" : ""}
                     </span>

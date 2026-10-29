@@ -8,6 +8,8 @@ import { createCollectorToken } from '@/lib/collector.functions';
 import { buildBookmarklet } from '@/lib/bookmarklet';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
+const ROBOT_VERSION = '1.3.0';
+
 function download() {
   fetch('/ca-plus-robot.zip')
     .then(r => { if (!r.ok) throw new Error(`Téléchargement impossible (${r.status})`); return r.blob(); })
@@ -36,15 +38,17 @@ export function RobotChrome({ dossierId, robotUrl, lastRun, onSaveUrl, onFiles }
   const [url, setUrl] = useState(robotUrl);
   const [savingUrl, setSavingUrl] = useState(false);
   const [robot, setRobot] = useState(false);
+  const [version, setVersion] = useState<string | null>(null);
+  const outdated = robot && (!version || version.localeCompare(ROBOT_VERSION, undefined, { numeric: true }) < 0);
   const [running, setRunning] = useState(false);
   const [log, setLog] = useState<string | null>(null);
   void bm; void buildBookmarklet; void useRef;
   // The Chrome extension announces itself on this page (extension/bridge.js).
   useEffect(() => {
-    if (document.documentElement.dataset['caplusRobot']) setRobot(true);
+    const v = document.documentElement.dataset['caplusRobot']; if (v) { setRobot(true); setVersion(v === '1' ? null : v); }
     const on = (e: MessageEvent) => {
       if (e.source !== window || e.data?.source !== 'caplus-robot') return;
-      if (e.data.type === 'ready') setRobot(true);
+      if (e.data.type === 'ready') { setRobot(true); setVersion(e.data.version ?? null); }
       if (e.data.type === 'done') { setRunning(false); setLog(e.data.log); toast.success('🤖 Robot terminé'); }
     };
     window.addEventListener('message', on);
@@ -57,7 +61,7 @@ export function RobotChrome({ dossierId, robotUrl, lastRun, onSaveUrl, onFiles }
     const t = await getToken();
     if (!t) return;
     setRunning(true); setLog(null);
-    window.postMessage({ source: 'caplus-app', type: 'run', token: t }, location.origin);
+    window.postMessage({ source: 'caplus-app', type: 'run', token: t, url }, location.origin);
   }
 
   async function getToken() {
@@ -100,6 +104,7 @@ export function RobotChrome({ dossierId, robotUrl, lastRun, onSaveUrl, onFiles }
       {onSaveUrl && url !== robotUrl && <Button size="sm" variant="outline" disabled={savingUrl} onClick={saveUrl}>{savingUrl ? <Loader2 className="animate-spin" /> : <Check />}OK</Button>}
       <Tip text="Adresse exacte de la page où se trouvent les factures (ex. Billing → Transaction history). Le favori l'ouvrira pour toi." />
     </div>
+    {outdated && <div className="flex flex-wrap items-center gap-2 rounded-md bg-yellow-soft p-2 text-yellow-ink"><span>⬆️ Nouvelle version du robot</span><Button size="sm" variant="outline" onClick={download}><Download />Télécharger</Button><Tip text="Remplace l'ancien dossier par le nouveau, puis clique ↻ sur le robot dans chrome://extensions et recharge cette page." /></div>}
     {robot ? (
       <div className="flex flex-wrap items-center gap-2">
         <Button size="lg" disabled={running || busy} onClick={runRobot}>{running ? <Loader2 className="animate-spin" /> : <span aria-hidden>🤖</span>}{running ? 'Le robot travaille…' : 'Lancer le robot'}</Button>

@@ -42,7 +42,12 @@ export const Route = createFileRoute("/api/public/collector")({
         const { data: d } = await a.db.from("dossiers").select("name").eq("id", a.dossierId).maybeSingle();
         const { data: sources } = await a.db.from("invoice_sources").select("id, supplier, source_url, robot_url")
           .eq("dossier_id", a.dossierId).eq("method", "browser");
-        return json({ dossier: d?.name ?? "", sources: (sources ?? []).map((s: any) => ({ id: s.id, supplier: s.supplier, url: s.robot_url || s.source_url })) });
+        // Only sources that still have a missing invoice: the robot never visits a supplier for nothing.
+        const { data: open } = await a.db.from("transactions").select("supplier")
+          .eq("dossier_id", a.dossierId).eq("is_open", true).eq("status", "a_faire").eq("direction", "out");
+        const missing = new Set((open ?? []).map((t: any) => t.supplier));
+        const todo = (sources ?? []).filter((s: any) => missing.has(s.supplier));
+        return json({ dossier: d?.name ?? "", sources: todo.map((s: any) => ({ id: s.id, supplier: s.supplier, url: s.robot_url || s.source_url })) });
       },
       POST: async ({ request }) => {
         const a = await auth(request);

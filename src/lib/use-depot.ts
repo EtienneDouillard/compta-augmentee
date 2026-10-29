@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { bilanDepot, resteAFaire, type Bilan } from "@/lib/controle-depot";
 import { controlerDepot, etatDepots, type PieceDeposee } from "@/lib/saisie.functions";
-import { PHOTO_SANS_FACTURE_COMMENT } from "@/lib/no-invoice";
+import { PHOTO_SANS_FACTURE_COMMENT, RELEVE_COMMENT } from "@/lib/no-invoice";
 import { formatDate, formatEUR, meQuery, type Tx } from "@/lib/session";
 
 export const ACCEPT = "application/pdf,image/jpeg,image/png";
@@ -69,7 +69,8 @@ export function useDepot(dossierId: string | null | undefined) {
 
   // Files go to the targets in order (the last target takes the extra files).
   // photoSansFacture: a photo standing in for a missing invoice (no VAT): not read by Claude, noted for the firm.
-  async function upload(files: File[], targets: Tx[], opts: { photoSansFacture?: boolean } = {}) {
+  // releve: a card statement or the detail of a grouped transfer, not an invoice: not read here, the firm cuts it.
+  async function upload(files: File[], targets: Tx[], opts: { photoSansFacture?: boolean; releve?: boolean } = {}) {
     if (blocked()) return;
     if (files.length === 0 || !dossierId) return;
     if (targets.length === 0) {
@@ -106,16 +107,18 @@ export function useDepot(dossierId: string | null | undefined) {
       }
       const touched = targets.slice(0, files.length);
       toast.success(files.length > 1 ? `${files.length} fichiers envoyés` : "Fichier envoyé");
-      if (opts.photoSansFacture) {
+      if (opts.photoSansFacture || opts.releve) {
         const upd = await supabase
           .from("transactions")
-          .update({ status: "depose", comment: PHOTO_SANS_FACTURE_COMMENT })
+          .update({ status: "depose", comment: opts.releve ? RELEVE_COMMENT : PHOTO_SANS_FACTURE_COMMENT })
           .in(
             "id",
             touched.map((t) => t.id),
           );
         if (upd.error) throw upd.error;
-        toast.info("C'est noté : photo justificative, sans TVA déductible.");
+        toast.info(opts.releve
+          ? "C'est noté : votre cabinet va découper ce débit en opérations, puis vous demandera les factures correspondantes."
+          : "C'est noté : photo justificative, sans TVA déductible.");
         refresh();
         return;
       }

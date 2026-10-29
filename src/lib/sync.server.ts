@@ -241,14 +241,19 @@ export async function syncDossier(dossierId: string) {
         if (error) throw error;
       }
     }
-    const reopen = existing.filter((e) => !e.is_open && neededIds.has(e.pennylane_id)).map((e) => e.id);
+    // Operations cut from a grouped line (Simon 7) are not in Pennylane: they follow their bank line.
+    const bankLines = existing.filter((e) => !e.parent_id);
+    const hasOperations = bankLines.length < existing.length;
+    const reopen = bankLines.filter((e) => !e.is_open && neededIds.has(e.pennylane_id)).map((e) => e.id);
     if (reopen.length) await db.from("transactions").update({ is_open: true }).in("id", reopen);
+    if (reopen.length && hasOperations) await db.from("transactions").update({ is_open: true }).in("parent_id", reopen);
     // Excluded only by the account filter (still unlettered): keep payments already sent with a client answer.
-    const close = existing
+    const close = bankLines
       .filter((e) => e.is_open && !neededIds.has(e.pennylane_id))
       .filter((e) => !(unletteredElsewhere.has(e.pennylane_id) && e.review_state === "sent" && e.status !== "a_faire"))
       .map((e) => e.id);
     if (close.length) await db.from("transactions").update({ is_open: false }).in("id", close);
+    if (close.length && hasOperations) await db.from("transactions").update({ is_open: false }).in("parent_id", close);
     const skipped = await applySkipRules(dossierId);
 
     await db

@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowRight, Zap } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 
@@ -29,12 +29,10 @@ export function SourcesSummary({ dossierId, suppliers }: { dossierId: string; su
       title="Configurez vos sources une fois pour toutes : ensuite les factures arrivent seules chaque mois."
       className="flex h-full items-center gap-3 rounded-2xl border bg-card p-4 text-primary shadow-sm transition-shadow hover:shadow-md"
     >
-      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-pale text-primary">
-        <Zap className="h-5 w-5" />
-      </span>
+      <span aria-hidden className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-pale text-xl">🤖</span>
       <span className="min-w-0 flex-1 font-semibold">
-        Récupération auto :{" "}
-        {q.isPending ? "…" : <><strong>{configured}</strong>/{total} fournisseur{total > 1 ? "s" : ""}</>}
+        Automatisations :{" "}
+        {q.isPending ? "…" : <><strong>{configured}</strong>/{total} fournisseur{total > 1 ? "s" : ""} automatisé{configured > 1 ? "s" : ""}</>}
       </span>
       <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground" />
     </Link>
