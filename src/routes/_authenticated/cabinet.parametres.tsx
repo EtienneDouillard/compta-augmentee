@@ -143,7 +143,7 @@ function SettingsPage() {
           </p>
         ) : (
           <div className="grid gap-5 lg:grid-cols-[1fr_26rem]">
-            <form onSubmit={save} className="space-y-4 rounded-xl border bg-card p-5 shadow-sm">
+            <form id="identite" onSubmit={save} className="scroll-mt-4 space-y-4 rounded-xl border bg-card p-5 shadow-sm">
               <h2 className="text-lg">Identité</h2>
               <div className="space-y-1">
                 <Label htmlFor="c-name">Nom du cabinet</Label>
@@ -252,7 +252,7 @@ function CabinetAccounts() {
     }
   }
   return (
-    <section id="comptes-cabinet" className="rounded-xl border bg-card p-5 shadow-sm">
+    <section id="comptes-cabinet" className="scroll-mt-4 rounded-xl border bg-card p-5 shadow-sm">
       <h2 className="flex items-center gap-2 text-lg"><Users className="h-5 w-5" /> Accès cabinet</h2>
       <div className="mt-3">
         {q.isError ? <p className="text-sm text-destructive">Liste indisponible.</p>
@@ -292,7 +292,7 @@ function ClaudeSettings() {
   );
   const src = q.data?.keySource;
   return (
-    <section id="claude" className="rounded-xl border bg-card p-5 shadow-sm">
+    <section id="claude" className="scroll-mt-4 rounded-xl border bg-card p-5 shadow-sm">
       <h2 className="text-lg">Claude (IA)</h2>
       {!q.data ? <p className="mt-3 text-sm text-muted-foreground">{q.isError ? "Réglages indisponibles." : "Chargement…"}</p> : (
         <form onSubmit={(e) => { e.preventDefault(); save(); }} className="mt-3 space-y-4">
