@@ -227,7 +227,7 @@ function SupplierStep({ steps, idx, dossierId, progress }: {
                   title="Pas de facture" desc="Un mot d'explication aide votre comptable." />
                 {!isSale && (
                   <ChoiceTile emoji="🤝" tone="pale" open={mode === "cabinet"} onToggle={() => setMode(mode === "cabinet" ? null : "cabinet")}
-                    title="J'autorise mon expert-comptable à contacter ce fournisseur" desc="Il lui demande les factures par e-mail, pour vous." />
+                    title="Mon comptable s'en charge" desc="Il écrit au fournisseur pour vous." />
                 )}
               </div>
 
@@ -452,10 +452,10 @@ function ContactParCabinet({ dossierId, supplier, client, paiements, adresseDoss
   return (
     <div className="space-y-4">
       {known.isLoading ? (
-        <p className="text-sm text-muted-foreground">Recherche de l'adresse du fournisseur sur vos autres factures…</p>
+        <p className="text-sm text-muted-foreground">🔎…</p>
       ) : emails.length > 0 ? (
         <fieldset className="space-y-2">
-          <legend className="font-semibold">Adresse trouvée sur une autre facture de {supplier} : est-ce la bonne ?</legend>
+          <legend className="font-semibold">📧 E-mail de {supplier}</legend>
           {[...emails, "autre"].map((e) => (
             <label key={e} className="flex items-center gap-2 text-sm">
               <input type="radio" name="email-fournisseur" checked={(choice ?? emails[0]) === e} onChange={() => setChoice(e)} />
@@ -464,20 +464,19 @@ function ContactParCabinet({ dossierId, supplier, client, paiements, adresseDoss
           ))}
         </fieldset>
       ) : (
-        <p className="font-semibold">Nous n'avons pas trouvé l'adresse de {supplier} sur vos factures : pourriez-vous la saisir ?</p>
+        <p className="font-semibold">📧 E-mail de {supplier}</p>
       )}
       {(!emails.length || choice === "autre") && (
         <Input type="email" value={typed} onChange={(e) => setTyped(e.target.value)} placeholder="ex. factures@fournisseur.fr" className="bg-card" aria-label="E-mail du fournisseur" />
       )}
-      <Input value={ref} onChange={(e) => setRef(e.target.value)} placeholder="Votre référence client chez lui (facultatif)" className="bg-card" aria-label="Référence client" />
-      <div>
-        <p className="text-sm font-semibold">L'e-mail que votre expert-comptable enverra{to ? <> à <code className="font-mono">{to}</code></> : null} :</p>
+      <Input value={ref} onChange={(e) => setRef(e.target.value)} placeholder="N° client (facultatif)" className="bg-card" aria-label="Référence client" />
+      <details>
+        <summary className="cursor-pointer text-sm font-semibold">✉️ Voir le mail</summary>
         <pre className="mt-1 max-h-56 overflow-auto whitespace-pre-wrap rounded-xl border bg-pale-2 p-3 font-sans text-sm text-muted-foreground">{`Objet : ${d.subject}\n\n${d.body}`}</pre>
-      </div>
+      </details>
       <Button size="xl" disabled={busy || !ok} onClick={authorize}>
-        <Handshake /> J'autorise mon expert-comptable à contacter {supplier}
+        <Handshake /> J'autorise
       </Button>
-      <p className="text-sm text-muted-foreground">Votre cabinet reçoit cette demande prête à envoyer ; il écrit au fournisseur à votre place.</p>
     </div>
   );
 }
