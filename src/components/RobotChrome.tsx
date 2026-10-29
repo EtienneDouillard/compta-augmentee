@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { createCollectorToken } from '@/lib/collector.functions';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 function download() {
   fetch('/ca-plus-robot.zip')
@@ -13,7 +14,14 @@ function download() {
     .catch(e => toast.error(e.message));
 }
 
-const Tip = ({ text }: { text: string }) => <span title={text} aria-label={text} className="ml-1 inline-flex align-middle text-muted-foreground"><Info className="h-3.5 w-3.5" /></span>;
+const Tip = ({ text }: { text: string }) => (
+  <Tooltip>
+    <TooltipTrigger asChild>
+      <button type="button" aria-label={text} className="ml-1 inline-flex align-middle text-muted-foreground"><Info className="h-3.5 w-3.5" /></button>
+    </TooltipTrigger>
+    <TooltipContent className="max-w-64 text-xs">{text}</TooltipContent>
+  </Tooltip>
+);
 
 export function RobotChrome({ dossierId, robotUrl, lastRun, onSaveUrl }: { dossierId: string; robotUrl: string; lastRun?: { at: string; message?: string } | null; onSaveUrl?: (url: string) => Promise<void> }) {
   const mint = useServerFn(createCollectorToken);
