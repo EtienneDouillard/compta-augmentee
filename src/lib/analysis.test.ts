@@ -38,10 +38,13 @@ describe("parseSuggestions", () => {
       { kind: "skip", lines: ["N9"], target_supplier: "", reason: "x" },
       { kind: "skip", lines: ["R1"], target_supplier: "", reason: "x" },
       { kind: "group", lines: ["N1"], target_supplier: "", reason: "x" },
-      { kind: "duplicate", lines: ["N1"], target_supplier: "", reason: "x" },
-      { kind: "duplicate", lines: ["R1", "N1"], target_supplier: "ignored", reason: "Même montant" },
+      { kind: "skip", lines: ["R1", "N1"], target_supplier: "ignored", reason: "Cotisation" },
     ]), refs);
-    expect(out).toEqual([{ kind: "duplicate", transaction_ids: ["c", "a"], target_supplier: null, reason: "Même montant" }]);
+    expect(out).toEqual([{ kind: "skip", transaction_ids: ["c", "a"], target_supplier: null, reason: "Cotisation" }]);
+  });
+
+  it("refuses the old duplicate kind: equal payments are each requested", () => {
+    expect(parseSuggestions(raw([{ kind: "duplicate", lines: ["N1", "N2"], target_supplier: "", reason: "Même montant" }]), refs)).toEqual([]);
   });
 
   it("returns nothing on invalid JSON", () => {

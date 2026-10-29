@@ -9,10 +9,10 @@ export const PRICE = { input: 2, output: 10, cacheWrite: 2.5, cacheRead: 0.2 };
 export const MAX_LINES_PER_RUN = 400;
 export const DEFAULT_MONTHLY_CAP_USD = 10;
 
-export type SuggestionKind = "group" | "duplicate" | "personal" | "skip";
+// No "duplicate" kind any more (Julien, 29/10/2026): two equal payments are two payments, each one is requested.
+export type SuggestionKind = "group" | "personal" | "skip";
 export const KIND_LABEL: Record<SuggestionKind, string> = {
   group: "Regrouper des tiers",
-  duplicate: "Doublon possible",
   personal: "Dépense personnelle possible",
   skip: "À ne pas demander",
 };
@@ -24,15 +24,15 @@ export type AnalysisLine = {
 
 export const SYSTEM = `Tu aides un cabinet comptable français à préparer la liste des justificatifs à demander à un client. Les lignes fournies sont des paiements bancaires dont la contrepartie (comptes 401, 411, 471…) n'est pas lettrée dans Pennylane.
 
-Ta mission : proposer des suggestions, que le cabinet validera une par une. Quatre types :
+Ta mission : proposer des suggestions, que le cabinet validera une par une. Trois types :
 - "group" : plusieurs lignes du même tiers apparaissent sous des noms différents (ex. « AMZN Mktp » et « Amazon »). Donne dans target_supplier le nom à retenir ; s'il existe déjà parmi les tiers connus, reprends-le à l'identique.
-- "duplicate" : lignes qui semblent être le même paiement en double (même tiers, même montant, dates très proches). Mets toutes les lignes concernées, la plus ancienne en premier.
 - "personal" : dépense qui semble personnelle au dirigeant (courses alimentaires, loisirs, vêtements…), à vérifier avec le client.
 - "skip" : opération pour laquelle on n'attend en général pas de facture (cotisations sociales, impôts et taxes, salaires, virements internes entre comptes, remboursements d'emprunt, frais bancaires).
 
 Règles strictes :
 - Ne cite que des références de lignes présentes ci-dessous (N… pour les nouvelles lignes, R… pour les lignes de référence). Chaque suggestion doit contenir au moins une ligne N…
-- Les lignes R… ne servent qu'à repérer un doublon ou un tiers déjà connu.
+- Les lignes R… ne servent qu'à repérer un tiers déjà connu.
+- Ne signale jamais de doublon : deux paiements identiques sont deux paiements distincts, chacun doit être justifié.
 - N'invente rien. En cas de doute, ne propose rien : une absence de suggestion vaut mieux qu'une erreur.
 - reason : une phrase courte en français, factuelle, qui explique l'indice observé.
 - target_supplier : chaîne vide sauf pour "group".
@@ -72,7 +72,7 @@ export const OUTPUT_SCHEMA = {
       items: {
         type: "object",
         properties: {
-          kind: { type: "string", enum: ["group", "duplicate", "personal", "skip"] },
+          kind: { type: "string", enum: ["group", "personal", "skip"] },
           lines: { type: "array", items: { type: "string" } },
           target_supplier: { type: "string" },
           reason: { type: "string" },
@@ -88,7 +88,7 @@ export const OUTPUT_SCHEMA = {
 
 const Output = z.object({
   suggestions: z.array(z.object({
-    kind: z.enum(["group", "duplicate", "personal", "skip"]),
+    kind: z.enum(["group", "personal", "skip"]),
     lines: z.array(z.string()),
     target_supplier: z.string(),
     reason: z.string(),
@@ -112,7 +112,6 @@ export function parseSuggestions(raw: string, refs: Map<string, string>): CleanS
     const ids = keys.map((k) => refs.get(k)!);
     const target = s.target_supplier.trim().slice(0, 120);
     if (s.kind === "group" && !target) continue;
-    if (s.kind === "duplicate" && ids.length < 2) continue;
     out.push({ kind: s.kind, transaction_ids: ids, target_supplier: s.kind === "group" ? target : null, reason: s.reason.trim().slice(0, 500) || KIND_LABEL[s.kind] });
   }
   return out;
