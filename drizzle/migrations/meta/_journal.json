@@ -43,6 +43,13 @@
       "when": 1793267057752,
       "tag": "0005_claude_settings",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1793270008393,
+      "tag": "0006_robot_chrome",
+      "breakpoints": true
     }
   ]
 }
