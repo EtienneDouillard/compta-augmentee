@@ -186,6 +186,10 @@ export const sendCabinetChatMessage = createServerFn({ method: "POST" })
         if (block.type !== "tool_use" || block.name !== "proposer_action") continue;
         const action = AssistantAction.parse(block.input);
         assertActionScope(action, data.dossierId);
+        if (action.action === "lire") {
+          const { data: uploads } = await supabase.from("uploads").select("id").eq("dossier_id", action.dossierId).in("id", action.ids);
+          if (uploads?.length !== 1) throw new Error("Pièce inaccessible dans ce dossier.");
+        }
         actions.push(action);
       }
     } catch (err: any) {

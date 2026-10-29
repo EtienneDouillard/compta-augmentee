@@ -58,7 +58,7 @@ export function CabinetChat({ dossierId }: { dossierId: string | null }) {
   }
 
   async function confirm(action: AssistantActionInput, key: string) {
-    if (!dossierId || busy || results[key]) return;
+    if (!dossierId || action.dossierId !== dossierId || busy || results[key]) return;
     setBusy(true);
     setResults((r) => ({ ...r, [key]: { state: "input-available", text: "Action en cours…" } }));
     try {
