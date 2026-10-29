@@ -5,7 +5,7 @@ import { InvoiceSourceSetup } from "@/components/InvoiceSourceSetup";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import {
-  AlertTriangle, ArrowLeft, ArrowRight, Camera, Check,  CloudUpload, Copy, FileX, FolderOpen, Info, Mail, MailPlus, PartyPopper, Sparkles, Upload,
+  AlertTriangle, ArrowLeft, ArrowRight, Camera, Check, CloudUpload, Copy, FileX, FolderOpen, Handshake, Info, Mail, MailPlus, PartyPopper, Send, Sparkles, Upload,
   type LucideIcon,
 } from "lucide-react";
 import { AppHeader } from "@/components/AppHeader";
@@ -15,14 +15,22 @@ import { GroupStatePill, TxStatusPill } from "@/components/StatusPill";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
-import { groupBySupplier, formatDate, formatEUR, type SupplierGroup, type Tx } from "@/lib/session";
+import { groupBySupplier, formatDate, formatEUR, meQuery, type SupplierGroup, type Tx } from "@/lib/session";
 import { stepOrder } from "@/lib/priority";
 import type { Bilan } from "@/lib/controle-depot";
 import { ACCEPT, mailtoFactures, useDepot } from "@/lib/use-depot";
+import { useSupplierSites } from "@/lib/use-sites";
+import { demandeFournisseur, mailtoDemande } from "@/lib/demande-fournisseur";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { EMAIL } from "@/lib/email";
+import { emailsFournisseur } from "@/lib/saisie.functions";
+import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { useCabinet } from "@/lib/cabinet";
 import { useClientDossier, useClientTxs } from "./espace.index";
 
-import { NO_INVOICE_NOTE_SALE, NO_INVOICE_WARNING } from "@/lib/no-invoice";
+import { NO_INVOICE_NOTE_SALE, NO_INVOICE_WARNING, PHOTO_SANS_FACTURE_NOTE } from "@/lib/no-invoice";
 
 export const Route = createFileRoute("/_authenticated/espace/$supplier")({
   beforeLoad: requireClient,
@@ -69,11 +77,12 @@ function SupplierStep({ steps, idx, dossierId, progress }: {
   const group = steps[idx]!;
   const navigate = useNavigate();
   const dossier = useClientDossier(dossierId);
-  const { busy, checking, bilanOf, upload, mark } = useDepot(dossierId);
+  const { busy, checking, preview, bilanOf, upload, mark } = useDepot(dossierId);
+  const siteOf = useSupplierSites(dossierId);
   const pending = group.txs.filter((t) => t.status === "a_faire");
   // All the payments still to do are selected at first: one click answers the whole supplier.
   const [sel, setSel] = useState<Set<string>>(() => new Set(pending.map((t) => t.id)));
-  const [mode, setMode] = useState<"upload" | "email" | "none" | "source" | null>(null);
+  const [mode, setMode] = useState<"upload" | "email" | "none" | "source" | "cabinet" | null>(null);
   // Coming from the sources catalogue (#source): open the source setup directly.
   useEffect(() => { if (typeof window !== "undefined" && window.location.hash === "#source") setMode("source"); }, []);
   const [comment, setComment] = useState("");
@@ -135,7 +144,7 @@ function SupplierStep({ steps, idx, dossierId, progress }: {
         <Nudge done={progress.done} total={progress.total} />
 
         <div className="mt-6 flex items-start gap-4">
-          <SupplierAvatar name={group.name} className="h-16 w-16 text-xl" />
+          <SupplierAvatar name={group.name} site={siteOf(group.name)} className="h-16 w-16 text-xl" />
           <div className="min-w-0 flex-1">
             <h1 className="text-2xl leading-tight sm:text-3xl">{group.name}</h1>
             <p className="mt-1 text-muted-foreground">
@@ -202,13 +211,13 @@ function SupplierStep({ steps, idx, dossierId, progress }: {
                   : `Pour ces ${selected.length} ${noun}s, comment souhaitez-vous procéder ?`}
             </h2>
             <p className="mt-1 text-muted-foreground">Choisissez la solution la plus simple pour vous.</p>
-            <div inert={selected.length === 0} className={cn("mt-5", selected.length === 0 && "opacity-50")}>
+            <div inert={selected.length === 0 || preview} className={cn("mt-5", (selected.length === 0 || preview) && "opacity-50")}>
               {checking && (
                 <p role="status" className="mb-4 flex items-center gap-2 rounded-xl bg-pale-2 p-3 text-sm font-semibold text-primary">
                   <Sparkles className="h-4 w-4 animate-pulse" /> Vérification de la facture (fournisseur et montant)…
                 </p>
               )}
-              <div className={cn("grid gap-3", isSale ? "sm:grid-cols-2" : "sm:grid-cols-3")}>
+              <div className={cn("grid gap-3", isSale ? "sm:grid-cols-2" : "sm:grid-cols-2 lg:grid-cols-4")}>
                 {!isSale && (
                   <ChoiceTile n={1} icon={FolderOpen} tone="mint" open={mode === "source"} onToggle={() => setMode(mode === "source" ? null : "source")}
                     title="Configurer une source de factures" desc="Le site, le chemin de facturation et le mode de réception de ce fournisseur." />
@@ -217,7 +226,18 @@ function SupplierStep({ steps, idx, dossierId, progress }: {
                   title="Je dépose mes factures" desc="Depuis votre ordinateur ou votre téléphone." />
                 <ChoiceTile n={isSale ? 2 : 3} icon={FileX} tone="yellow" open={mode === "none"} onToggle={() => setMode(mode === "none" ? null : "none")}
                   title="Je n'ai pas de facture" desc="Un mot d'explication aide votre comptable." />
+                {!isSale && (
+                  <ChoiceTile n={4} icon={Handshake} tone="pale" open={mode === "cabinet"} onToggle={() => setMode(mode === "cabinet" ? null : "cabinet")}
+                    title="J'autorise mon expert-comptable à contacter ce fournisseur" desc="Il lui demande les factures par e-mail, pour vous." />
+                )}
               </div>
+
+              {mode === "cabinet" && !isSale && (
+                <ChoicePanel>
+                  <ContactParCabinet dossierId={dossierId} supplier={group.name} client={dossier.data?.name ?? ""} paiements={selected}
+                    adresseDossier={collect} onDone={() => setMode(null)} />
+                </ChoicePanel>
+              )}
 
               {mode === "source" && !isSale && (
                 <ChoicePanel>
@@ -228,6 +248,7 @@ function SupplierStep({ steps, idx, dossierId, progress }: {
               {mode === "upload" && (
                 <ChoicePanel>
                   <DropZone busy={busy} several={selected.length > 1} noun={noun} onFiles={(f) => uploadFiles(f, selected)} />
+                  {!isSale && <PhotoSansFacture busy={busy} onFiles={(f) => upload(f, selected, { photoSansFacture: true })} />}
                 </ChoicePanel>
               )}
 
@@ -267,6 +288,10 @@ function SupplierStep({ steps, idx, dossierId, progress }: {
                     </p>
                   )}
                 </ChoicePanel>
+              )}
+
+              {!isSale && (
+                <SupplierRequest supplier={group.name} client={dossier.data?.name ?? ""} paiements={selected} adresseDossier={collect} />
               )}
 
               {mode === "none" && (
@@ -362,6 +387,143 @@ function ChoicePanel({ children }: { children: ReactNode }) {
   return <div className="mt-4 rounded-2xl border-2 border-primary bg-card p-5 shadow-sm sm:p-6">{children}</div>;
 }
 
+// Retour de Stéphane: a photo instead of a missing invoice (fuel pump…), accepted as an exception, without VAT.
+function PhotoSansFacture({ busy, onFiles }: { busy: boolean; onFiles: (f: File[]) => void }) {
+  const [open, setOpen] = useState(false);
+  const input = useRef<HTMLInputElement>(null);
+  return (
+    <div className="mt-4">
+      <button type="button" aria-expanded={open} onClick={() => setOpen(!open)} className="text-sm font-semibold text-primary underline-offset-2 hover:underline">
+        Pas de facture du tout ? Je n'ai qu'une photo (par exemple la pompe à carburant)
+      </button>
+      {open && (
+        <div className="mt-3">
+          <NoInvoiceWarning text={PHOTO_SANS_FACTURE_NOTE} />
+          <Button variant="outline" size="lg" className="mt-3" disabled={busy} onClick={() => input.current?.click()}>
+            <Camera /> Déposer la photo (sans TVA déductible)
+          </Button>
+          <input ref={input} type="file" accept="image/jpeg,image/png" capture="environment" className="hidden"
+            onChange={(e) => { onFiles([...(e.target.files ?? [])]); e.target.value = ""; }} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Simon: the client lets the firm ask the supplier. The supplier's e-mail read on another invoice is offered first,
+// else the client types it. The firm gets the request in its questions panel; nothing is sent to the supplier here.
+function ContactParCabinet({ dossierId, supplier, client, paiements, adresseDossier, onDone }: {
+  dossierId: string; supplier: string; client: string; paiements: Tx[]; adresseDossier: string | null | undefined; onDone: () => void;
+}) {
+  const qc = useQueryClient();
+  const cabinet = useCabinet();
+  const known = useQuery({ queryKey: ["emails-fournisseur", dossierId, supplier], queryFn: () => emailsFournisseur({ data: { dossierId, supplier } }) });
+  const emails = known.data?.emails ?? [];
+  const [choice, setChoice] = useState<string | null>(null);
+  const [typed, setTyped] = useState("");
+  const [ref, setRef] = useState("");
+  const [busy, setBusy] = useState(false);
+  const to = (choice ?? emails[0] ?? "") === "autre" || !emails.length ? typed.trim() : (choice ?? emails[0]!);
+  const ok = EMAIL.test(to) && paiements.length > 0;
+  // The full e-mail the firm will send (Simon): shown to the client before authorising, and handed to the firm as is.
+  const d = demandeFournisseur({ fournisseur: supplier, client, referenceClient: ref, paiements, adresseDossier, cabinet: cabinet.name });
+
+  async function authorize() {
+    setBusy(true);
+    try {
+      const me = await qc.fetchQuery(meQuery);
+      const question = `Le client autorise le cabinet à contacter ${supplier} (${to}) pour obtenir les factures manquantes.\n\nÀ : ${to}\nObjet : ${d.subject}\n\n${d.body}`;
+      const ins = await supabase.from("cabinet_questions").insert({
+        dossier_id: dossierId, user_email: me?.email ?? null, question, context: `achat:${supplier}`,
+      });
+      if (ins.error) throw ins.error;
+      const upd = await supabase.from("transactions")
+        .update({ comment: `Cabinet autorisé à contacter le fournisseur (${to}).` })
+        .in("id", paiements.map((t) => t.id));
+      if (upd.error) throw upd.error;
+      toast.success(`C'est noté : votre cabinet va contacter ${supplier}.`);
+      qc.invalidateQueries({ queryKey: ["client-txs"] });
+      onDone();
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      {known.isLoading ? (
+        <p className="text-sm text-muted-foreground">Recherche de l'adresse du fournisseur sur vos autres factures…</p>
+      ) : emails.length > 0 ? (
+        <fieldset className="space-y-2">
+          <legend className="font-semibold">Adresse trouvée sur une autre facture de {supplier} : est-ce la bonne ?</legend>
+          {[...emails, "autre"].map((e) => (
+            <label key={e} className="flex items-center gap-2 text-sm">
+              <input type="radio" name="email-fournisseur" checked={(choice ?? emails[0]) === e} onChange={() => setChoice(e)} />
+              {e === "autre" ? "Une autre adresse" : <code className="font-mono font-semibold text-primary">{e}</code>}
+            </label>
+          ))}
+        </fieldset>
+      ) : (
+        <p className="font-semibold">Nous n'avons pas trouvé l'adresse de {supplier} sur vos factures : pourriez-vous la saisir ?</p>
+      )}
+      {(!emails.length || choice === "autre") && (
+        <Input type="email" value={typed} onChange={(e) => setTyped(e.target.value)} placeholder="ex. factures@fournisseur.fr" className="bg-card" aria-label="E-mail du fournisseur" />
+      )}
+      <Input value={ref} onChange={(e) => setRef(e.target.value)} placeholder="Votre référence client chez lui (facultatif)" className="bg-card" aria-label="Référence client" />
+      <div>
+        <p className="text-sm font-semibold">L'e-mail que votre expert-comptable enverra{to ? <> à <code className="font-mono">{to}</code></> : null} :</p>
+        <pre className="mt-1 max-h-56 overflow-auto whitespace-pre-wrap rounded-xl border bg-pale-2 p-3 font-sans text-sm text-muted-foreground">{`Objet : ${d.subject}\n\n${d.body}`}</pre>
+      </div>
+      <Button size="xl" disabled={busy || !ok} onClick={authorize}>
+        <Handshake /> J'autorise mon expert-comptable à contacter {supplier}
+      </Button>
+      <p className="text-sm text-muted-foreground">Votre cabinet reçoit cette demande prête à envoyer ; il écrit au fournisseur à votre place.</p>
+    </div>
+  );
+}
+
+// "Demander la facture au fournisseur": the text opens in the client's own mail app, nothing is sent by the app.
+function SupplierRequest({ supplier, client, paiements, adresseDossier }: {
+  supplier: string; client: string; paiements: Tx[]; adresseDossier: string | null | undefined;
+}) {
+  const [open, setOpen] = useState(false);
+  const [to, setTo] = useState("");
+  const [ref, setRef] = useState("");
+  const d = demandeFournisseur({ fournisseur: supplier, client, referenceClient: ref, paiements, adresseDossier });
+  return (
+    <div className="mt-4 rounded-2xl border border-dashed bg-card/60 p-4">
+      <button type="button" aria-expanded={open} onClick={() => setOpen(!open)}
+        className="flex w-full items-center gap-3 text-left font-semibold text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+        <Send className="h-5 w-5 shrink-0" /> Vous ne retrouvez pas la facture ? Demandez-la à {supplier}
+      </button>
+      {open && (
+        <div className="mt-4 space-y-3">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="space-y-1 text-sm font-semibold">
+              <span>E-mail du fournisseur (facultatif)</span>
+              <Input type="email" value={to} onChange={(e) => setTo(e.target.value)} placeholder="ex. factures@fournisseur.fr" className="bg-card font-normal" />
+            </label>
+            <label className="space-y-1 text-sm font-semibold">
+              <span>Votre référence client chez lui (facultatif)</span>
+              <Input value={ref} onChange={(e) => setRef(e.target.value)} placeholder="ex. n° de client ou de contrat" className="bg-card font-normal" />
+            </label>
+          </div>
+          <pre className="max-h-56 overflow-auto whitespace-pre-wrap rounded-xl border bg-pale-2 p-3 font-sans text-sm text-muted-foreground">{`Objet : ${d.subject}\n\n${d.body}`}</pre>
+          <div className="flex flex-wrap gap-2">
+            <Button asChild size="lg"><a href={mailtoDemande(to, d)}><MailPlus /> Ouvrir ma messagerie</a></Button>
+            <Button variant="outline" size="lg" onClick={() => { navigator.clipboard.writeText(`${d.subject}\n\n${d.body}`); toast.success("Texte copié"); }}>
+              <Copy /> Copier le texte
+            </Button>
+          </div>
+          <p className="text-sm text-muted-foreground">Le message part de votre propre messagerie : relisez-le avant de l'envoyer.</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // What Claude read on the files of one payment.
 function BilanLine({ bilan: b }: { bilan: Bilan }) {
   if (!b.lues) return null;
@@ -370,8 +532,9 @@ function BilanLine({ bilan: b }: { bilan: Bilan }) {
     b.etat === "complet" ? "Facture vérifiée : le montant correspond"
     : b.etat === "partiel" ? `Déposé ${formatEUR(b.totalLu)} · reste ${formatEUR(b.reste)} à justifier : ajoutez une facture`
     : b.etat === "excedent" ? `Factures déposées : ${formatEUR(b.totalLu)}, au-delà du montant payé`
+    : b.etat === "non_valable" ? `${b.nonValables.join(", ")} n'est pas une facture : déposez la facture définitive`
     : "Pièce reçue, vérifiée par votre cabinet";
-  const ok = b.etat === "complet" && !doubt;
+  const ok = b.etat === "complet" && !doubt && !b.nonValables.length;
   return (
     <span className={cn("mt-0.5 block text-sm font-semibold", ok ? "text-primary" : "text-yellow-ink")}>
       {ok ? "✓ " : "⚠ "}{text}

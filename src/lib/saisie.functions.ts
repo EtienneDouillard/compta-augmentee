@@ -4,7 +4,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { ANALYSIS_MODEL, DEFAULT_MONTHLY_CAP_USD, costUsd, monthStart } from "@/lib/analysis";
 import {
   LigneSaisie, MAX_FICHIER_OCTETS, OUTPUT_SCHEMA_LECTURE, RESERVE_LECTURE_USD, SYSTEM_LECTURE,
-  parseLecture, proposer, reglesAEnregistrer, typeMedia, type RegleFournisseur, type SaisieState,
+  EMAIL, parseLecture, proposer, reglesAEnregistrer, typeMedia, TYPE_NON_VALABLE, typeDocumentOf, type RegleFournisseur, type SaisieState, type TypeDocument,
 } from "@/lib/saisie";
 import { controle, type Facture, type Ligne } from "@/lib/ventilation";
 import { isDemoCompany } from "@/lib/demo-dossiers";
@@ -18,7 +18,7 @@ import { etatEnvoi, MAX_ENVOI_GROUPE, type EtatEnvoi } from "@/lib/envoi-groupe"
 const UNAVAILABLE = "Saisie augmentée indisponible : la base de données n'est pas encore à jour.";
 const ECRITURE_OFF = "L'envoi vers Pennylane est désactivé pour l'instant (fonction bêta).";
 const SAISIE_COLUMNS =
-  "id, upload_id, transaction_id, tiers, fournisseur, numero, date_facture, total_ht, total_tva, total_ttc, libelle_ecriture, lignes, state, cost_usd, lu_le, decided_at, pennylane_invoice_id, envoye_le";
+  "id, upload_id, transaction_id, tiers, fournisseur, numero, date_facture, total_ht, total_tva, total_ttc, libelle_ecriture, lignes, state, cost_usd, lu_le, decided_at, pennylane_invoice_id, envoye_le, type_document:lecture->>typeDocument";
 
 async function requireCabinetRole(db: any, userId: string) {
   const { data } = await db.from("user_roles").select("role").eq("user_id", userId);
@@ -78,6 +78,8 @@ async function envoyer(db: any, userId: string, s: any) {
   if (s.pennylane_invoice_id) throw new Error("Cette facture est déjà dans Pennylane.");
   const { upload } = await loadUpload(db, s.upload_id);
   if (typeMedia(upload.file_name) !== "application/pdf") throw new Error("Pennylane n'importe que les factures en PDF.");
+  const nonValable = TYPE_NON_VALABLE[typeDocumentOf(s.type_document)];
+  if (nonValable) throw new Error(`Ce document est ${nonValable}, pas une facture : il ne s'envoie pas dans Pennylane.`);
   const { data: d } = await db.from("dossiers").select("company_id").eq("id", s.dossier_id).maybeSingle();
   const { data: blob, error: e1 } = await db.storage.from("factures").download(upload.storage_path);
   if (e1 || !blob) throw new Error("Pièce illisible dans le stockage.");
@@ -113,6 +115,8 @@ export type SaisieView = {
   totalHt: number; totalTva: number; totalTtc: number; libelleEcriture: string; lignes: Ligne[];
   cost: number; luLe: string; decidedAt: string | null;
   pennylaneInvoiceId: string | null; envoyeLe: string | null;
+  // facture, avoir, proforma, devis, bon_de_commande, autre (older readings: facture).
+  typeDocument: TypeDocument;
 };
 
 const toView = (s: any): SaisieView | null => s && {
@@ -131,6 +135,7 @@ const toView = (s: any): SaisieView | null => s && {
   decidedAt: (s.decided_at ?? null) as string | null,
   pennylaneInvoiceId: (s.pennylane_invoice_id ?? null) as string | null,
   envoyeLe: (s.envoye_le ?? null) as string | null,
+  typeDocument: typeDocumentOf(s.type_document),
 };
 
 const UploadInput = z.object({ uploadId: z.string().uuid() });
@@ -307,7 +312,7 @@ export const listerEnvoiGroupe = createServerFn({ method: "POST" })
       const fileName = names.get(r.upload_id) ?? "";
       return {
         id: v.id, fournisseur: v.fournisseur, numero: v.numero, date: v.date, totalTtc: v.totalTtc, fileName, state: v.state,
-        etat: etatEnvoi({ state: v.state, pennylaneInvoiceId: v.pennylaneInvoiceId, fileName, facture: factureOf(r, v.lignes, v.libelleEcriture) }),
+        etat: etatEnvoi({ state: v.state, pennylaneInvoiceId: v.pennylaneInvoiceId, fileName, typeDocument: v.typeDocument, facture: factureOf(r, v.lignes, v.libelleEcriture) }),
       };
     });
     return { demo: isDemoCompany(String(d?.company_id ?? "")), ecritureActive: PENNYLANE_ECRITURE_ACTIVE, lignes };
@@ -331,7 +336,7 @@ export const envoyerGroupe = createServerFn({ method: "POST" })
         if (s.dossier_id !== data.dossierId) throw new Error("Saisie d'un autre dossier.");
         const { upload } = await loadUpload(db, s.upload_id);
         const v = toView(s)!;
-        const etat = etatEnvoi({ state: v.state, pennylaneInvoiceId: v.pennylaneInvoiceId, fileName: upload.file_name, facture: factureOf(s, v.lignes, v.libelleEcriture) });
+        const etat = etatEnvoi({ state: v.state, pennylaneInvoiceId: v.pennylaneInvoiceId, fileName: upload.file_name, typeDocument: v.typeDocument, facture: factureOf(s, v.lignes, v.libelleEcriture) });
         if (!etat.pret) throw new Error(etat.raison);
         if (etat.aValider) {
           await valider(db, context.userId, s, v.lignes, v.libelleEcriture);
@@ -371,7 +376,7 @@ export const controlerDepot = createServerFn({ method: "POST" })
     }
   });
 
-export type PieceDeposee = { transactionId: string; lue: boolean; fournisseur: string; totalTtc: number };
+export type PieceDeposee = { transactionId: string; lue: boolean; fournisseur: string; totalTtc: number; typeDocument: TypeDocument };
 
 // What Claude read on each file of the dossier, for the client's own dossier only (RLS on uploads decides).
 export const etatDepots = createServerFn({ method: "POST" })
@@ -382,11 +387,26 @@ export const etatDepots = createServerFn({ method: "POST" })
     if (error) throw new Error("Dépôts indisponibles.");
     if (!ups?.length) return { pieces: [] as PieceDeposee[] };
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: rows } = await (supabaseAdmin as any).from("saisies").select("upload_id, state, fournisseur, total_ttc").eq("dossier_id", data.dossierId);
+    const { data: rows } = await (supabaseAdmin as any).from("saisies").select("upload_id, state, fournisseur, total_ttc, type_document:lecture->>typeDocument").eq("dossier_id", data.dossierId);
     const lus = new Map<string, any>((rows ?? []).filter((r: any) => r.state !== "echec").map((r: any) => [r.upload_id, r]));
     const pieces: PieceDeposee[] = ups.map((u: any) => {
       const r = lus.get(u.id);
-      return { transactionId: u.transaction_id, lue: !!r, fournisseur: r?.fournisseur ?? "", totalTtc: Number(r?.total_ttc ?? 0) };
+      return { transactionId: u.transaction_id, lue: !!r, fournisseur: r?.fournisseur ?? "", totalTtc: Number(r?.total_ttc ?? 0), typeDocument: typeDocumentOf(r?.type_document) };
     });
     return { pieces };
+  });
+
+// E-mails of a supplier read on its other invoices of the dossier (Simon: "le cabinet contacte le fournisseur").
+// The client's JWT proves membership (RLS on dossiers); saisies are read with the service role.
+export const emailsFournisseur = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ dossierId: z.string().uuid(), supplier: z.string().trim().min(1).max(200) }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { data: own } = await (context.supabase as any).from("dossiers").select("id").eq("id", data.dossierId).maybeSingle();
+    if (!own) throw new Error("Dossier introuvable.");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: rows } = await (supabaseAdmin as any).from("saisies")
+      .select("email:lecture->>emailFournisseur").eq("dossier_id", data.dossierId).eq("tiers", data.supplier);
+    const emails = [...new Set((rows ?? []).map((r: any) => String(r.email ?? "").trim().toLowerCase()).filter((e: string) => EMAIL.test(e)))];
+    return { emails: emails.slice(0, 5) as string[] };
   });

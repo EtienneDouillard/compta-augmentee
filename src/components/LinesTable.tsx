@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import {
-  ArrowDownLeft, ArrowUpRight, Ban, CheckCircle2, ChevronDown, Download, Eye, Inbox, Pencil, RotateCcw, Search, Send, ListFilter, Sparkles, X,
+  ArrowDownLeft, ArrowUpRight, Ban, CheckCircle2, ChevronDown, Download, Eye, Inbox, Pencil, RotateCcw, Search, Send, ListFilter, Sparkles, Undo2, X,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -22,7 +22,8 @@ type SortKey = "date" | "label" | "supplier" | "amount";
 // Where a line stands for the firm: to review, sent and waiting, answered by the client, or not requested.
 const stateOf = (t: Tx): Exclude<Tab, "all"> =>
   t.review_state === "pending" ? "pending" : t.review_state === "dismissed" ? "dismissed" : t.status === "a_faire" ? "waiting" : "answered";
-const selectable = (t: Tx) => t.review_state === "pending" || t.review_state === "dismissed";
+// Lines still waiting for the client can be withdrawn too (demande de Julien, 29/10/2026).
+const selectable = (t: Tx) => stateOf(t) !== "answered";
 const accountsOf = (t: Tx) => (t.counterpart_accounts ?? "").split(",").map((a) => a.trim()).filter(Boolean);
 const PAGE = 100;
 // Ids per update: hundreds of ids in one request make its URL too long.
@@ -71,6 +72,9 @@ export function LinesTable({ txs, uploads, onChanged, onRename, onDownload, onSa
   const selected = txs.filter((t) => sel.has(t.id) && selectable(t));
   const selPending = selected.filter((t) => t.review_state === "pending");
   const selDismissed = selected.filter((t) => t.review_state === "dismissed");
+  const selWaiting = selected.filter((t) => stateOf(t) === "waiting");
+  // Every request the client can see in this dossier, answered or not, whatever the filters.
+  const allSent = txs.filter((t) => t.review_state === "sent");
 
   const toggle = (ids: string[], on: boolean) =>
     setSel((s) => {
@@ -95,6 +99,14 @@ export function LinesTable({ txs, uploads, onChanged, onRename, onDownload, onSa
     if (failure) toast.error(done.length ? `${plural(done.length, "ligne")} sur ${ids.length} traitée${done.length > 1 ? "s" : ""}, puis erreur : ${failure}` : failure);
     else toast.success(msg);
   }
+  // Withdrawing a request sends the line back to "À valider": the client no longer sees it (RLS shows "sent" lines only).
+  // Nothing is deleted: comment, files and history stay, and the line can be sent again later.
+  function withdraw(ids: string[], all = false) {
+    const n = plural(ids.length, "demande");
+    const what = all ? `toutes les demandes envoyées au client (${ids.length}), y compris celles auxquelles il a déjà répondu` : n;
+    if (!window.confirm(`Retirer ${what} de l'espace du client ? ${ids.length > 1 ? "Les lignes repasseront" : "La ligne repassera"} « À valider » ; les fichiers et commentaires déjà reçus sont conservés.`)) return;
+    void setState(ids, "pending", `${n} retirée${ids.length > 1 ? "s" : ""} de l'espace du client`);
+  }
   const filterBy = (set: () => void) => { set(); setLimit(PAGE); };
   // A filter on the renamed tiers follows the new name, unless other lines keep the old one.
   async function renameTiers(t: Tx) {
@@ -111,6 +123,13 @@ export function LinesTable({ txs, uploads, onChanged, onRename, onDownload, onSa
         <FilterChip size="sm" active={tab === "waiting"} onClick={() => filterBy(() => setTab("waiting"))} count={count("waiting")} icon={Send}>En attente du client</FilterChip>
         <FilterChip size="sm" active={tab === "answered"} onClick={() => filterBy(() => setTab("answered"))} count={count("answered")} icon={Inbox}>Réponses reçues</FilterChip>
         <FilterChip size="sm" active={tab === "dismissed"} onClick={() => filterBy(() => setTab("dismissed"))} count={count("dismissed")} icon={Ban}>Non demandées</FilterChip>
+        {allSent.length > 0 && (
+          <Button size="sm" variant="outline" disabled={busy} className="ml-auto"
+            title="Remettre toutes les demandes de ce dossier « À valider » : le client ne les voit plus"
+            onClick={() => withdraw(allSent.map((t) => t.id), true)}>
+            <Undo2 /> Tout retirer de l'espace client ({allSent.length})
+          </Button>
+        )}
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
@@ -160,6 +179,13 @@ export function LinesTable({ txs, uploads, onChanged, onRename, onDownload, onSa
               className="border-primary-foreground/40 bg-transparent text-primary-foreground hover:bg-primary-foreground/10 hover:text-primary-foreground focus-visible:ring-mint focus-visible:ring-offset-primary"
               onClick={() => setState(selDismissed.map((t) => t.id), "pending", `${plural(selDismissed.length, "ligne")} réactivée${selDismissed.length > 1 ? "s" : ""}`)}>
               <RotateCcw /> Réactiver ({selDismissed.length})
+            </Button>
+          )}
+          {selWaiting.length > 0 && (
+            <Button size="sm" variant="outline" disabled={busy}
+              className="border-primary-foreground/40 bg-transparent text-primary-foreground hover:bg-primary-foreground/10 hover:text-primary-foreground focus-visible:ring-mint focus-visible:ring-offset-primary"
+              onClick={() => withdraw(selWaiting.map((t) => t.id))}>
+              <Undo2 /> Retirer la demande ({selWaiting.length})
             </Button>
           )}
           <button type="button" className="ml-auto rounded-sm text-sm underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mint" onClick={() => setSel(new Set())}>
@@ -266,6 +292,12 @@ export function LinesTable({ txs, uploads, onChanged, onRename, onDownload, onSa
                       {state === "dismissed" && (
                         <Button size="sm" variant="outline" disabled={busy} onClick={() => setState([t.id], "pending", "Ligne réactivée")}>
                           <RotateCcw /> Réactiver
+                        </Button>
+                      )}
+                      {state === "waiting" && (
+                        <Button size="sm" variant="outline" disabled={busy} title="Ne plus montrer cette demande au client"
+                          onClick={() => withdraw([t.id])}>
+                          <Undo2 /> Retirer la demande
                         </Button>
                       )}
                     </div>

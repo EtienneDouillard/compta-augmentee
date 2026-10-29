@@ -44,6 +44,21 @@ export const createClientAccount = createServerFn({ method: "POST" })
     });
     if (!isCabinet) throw new Error("Accès refusé");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    // A client with several companies (Simon 6): an e-mail already member of another dossier gets this one too,
+    // with its existing password; the client then switches dossier on its home page.
+    const { data: known } = await supabaseAdmin
+      .from("dossier_members")
+      .select("user_id")
+      .ilike("email", data.email.trim().replace(/[\\%_]/g, (c) => `\\${c}`))
+      .limit(1)
+      .maybeSingle();
+    if (known) {
+      const { error: kErr } = await supabaseAdmin
+        .from("dossier_members")
+        .insert({ dossier_id: data.dossierId, user_id: known.user_id, email: data.email });
+      if (kErr) throw new Error(kErr.code === "23505" ? "Ce client a déjà accès à ce dossier." : kErr.message);
+      return { ok: true, existing: true };
+    }
     const { data: created, error } = await supabaseAdmin.auth.admin.createUser({
       email: data.email,
       password: data.password,
@@ -55,7 +70,7 @@ export const createClientAccount = createServerFn({ method: "POST" })
       .from("dossier_members")
       .insert({ dossier_id: data.dossierId, user_id: created.user.id, email: data.email });
     if (mErr) throw new Error(mErr.message);
-    return { ok: true };
+    return { ok: true, existing: false };
   });
 
 // Cabinet accounts: any cabinet user can see them and add one (same pattern as client accounts).
