@@ -57,6 +57,13 @@
       "when": 1793273638342,
       "tag": "0007_julien_pr7_8_9",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1793275672089,
+      "tag": "0008_supplier_sites",
+      "breakpoints": true
     }
   ]
 }
