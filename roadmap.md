@@ -44,3 +44,5 @@
 - [x] Pré-remplir le site fournisseur via Claude quand le libellé ne suffit pas (Delibero)
 - [x] Vue kanban par fournisseur (filtre) sur la liste
 - [x] Robot : plan B 100 % automatique quand le site bloque son PDF (récapitulatif / impression PDF de la page), jamais de dépôt à la main
+- [x] Robot : notification « connecte-toi » si connexion/2FA requise, reprise automatique
+- [x] Tests Contabo et Noota ajoutés
