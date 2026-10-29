@@ -15,7 +15,7 @@ function download() {
 }
 
 const Tip = ({ text }: { text: string }) => (
-  <Tooltip>
+  <Tooltip delayDuration={0} skipDelayDuration={0}>
     <TooltipTrigger asChild>
       <button type="button" aria-label={text} className="ml-1 inline-flex align-middle text-muted-foreground"><Info className="h-3.5 w-3.5" /></button>
     </TooltipTrigger>
