@@ -185,11 +185,11 @@ export async function syncDossier(dossierId: string) {
     const { data: aliases } = await db.from("supplier_aliases").select("detected_name, display_name").eq("dossier_id", dossierId);
     const aliasMap = new Map((aliases ?? []).map((a) => [a.detected_name, a.display_name]));
     // PostgREST returns at most 1000 rows per call: page through, or lines beyond 1000 look new and are inserted twice.
-    const existing: { id: string; pennylane_id: string; is_open: boolean; review_state: string; status: string; label: string; supplier: string; supplier_detected: string }[] = [];
+    const existing: { id: string; pennylane_id: string; is_open: boolean; review_state: string; status: string; label: string; supplier: string; supplier_detected: string; parent_id?: string | null }[] = [];
     for (let from = 0; ; from += 1000) {
       const { data, error } = await db
         .from("transactions")
-        .select("id, pennylane_id, is_open, review_state, status, label, supplier, supplier_detected")
+        .select("*")
         .eq("dossier_id", dossierId)
         .order("id")
         .range(from, from + 999);
@@ -225,7 +225,9 @@ export async function syncDossier(dossierId: string) {
     }
     // Lines detected by an older rule ("Virt Amazon") get the current name; a cabinet correction (alias) still wins.
     const renamed = new Map<string, { detected: string; ids: string[] }>();
+    // Split operations (parent_id) take their supplier from the statement, not from the label: left alone.
     for (const e of existing) {
+      if (e.parent_id) continue;
       const detected = normalizeSupplier(e.label ?? "");
       if (detected === e.supplier_detected) continue;
       const supplier = aliasMap.get(detected) ?? (e.supplier === e.supplier_detected ? detected : e.supplier);
