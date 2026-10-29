@@ -20,7 +20,6 @@ async function loaded(tabId) {
 
 // Runs inside the supplier page: invoice links/buttons with their row text and date.
 function scan(learned) {
-  window.scrollTo(0, document.body.scrollHeight);
   document.querySelectorAll("[data-caplus]").forEach((e) => e.removeAttribute("data-caplus"));
   const RX = /invoice|facture|receipt|reçu|recu|statement|relevé|download|télécharger|pdf/i;
   const L = learned ? learned.toLowerCase() : null;
@@ -58,6 +57,17 @@ function scan(learned) {
     out.push({ idx: String(i), href: href.startsWith("http") ? href : null, date: dateOf(rowText), rowText, zero });
   });
   return out;
+}
+
+// Runs inside the supplier page: scrolls one screen (window + scrollable lists), or clicks "next/load more" at the bottom.
+function scrollStep() {
+  let moved = false;
+  const boxes = [document.scrollingElement, ...[...document.querySelectorAll("*")].filter((e) => e.scrollHeight > e.clientHeight + 40 && /auto|scroll/.test(getComputedStyle(e).overflowY))];
+  for (const b of boxes) { if (!b) continue; const before = b.scrollTop; b.scrollTop = before + Math.max(400, b.clientHeight * 0.8); if (b.scrollTop !== before) moved = true; }
+  if (moved) return "moved";
+  const next = [...document.querySelectorAll("button, a, [role=button]")].find((e) => /load more|show more|voir plus|afficher plus|next|suivant|›|»/i.test((e.textContent || e.getAttribute("aria-label") || "").trim()) && !e.disabled && e.getAttribute("aria-disabled") !== "true");
+  if (next) { next.click(); return "next"; }
+  return "end";
 }
 
 // Runs inside the supplier page: downloads a URL with the page's own session.
@@ -112,10 +122,18 @@ async function run(onlyUrl) {
         await chrome.tabs.update(tabId, { url: src.url });
         await loaded(tabId);
         let items = [];
-        for (let i = 0; i < 10; i++) { // pages that load their list late
-          await wait(1500);
+        // Look through the whole page: scan, scroll down step by step (page and inner lists),
+        // click "load more / next" at the bottom, until the missing invoice shows up.
+        const num = (s) => s.replace(/[\s,]/g, "");
+        const wantedAmts = (src.wanted || []).flatMap((w) => w.amounts.map(num));
+        await wait(2000);
+        for (let i = 0; i < 30; i++) {
           [{ result: items }] = await chrome.scripting.executeScript({ target: { tabId }, func: scan, args: [learned[src.url] || null] });
-          if ((items || []).length) break;
+          items = items || [];
+          if (items.length && (!wantedAmts.length || items.some((x) => wantedAmts.some((a) => num(x.rowText).includes(a))))) break;
+          const [{ result: moved }] = await chrome.scripting.executeScript({ target: { tabId }, func: scrollStep });
+          if (moved === "end" && i > 3) break;
+          await wait(1200);
         }
         const t = await chrome.tabs.get(tabId);
         if (/login|signin|sign-in|connexion|auth/i.test(t.url || "")) { log.push(`🔑 ${src.supplier} : connecte-toi au site puis relance`); continue; }
