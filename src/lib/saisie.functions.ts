@@ -223,6 +223,9 @@ export const envoyerPennylane = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const db = context.supabase as any;
     await requireCabinetRole(db, context.userId);
+    // Écriture Pennylane bloquée tant que l'équipe ne l'autorise pas (voir pennylane-write.beta.ts).
+    const { PENNYLANE_ECRITURE_ACTIVE } = await import("./pennylane-write.beta");
+    if (!PENNYLANE_ECRITURE_ACTIVE) throw new Error("L'envoi vers Pennylane est désactivé pour l'instant (fonction bêta).");
     const { data: s, error } = await db.from("saisies").select(SAISIE_COLUMNS + ", dossier_id").eq("id", data.id).maybeSingle();
     if (error) throw new Error(UNAVAILABLE);
     if (!s) throw new Error("Saisie introuvable.");
