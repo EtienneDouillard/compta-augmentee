@@ -2,7 +2,7 @@
 import { z } from "zod";
 import { dataCell } from "@/lib/ai-data";
 
-export const ANALYSIS_MODEL = "claude-opus-5-5";
+export const ANALYSIS_MODEL = "claude-sonnet-5-5";
 // Anthropic list prices in USD per million tokens (platform.claude.com/docs/en/about-claude/pricing).
 export const PRICE = { input: 2, output: 10, cacheWrite: 2.5, cacheRead: 0.2 };
 // Lines sent per analysis; the rest waits for the next one, so the cost of one click stays bounded.
