@@ -1,14 +1,14 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState, type ReactNode } from "react";
 import { toast } from "sonner";
-import { AlertTriangle, ChevronRight, Mail, RefreshCw, Save, UserPlus, Users } from "lucide-react";
+import { AlertTriangle, ChevronRight, Eye, Mail, RefreshCw, Save, UserPlus, Users } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { AppHeader } from "@/components/AppHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { LinesTable } from "@/components/LinesTable";
+import { LinesTable, TABS, type Tab } from "@/components/LinesTable";
 import { QuestionsPanel } from "@/components/QuestionsPanel";
 import { SkipRulesPanel } from "@/components/SkipRulesPanel";
 import { CabinetChat } from "@/components/CabinetChat";
@@ -19,10 +19,13 @@ import { SourcePill } from "@/components/StatusPill";
 import { createClientAccount } from "@/lib/admin.functions";
 import { syncDossierNow } from "@/lib/sync.functions";
 import { formatSyncDate } from "@/lib/dates";
-import { requireCabinet, type Tx } from "@/lib/session";
+import { meQuery, requireCabinet, startPreview, type Tx } from "@/lib/session";
 
 export const Route = createFileRoute("/_authenticated/cabinet/$dossierId")({
   beforeLoad: requireCabinet,
+  // ?vue=pending opens the lines on that tab: the dashboard tiles lead here (Julien, 29/10/2026).
+  validateSearch: (search: Record<string, unknown>): { vue?: Tab | undefined } =>
+    TABS.includes(search["vue"] as Tab) ? { vue: search["vue"] as Tab } : {},
   head: () => ({
     meta: [
       { title: "Tableau de bord du dossier — PBC List" },
@@ -38,6 +41,7 @@ export const Route = createFileRoute("/_authenticated/cabinet/$dossierId")({
 
 function DossierPage() {
   const { dossierId } = Route.useParams();
+  const { vue } = Route.useSearch();
   const qc = useQueryClient();
   const [syncing, setSyncing] = useState(false);
   const [saisie, setSaisie] = useState<string | null>(null);
@@ -55,6 +59,14 @@ function DossierPage() {
     },
   });
   const reload = () => qc.invalidateQueries({ queryKey: ["dossier-full", dossierId] });
+
+  // Preview of this dossier's client space, read-only (Julien): same screens and data rules as the client.
+  const navigate = useNavigate();
+  async function previewClient() {
+    startPreview(dossierId);
+    await qc.invalidateQueries({ queryKey: meQuery.queryKey });
+    navigate({ to: "/espace" });
+  }
 
   async function sync() {
     setSyncing(true);
@@ -123,9 +135,14 @@ function DossierPage() {
               <span>· comptes {dossier.detect_prefixes}</span>
             </div>
           </div>
+          <div className="flex flex-wrap gap-2">
+          <Button variant="outline" onClick={previewClient}>
+            <Eye /> Voir l'espace client
+          </Button>
           <Button variant="outline" onClick={sync} disabled={syncing}>
             <RefreshCw className={syncing ? "animate-spin" : ""} /> Actualiser maintenant
           </Button>
+          </div>
         </div>
 
         {(dossier.last_mcp_error || dossier.last_sync_error) && (
@@ -148,7 +165,9 @@ function DossierPage() {
 
         <QuestionsPanel dossierId={dossierId} />
         <ClaudeAnalysis dossierId={dossierId} onApplied={reload} />
-        <LinesTable txs={txs} uploads={uploads} onChanged={reload} onRename={rename} onDownload={download} onSaisie={setSaisie} />
+        <div id="lignes" className="scroll-mt-6">
+          <LinesTable key={vue ?? "defaut"} txs={txs} uploads={uploads} onChanged={reload} onRename={rename} onDownload={download} onSaisie={setSaisie} initialTab={vue} />
+        </div>
         <SaisieAugmentee uploadId={saisie} onClose={() => { setSaisie(null); qc.invalidateQueries({ queryKey: ["envoi-groupe", dossierId] }); }} />
         <EnvoiGroupe dossierId={dossierId} onDone={reload} />
         <SkipRulesPanel dossierId={dossierId} txs={txs} onChanged={reload} />
@@ -208,8 +227,10 @@ function Members({ dossierId, members, onSaved }: { dossierId: string; members: 
     e.preventDefault();
     setBusy(true);
     try {
-      await createClientAccount({ data: { dossierId, email, password } });
-      toast.success("Compte client créé. Transmettez l'e-mail et le mot de passe au client.");
+      const r = await createClientAccount({ data: { dossierId, email, password } });
+      toast.success(r.existing
+        ? "Ce client avait déjà un compte : ce dossier lui est ajouté, avec son mot de passe actuel. Il choisit le dossier sur son accueil."
+        : "Compte client créé. Transmettez l'e-mail et le mot de passe au client.");
       setEmail(""); setPassword("");
       onSaved();
     } catch (err) {

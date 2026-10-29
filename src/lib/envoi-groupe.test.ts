@@ -72,4 +72,9 @@ describe("envoi groupé", () => {
       false,
     );
   });
+  it("écarte une facture proforma ou un devis", () => {
+    expect(etatEnvoi(saisie({ typeDocument: "proforma" })).pret).toBe(false);
+    expect(etatEnvoi(saisie({ state: "validee", typeDocument: "devis" })).pret).toBe(false);
+    expect(etatEnvoi(saisie({ typeDocument: "facture" })).pret).toBe(true);
+  });
 });

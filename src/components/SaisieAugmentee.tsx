@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Pill } from "@/components/StatusPill";
 import { formatUsd } from "@/lib/analysis";
 import { compteAchatValide, libellePcg } from "@/lib/pcg";
-import { STATE_LABEL, ecartPaiement } from "@/lib/saisie";
+import { STATE_LABEL, TYPE_NON_VALABLE, ecartPaiement } from "@/lib/saisie";
 import { envoyerPennylane, getSaisie, lireFacture, rejeterSaisie, validerSaisie } from "@/lib/saisie.functions";
 import { formatDate, formatEUR } from "@/lib/session";
 import { alertes, controle, ecriture, round2, tvaLigne, type Facture, type Ligne } from "@/lib/ventilation";
@@ -275,12 +275,21 @@ function Validated({ saisie, paiement, envoiPossible, onDone }: { saisie: Saisie
 }
 
 function Header({ saisie }: { saisie: Saisie }) {
+  const nonValable = TYPE_NON_VALABLE[saisie.typeDocument];
   return (
+    <>
+    {nonValable && (
+      <p role="alert" className="mb-3 flex gap-2 rounded-lg border border-yellow/60 bg-yellow-soft/60 p-3 text-sm text-yellow-ink">
+        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+        Document lu comme {nonValable}, pas une facture : il ne justifie ni la charge ni la TVA déductible (CGI art. 271, II ; BOI-TVA-DED-40-10-10 § 30). Demandez la facture définitive au client.
+      </p>
+    )}
     <dl className="grid gap-x-6 gap-y-1 text-sm sm:grid-cols-3">
       <div><dt className="text-muted-foreground">Fournisseur</dt><dd className="font-semibold">{saisie.fournisseur}</dd></div>
       <div><dt className="text-muted-foreground">Facture</dt><dd className="font-mono">{saisie.numero || "—"}{saisie.date ? ` du ${formatDate(saisie.date)}` : ""}</dd></div>
       <div><dt className="text-muted-foreground">Pied de facture</dt><dd className="tabular-nums">{formatEUR(saisie.totalHt)} HT · {formatEUR(saisie.totalTva)} TVA · <span className="font-bold">{formatEUR(saisie.totalTtc)} TTC</span></dd></div>
     </dl>
+    </>
   );
 }
 

@@ -94,3 +94,13 @@ describe("contrôles", () => {
     expect(LigneSaisie.safeParse({ ...l, compte: "401" }).success).toBe(false);
   });
 });
+
+describe("e-mail du fournisseur lu sur la pièce", () => {
+  it("garde une adresse valide, en minuscules", () => {
+    expect(parseLecture(reponse({ email_fournisseur: " Factures@Atelier-Numerique.FR " }))!.emailFournisseur).toBe("factures@atelier-numerique.fr");
+  });
+  it("ignore une valeur qui n'est pas une adresse", () => {
+    expect(parseLecture(reponse({ email_fournisseur: "voir site web" }))!.emailFournisseur).toBe("");
+    expect(parseLecture(reponse())!.emailFournisseur).toBe("");
+  });
+});
