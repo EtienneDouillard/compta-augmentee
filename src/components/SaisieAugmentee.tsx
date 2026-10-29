@@ -14,6 +14,7 @@ import { envoyerPennylane, getSaisie, lireFacture, rejeterSaisie, validerSaisie 
 import { formatDate, formatEUR } from "@/lib/session";
 import { alertes, controle, ecriture, round2, tvaLigne, type Facture, type Ligne } from "@/lib/ventilation";
 import { compteAuxiliaire } from "@/lib/compte-fournisseur";
+import { compteFournisseurPennylane } from "@/lib/compte-fournisseur.functions";
 
 type State = Awaited<ReturnType<typeof getSaisie>>;
 type Saisie = NonNullable<State["saisie"]>;
@@ -277,9 +278,12 @@ function Validated({ saisie, paiement, envoiPossible, onDone }: { saisie: Saisie
       <Checks facture={f} paiement={paiement} />
       <EntryPreview facture={f} />
       {saisie.pennylaneInvoiceId ? (
-        <p className="text-sm font-semibold text-primary">
-          Importée dans Pennylane avec son PDF (facture fournisseur n° {saisie.pennylaneInvoiceId}){saisie.envoyeLe ? ` le ${formatDate(saisie.envoyeLe.slice(0, 10))}` : ""}.
-        </p>
+        <>
+          <p className="text-sm font-semibold text-primary">
+            Importée dans Pennylane avec son PDF (facture fournisseur n° {saisie.pennylaneInvoiceId}){saisie.envoyeLe ? ` le ${formatDate(saisie.envoyeLe.slice(0, 10))}` : ""}.
+          </p>
+          <CompteFournisseur saisieId={saisie.id} />
+        </>
       ) : envoiPossible ? (
         <div className="flex flex-wrap items-center gap-3 border-t pt-4">
           {confirmer ? (
@@ -296,6 +300,46 @@ function Validated({ saisie, paiement, envoiPossible, onDone }: { saisie: Saisie
         <p className="text-xs text-muted-foreground">
           Validée{saisie.decidedAt ? ` le ${formatDate(saisie.decidedAt.slice(0, 10))}` : ""}. L'envoi dans Pennylane n'est proposé que pour une facture PDF d'un dossier démo du hackathon.
         </p>
+      )}
+    </div>
+  );
+}
+
+// The supplier's account in Pennylane once the invoice is there: renamed 401 + name on request (demo dossiers only).
+function CompteFournisseur({ saisieId }: { saisieId: string }) {
+  const q = useQuery({ queryKey: ["compte-fournisseur", saisieId], queryFn: () => compteFournisseurPennylane({ data: { saisieId, renommer: false } }), retry: false });
+  const [confirmer, setConfirmer] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  async function renommer() {
+    setBusy(true);
+    try {
+      const r = await compteFournisseurPennylane({ data: { saisieId, renommer: true } });
+      toast.success(`Compte du fournisseur renommé ${r.actuel} dans Pennylane.`);
+      q.refetch();
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setBusy(false);
+      setConfirmer(false);
+    }
+  }
+
+  if (q.isLoading) return <p className="text-xs text-muted-foreground">Lecture du compte fournisseur dans Pennylane…</p>;
+  if (q.error || !q.data) return <p className="text-xs text-muted-foreground">{(q.error as Error | null)?.message ?? "Compte fournisseur Pennylane illisible."}</p>;
+  const c = q.data;
+  if (!c.aRenommer) return <p className="text-sm">Compte fournisseur dans Pennylane : <span className="font-mono font-semibold">{c.actuel}</span></p>;
+  return (
+    <div className="flex flex-wrap items-center gap-3 rounded-xl border p-3 text-sm">
+      <span>Dans Pennylane, {c.fournisseur} est au compte <span className="font-mono">{c.actuel}</span>.</span>
+      {confirmer ? (
+        <>
+          <span>Le compte et toutes ses écritures passeront sous <span className="font-mono">{c.propose}</span>. Confirmez-vous ?</span>
+          <Button size="sm" onClick={renommer} disabled={busy}>{busy ? "Renommage…" : "Confirmer"}</Button>
+          <Button size="sm" variant="outline" onClick={() => setConfirmer(false)} disabled={busy}>Annuler</Button>
+        </>
+      ) : (
+        <Button size="sm" variant="outline" onClick={() => setConfirmer(true)}>Renommer en {c.propose}</Button>
       )}
     </div>
   );

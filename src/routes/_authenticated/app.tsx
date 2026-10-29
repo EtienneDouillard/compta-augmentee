@@ -240,7 +240,7 @@ function Ventilation({ f, dirty, onChange, onSave }: { f: FactureDB; dirty: bool
           <tr className="border-t-2 border-border text-xs"><td colSpan={2} className={`py-1.5 ${ec.equilibree ? "text-success" : "text-destructive"}`}>{ec.equilibree ? "Écriture équilibrée" : "Écriture déséquilibrée"}</td><td className="text-right tabular-nums">{eur(ec.totalDebit)}</td><td className="text-right tabular-nums">{eur(ec.totalCredit)}</td></tr>
         </tbody>
       </table>
-      {cf.pennylane && <p className="mt-1 text-xs text-muted-foreground">Dans Pennylane, ce fournisseur est encore au compte <span className="font-mono">{cf.pennylane}</span>.</p>}
+      {cf.pennylane && <p className="mt-1 text-xs text-muted-foreground">Compte Pennylane lors de l'import : <span className="font-mono">{cf.pennylane}</span>.</p>}
       {!f.lignes_importees && <p className="mt-3 text-sm text-muted-foreground">Lignes pas encore importées de Pennylane pour cette facture : ajoutez la pièce à droite pour la ventiler.</p>}
       <div className="mt-4 flex flex-wrap items-center gap-3">
         <button disabled={busy || valide || !f.piece_path} title={f.piece_path ? "Lit chaque ligne de la pièce et propose un compte par nature" : "Ajoutez d'abord la pièce à droite"} onClick={async () => {
