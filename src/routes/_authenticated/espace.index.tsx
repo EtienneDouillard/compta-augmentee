@@ -154,6 +154,7 @@ function Espace() {
           <>
             {/* Simon: the whole width is used and the client scrolls less: greeting and summary side by side. */}
             <div className="grid items-stretch gap-6 lg:grid-cols-2">
+            {all.length > 0 && <div className="flex justify-end lg:col-span-2"><VisiteGuidee auto={!me.data?.preview} /></div>}
             {remaining === 0 && all.length === 0 && <p className="text-muted-foreground lg:col-span-2">Aucune facture ne vous est demandée pour le moment.</p>}
             {remaining === 0 ? (
               <section className="rounded-3xl bg-primary px-6 py-10 text-center text-primary-foreground sm:px-12">

@@ -15,6 +15,8 @@ import { CabinetChat } from "@/components/CabinetChat";
 import { ClaudeAnalysis } from "@/components/ClaudeAnalysis";
 import { SaisieAugmentee } from "@/components/SaisieAugmentee";
 import { EnvoiGroupe } from "@/components/EnvoiGroupe";
+import { EcritureSansFacture } from "@/components/EcritureSansFacture";
+import { isDemoCompany } from "@/lib/demo-dossiers";
 import { RecapClientPanel } from "@/components/RecapClient";
 import { SourcePill } from "@/components/StatusPill";
 import { createClientAccount } from "@/lib/admin.functions";

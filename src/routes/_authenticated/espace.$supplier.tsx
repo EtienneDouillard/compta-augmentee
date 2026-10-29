@@ -224,17 +224,19 @@ function SupplierStep({ steps, idx, dossierId, progress }: {
               <div className={cn("grid gap-3", isSale ? "sm:grid-cols-2" : "sm:grid-cols-2 lg:grid-cols-4")}>
                 {!isSale && (
                   <ChoiceTile emoji="🤖" tone="mint" open={mode === "source"} onToggle={() => setMode(mode === "source" ? null : "source")}
-                    title="Automatiser" desc="Claude trouve où récupérer les factures de ce fournisseur, puis les collecte seul chaque mois." />
+                    title="Automatiser" desc="Claude trouve où récupérer les factures de ce fournisseur, puis les collecte seul chaque mois." aide={AIDE_CHOIX.source} />
                 )}
                 <ChoiceTile emoji="📤" tone="mint" open={mode === "upload"} onToggle={() => setMode(mode === "upload" ? null : "upload")}
-                  title="Déposer" desc="Envoyez la facture depuis votre ordinateur ou votre téléphone." />
+                  title="Déposer" desc="Envoyez la facture depuis votre ordinateur ou votre téléphone." aide={AIDE_CHOIX.upload} />
                 <ChoiceTile emoji="🚫" tone="yellow" open={mode === "none"} onToggle={() => setMode(mode === "none" ? null : "none")}
-                  title="Pas de facture" desc="Un mot d'explication aide votre comptable." />
+                  title="Pas de facture" desc="Un mot d'explication aide votre comptable." aide={AIDE_CHOIX.none} />
                 {!isSale && (
                   <ChoiceTile emoji="🤝" tone="pale" open={mode === "cabinet"} onToggle={() => setMode(mode === "cabinet" ? null : "cabinet")}
-                    title="Mon comptable s'en charge" desc="Il écrit au fournisseur pour vous." />
+                    title="Mon comptable s'en charge" desc="Il écrit au fournisseur pour vous." aide={AIDE_CHOIX.cabinet} />
                 )}
               </div>
+
+              {mode && <div className="mt-4"><EtApres>{AIDE_CHOIX[mode as Choix].apres}</EtApres></div>}
 
               {mode === "cabinet" && !isSale && (
                 <ChoicePanel>
