@@ -21,6 +21,7 @@ import { Route as AuthenticatedCabinetDossierIdRouteImport } from './routes/_aut
 import { Route as AuthenticatedCabinetParametresRouteImport } from './routes/_authenticated/cabinet.parametres'
 import { Route as AuthenticatedEspaceIndexRouteImport } from './routes/_authenticated/espace.index'
 import { Route as AuthenticatedEspaceSupplierRouteImport } from './routes/_authenticated/espace.$supplier'
+import { Route as AuthenticatedEspaceSourcesRouteImport } from './routes/_authenticated/espace.sources'
 import { Route as AuthenticatedEspaceTermineRouteImport } from './routes/_authenticated/espace.termine'
 import { Route as ApiPublicJobsSyncPennylaneRouteImport } from './routes/api/public/jobs/sync-pennylane'
 import { Route as ApiPublicPennylaneMcpCallbackRouteImport } from './routes/api/public/pennylane-mcp/callback'
@@ -89,6 +90,12 @@ const AuthenticatedEspaceSupplierRoute =
     path: '/espace/$supplier',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedEspaceSourcesRoute =
+  AuthenticatedEspaceSourcesRouteImport.update({
+    id: '/espace/sources',
+    path: '/espace/sources',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedEspaceTermineRoute =
   AuthenticatedEspaceTermineRouteImport.update({
     id: '/espace/termine',
@@ -118,6 +125,7 @@ export interface FileRoutesByFullPath {
   '/cabinet/$dossierId': typeof AuthenticatedCabinetDossierIdRoute
   '/cabinet/parametres': typeof AuthenticatedCabinetParametresRoute
   '/espace/$supplier': typeof AuthenticatedEspaceSupplierRoute
+  '/espace/sources': typeof AuthenticatedEspaceSourcesRoute
   '/espace/termine': typeof AuthenticatedEspaceTermineRoute
   '/cabinet/': typeof AuthenticatedCabinetIndexRoute
   '/espace/': typeof AuthenticatedEspaceIndexRoute
@@ -134,6 +142,7 @@ export interface FileRoutesByTo {
   '/cabinet/$dossierId': typeof AuthenticatedCabinetDossierIdRoute
   '/cabinet/parametres': typeof AuthenticatedCabinetParametresRoute
   '/espace/$supplier': typeof AuthenticatedEspaceSupplierRoute
+  '/espace/sources': typeof AuthenticatedEspaceSourcesRoute
   '/espace/termine': typeof AuthenticatedEspaceTermineRoute
   '/cabinet': typeof AuthenticatedCabinetIndexRoute
   '/espace': typeof AuthenticatedEspaceIndexRoute
@@ -152,6 +161,7 @@ export interface FileRoutesById {
   '/_authenticated/cabinet/$dossierId': typeof AuthenticatedCabinetDossierIdRoute
   '/_authenticated/cabinet/parametres': typeof AuthenticatedCabinetParametresRoute
   '/_authenticated/espace/$supplier': typeof AuthenticatedEspaceSupplierRoute
+  '/_authenticated/espace/sources': typeof AuthenticatedEspaceSourcesRoute
   '/_authenticated/espace/termine': typeof AuthenticatedEspaceTermineRoute
   '/_authenticated/cabinet/': typeof AuthenticatedCabinetIndexRoute
   '/_authenticated/espace/': typeof AuthenticatedEspaceIndexRoute
@@ -170,6 +180,7 @@ export interface FileRouteTypes {
     | '/cabinet/$dossierId'
     | '/cabinet/parametres'
     | '/espace/$supplier'
+    | '/espace/sources'
     | '/espace/termine'
     | '/cabinet/'
     | '/espace/'
@@ -186,6 +197,7 @@ export interface FileRouteTypes {
     | '/cabinet/$dossierId'
     | '/cabinet/parametres'
     | '/espace/$supplier'
+    | '/espace/sources'
     | '/espace/termine'
     | '/cabinet'
     | '/espace'
@@ -203,6 +215,7 @@ export interface FileRouteTypes {
     | '/_authenticated/cabinet/$dossierId'
     | '/_authenticated/cabinet/parametres'
     | '/_authenticated/espace/$supplier'
+    | '/_authenticated/espace/sources'
     | '/_authenticated/espace/termine'
     | '/_authenticated/cabinet/'
     | '/_authenticated/espace/'
@@ -306,6 +319,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedEspaceSupplierRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/espace/sources': {
+      id: '/_authenticated/espace/sources'
+      path: '/espace/sources'
+      fullPath: '/espace/sources'
+      preLoaderRoute: typeof AuthenticatedEspaceSourcesRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/espace/termine': {
       id: '/_authenticated/espace/termine'
       path: '/espace/termine'
@@ -336,6 +356,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedCabinetDossierIdRoute: typeof AuthenticatedCabinetDossierIdRoute
   AuthenticatedCabinetParametresRoute: typeof AuthenticatedCabinetParametresRoute
   AuthenticatedEspaceSupplierRoute: typeof AuthenticatedEspaceSupplierRoute
+  AuthenticatedEspaceSourcesRoute: typeof AuthenticatedEspaceSourcesRoute
   AuthenticatedEspaceTermineRoute: typeof AuthenticatedEspaceTermineRoute
   AuthenticatedCabinetIndexRoute: typeof AuthenticatedCabinetIndexRoute
   AuthenticatedEspaceIndexRoute: typeof AuthenticatedEspaceIndexRoute
@@ -347,6 +368,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedCabinetDossierIdRoute: AuthenticatedCabinetDossierIdRoute,
   AuthenticatedCabinetParametresRoute: AuthenticatedCabinetParametresRoute,
   AuthenticatedEspaceSupplierRoute: AuthenticatedEspaceSupplierRoute,
+  AuthenticatedEspaceSourcesRoute: AuthenticatedEspaceSourcesRoute,
   AuthenticatedEspaceTermineRoute: AuthenticatedEspaceTermineRoute,
   AuthenticatedCabinetIndexRoute: AuthenticatedCabinetIndexRoute,
   AuthenticatedEspaceIndexRoute: AuthenticatedEspaceIndexRoute,

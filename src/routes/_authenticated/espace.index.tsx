@@ -139,7 +139,7 @@ function Espace() {
               )}
             </p>
             <div className="max-w-2xl"><Nudge done={all.length - remaining} total={all.length} /></div>
-            {dossierId && <div className="max-w-2xl"><SourcesSummary dossierId={dossierId} suppliers={[...new Set(all.filter((g) => g.direction === "out").map((g) => g.name))]} /></div>}
+            {dossierId && <div className="max-w-2xl"><SourcesSummary dossierId={dossierId} suppliers={[...new Set(all.filter((t) => t.direction === "out").map((t) => t.supplier))]} /></div>}
 
             {remaining === 0 ? (
               <section className="mt-6 rounded-3xl bg-primary px-6 py-10 text-center text-primary-foreground sm:px-12">
