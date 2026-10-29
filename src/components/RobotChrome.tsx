@@ -26,7 +26,7 @@ const Tip = ({ text }: { text: string }) => (
   </TooltipProvider>
 );
 
-export function RobotChrome({ dossierId, robotUrl, lastRun, onSaveUrl, onFiles }: { dossierId: string; robotUrl: string; lastRun?: { at: string; message?: string } | null; onSaveUrl?: (url: string) => Promise<void>; onFiles?: (files: File[]) => void }) {
+export function RobotChrome({ dossierId, robotUrl, lastRun, onSaveUrl, onFiles }: { dossierId: string; robotUrl: string; lastRun?: { at: string; message?: string } | null; onSaveUrl?: (url: string) => Promise<void>; onFiles?: ((files: File[]) => void) | undefined }) {
   const [over, setOver] = useState(false);
   const send = (files: File[]) => { if (!files.length) return; if (!onFiles) { toast.error('Dépôt indisponible pour le moment.'); return; } onFiles(files); };
   const mint = useServerFn(createCollectorToken);
