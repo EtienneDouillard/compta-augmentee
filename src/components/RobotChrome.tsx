@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useServerFn } from '@tanstack/react-start';
 import { Check, Copy, Download, Info, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -33,6 +33,9 @@ export function RobotChrome({ dossierId, robotUrl, lastRun, onSaveUrl }: { dossi
   const [busy, setBusy] = useState(false);
   const [url, setUrl] = useState(robotUrl);
   const [savingUrl, setSavingUrl] = useState(false);
+  // React 19 neutralise les liens javascript: posés en prop : on écrit l'attribut à la main.
+  const favRef = useRef<HTMLAnchorElement>(null);
+  useEffect(() => { if (favRef.current && bm) favRef.current.setAttribute('href', bm); }, [bm]);
 
   async function getToken() {
     if (token) return token;
@@ -77,7 +80,7 @@ export function RobotChrome({ dossierId, robotUrl, lastRun, onSaveUrl }: { dossi
     <ol className="space-y-2">
       <li className="flex flex-wrap items-center gap-2"><span>1️⃣</span>
         {bm ? (
-          <a href={bm} onClick={e => e.preventDefault()} draggable title="Glisse-moi dans la barre de favoris" className="inline-flex cursor-grab items-center gap-1 rounded bg-primary px-2 py-1 font-semibold text-primary-foreground">🤖 CA+ Robot</a>
+          <a ref={favRef} onClick={e => e.preventDefault()} draggable title="Glisse-moi dans la barre de favoris" className="inline-flex cursor-grab items-center gap-1 rounded bg-primary px-2 py-1 font-semibold text-primary-foreground">🤖 CA+ Robot</a>
         ) : (
           <Button size="sm" variant="outline" disabled={busy} onClick={makeFavorite}>{busy ? <Loader2 className="animate-spin" /> : <span aria-hidden>🤖</span>}Créer mon favori</Button>
         )}
