@@ -103,7 +103,9 @@ export const guessSupplierSite = createServerFn({ method: 'POST' })
     const { apiKey, model } = await (await import("./claude-config.server")).claudeFor(context.userId);
     if (!apiKey) return { url: null };
     const url = await (await import('./supplier-site.server')).guessSiteClaude(apiKey, model, data.supplier, data.labels);
-    if (url && data.dossierId) {
+    // Saved only for a dossier the caller can read (RLS).
+    const canSee = data.dossierId ? !!(await context.supabase.from('dossiers').select('id').eq('id', data.dossierId).maybeSingle()).data : false;
+    if (url && data.dossierId && canSee) {
       const { supabaseAdmin } = await import('@/integrations/supabase/client.server');
       await supabaseAdmin.from('supplier_sites').upsert({ dossier_id: data.dossierId, supplier: data.supplier, url });
     }
