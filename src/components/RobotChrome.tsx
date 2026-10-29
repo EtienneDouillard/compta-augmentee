@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { useServerFn } from '@tanstack/react-start';
-import { Copy, Download, Info, Loader2 } from 'lucide-react';
+import { Check, Copy, Download, Info, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { createCollectorToken } from '@/lib/collector.functions';
 
 function download() {
@@ -14,10 +15,21 @@ function download() {
 
 const Tip = ({ text }: { text: string }) => <span title={text} aria-label={text} className="ml-1 inline-flex align-middle text-muted-foreground"><Info className="h-3.5 w-3.5" /></span>;
 
-export function RobotChrome({ dossierId, robotUrl, lastRun }: { dossierId: string; robotUrl: string; lastRun?: { at: string; message?: string } | null }) {
+export function RobotChrome({ dossierId, robotUrl, lastRun, onSaveUrl }: { dossierId: string; robotUrl: string; lastRun?: { at: string; message?: string } | null; onSaveUrl?: (url: string) => Promise<void> }) {
   const mint = useServerFn(createCollectorToken);
   const [token, setToken] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [url, setUrl] = useState(robotUrl);
+  const [savingUrl, setSavingUrl] = useState(false);
+
+  async function saveUrl() {
+    try { const u = new URL(url); if (u.protocol !== 'https:') throw new Error(); } catch { toast.error('Adresse invalide (https://…).'); return; }
+    if (!onSaveUrl) return;
+    setSavingUrl(true);
+    try { await onSaveUrl(url); toast.success('Adresse enregistrée'); }
+    catch (e) { toast.error(e instanceof Error ? e.message : 'Enregistrement impossible.'); }
+    finally { setSavingUrl(false); }
+  }
 
   async function pair() {
     setBusy(true);
