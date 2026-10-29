@@ -43,4 +43,4 @@
 - [x] Accueil client : 3 cartes (verte + bravo dedans ; graphique ; 🤖 automatisations)
 - [x] Pré-remplir le site fournisseur via Claude quand le libellé ne suffit pas (Delibero)
 - [x] Vue kanban par fournisseur (filtre) sur la liste
-- [ ] Robot : plan B 100 % automatique quand le site bloque son PDF (récapitulatif / impression PDF de la page), jamais de dépôt à la main
+- [x] Robot : plan B 100 % automatique quand le site bloque son PDF (récapitulatif / impression PDF de la page), jamais de dépôt à la main
