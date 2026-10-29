@@ -24,7 +24,7 @@ export function tiersKey(name: string): string {
   return (name || "")
     .toUpperCase()
     .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
+    .replace(/[\u0300-\u036f]/g, "")
     .replace(/[^A-Z0-9 ]+/g, " ")
     .split(/\s+/)
     .filter((w) => w && !LEGAL.has(w))
