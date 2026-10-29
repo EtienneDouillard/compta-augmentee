@@ -164,7 +164,7 @@ export const sendCabinetChatMessage = createServerFn({ method: "POST" })
     let text = "";
     try {
       const stream = client.messages.stream({
-        model: "claude-opus-5-5",
+        model: "claude-sonnet-5-5",
         max_tokens: 2000,
         system: SYSTEM,
         messages,
