@@ -31,5 +31,5 @@
 
 - [x] Paramètres : changer la clé API Claude et le modèle (cabinet et dirigeant séparés), défaut Sonnet 5.5
 - [x] Source : une seule solution affichée + configuration pas à pas + vérification de réception
-- [ ] Accueil dirigeant : compteur sources configurées / fournisseurs + lien vers un catalogue des sources
+- [x] Accueil dirigeant : compteur sources configurées / fournisseurs + lien vers un catalogue des sources
 - [ ] Transit des factures sans stockage : récupérer et envoyer directement dans Pennylane (bloqué tant que l écriture Pennylane est désactivée)
