@@ -174,7 +174,7 @@ export function InvoiceSourceSetup({ dossierId, supplier, onFiles }: { dossierId
       </li>)}</ul>}
     </div>}
 
-    {found && <details className="text-xs text-muted-foreground">
+    {found && !started && <details className="text-xs text-muted-foreground">
       <summary className="cursor-pointer">Détail de l’analyse de Claude</summary>
       <div className="mt-2 space-y-2">
         <p>{found.summary}</p>
