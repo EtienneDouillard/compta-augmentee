@@ -65,3 +65,9 @@ export function corpsMiseAJour(f: Facture, planItems: Map<string, number>, ligne
     },
   };
 }
+
+// The first call to the operations fails for many reasons; only a refusal of the token's rights is worth a
+// reconnection. Anything else (a parameter, an unknown operation, Pennylane down) is shown as Pennylane wrote it.
+export function estRefusDeDroit(message: string) {
+  return /scope|forbidden|unauthori[sz]ed|permission|not allowed|not enabled|access denied|\b40[13]\b/i.test(message);
+}

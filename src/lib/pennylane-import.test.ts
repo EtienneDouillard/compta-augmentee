@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { blocagesEnvoi, choisirPlanItem, clePlanItem, codeTva, corpsMiseAJour, type PlanItem } from "./pennylane-import";
+import { blocagesEnvoi, choisirPlanItem, clePlanItem, codeTva, corpsMiseAJour, estRefusDeDroit, type PlanItem } from "./pennylane-import";
 import type { Facture } from "./ventilation";
 
 const facture = (over: Partial<Facture> = {}): Facture => ({
@@ -54,5 +54,17 @@ describe("envoi d'une facture fournisseur dans Pennylane", () => {
     const sans6063 = new Map(trouves);
     sans6063.delete(clePlanItem("6063", "FR_200"));
     expect(blocagesEnvoi(facture(), sans6063)).toEqual(["Le compte 6063 n'est pas ouvert dans le dossier Pennylane pour ce taux de TVA : ouvrez-le d'abord."]);
+  });
+});
+
+describe("erreur à la première opération", () => {
+  it("refus de droit reconnu", () => {
+    expect(estRefusDeDroit("insufficient_scope")).toBe(true);
+    expect(estRefusDeDroit("HTTP 403 Forbidden")).toBe(true);
+    expect(estRefusDeDroit("Operation not enabled for this user")).toBe(true);
+  });
+  it("autre erreur montrée telle quelle", () => {
+    expect(estRefusDeDroit("Invalid filter: field number")).toBe(false);
+    expect(estRefusDeDroit("Unknown operation_id getListCompanyPlanItems")).toBe(false);
   });
 });

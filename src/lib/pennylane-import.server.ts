@@ -5,8 +5,8 @@
 // validated ones (account, VAT, amounts, line label).
 import { createHash } from "node:crypto";
 import { isDemoCompany } from "./demo-dossiers";
-import { openMcp } from "./mcp.server";
-import { blocagesEnvoi, choisirPlanItem, clePlanItem, codeTva, corpsMiseAJour, type PlanItem } from "./pennylane-import";
+import { noterErreurMcp, openMcp } from "./mcp.server";
+import { blocagesEnvoi, choisirPlanItem, clePlanItem, codeTva, corpsMiseAJour, estRefusDeDroit, type PlanItem } from "./pennylane-import";
 import type { Facture } from "./ventilation";
 
 export const ENVOI_DEMO_ONLY_MSG = "L'envoi vers Pennylane est réservé aux dossiers démo du hackathon.";
@@ -41,9 +41,12 @@ export async function envoyerFacture(opts: {
       const r = await run<{ plan_items: PlanItem[]; pagination?: { hasNextPage?: boolean } }>(
         "getListCompanyPlanItems", "Looking up the company's expense accounts used by a supplier invoice before importing it.",
         { query_params: { page, per_page: 100, filter: JSON.stringify([{ field: "number", operator: "in", value: numeros }]) } },
-      ).catch((e: Error) => {
+      ).catch(async (e: Error) => {
+        // Every failure used to be shown as a missing right, so a reconnection never helped and the real cause
+        // stayed hidden. The detail is now kept on the connection row and shown when it is not about rights.
         console.error("pennylane-import operations", e.message);
-        throw new Error(PAS_DE_DROIT_MSG);
+        await noterErreurMcp("Envoi saisie (plan comptable)", e.message).catch(() => {});
+        throw new Error(estRefusDeDroit(e.message) ? PAS_DE_DROIT_MSG : `Pennylane a refusé la lecture du plan comptable : ${e.message.slice(0, 200)}`);
       });
       items.push(...(r.plan_items ?? []));
       if (!r.pagination?.hasNextPage) break;

@@ -4,22 +4,13 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import { CfWorkerJsonSchemaValidator } from "@modelcontextprotocol/sdk/validation/cfworker-provider.js";
 import { isDemoCompany, mcpCallAllowed, MCP_DEMO_ONLY_MSG } from "./demo-dossiers";
+import { MCP_READ_SCOPES, scopesDemandes } from "./mcp-scopes";
 
 export const MCP_URL = "https://mcp.pennylane.com/mcp";
 const AUTH_BASE = "https://mcp.pennylane.com/oauth";
-export const MCP_SCOPES = [
-  "mcp:transaction:read",
-  "mcp:ledger_entry:read",
-  "mcp:ledger_entry_line:read",
-  "mcp:supplier:read",
-  "mcp:customer:read",
-  "mcp:company:read", // get_context
-  "mcp:companies:read", // list_companies (firm portfolio)
-].join(" ");
+export const MCP_SCOPES = MCP_READ_SCOPES.join(" ");
 
-// The "saisie augmentée" sends invoices through run_operations (demo dossiers only). Pennylane does not publish the
-// name of the scope it needs, so it is read from the server's OAuth metadata (RFC 8414, scopes_supported): the
-// scopes about operations are added to the read scopes above. Without the metadata, only the read scopes are asked.
+// Scopes asked when connecting: see mcp-scopes.ts. Read from the server's OAuth metadata, cached once found.
 const METADATA_URL = "https://mcp.pennylane.com/.well-known/oauth-authorization-server";
 let scopesCache: string | null = null;
 export async function mcpScopes(): Promise<string> {
@@ -27,10 +18,8 @@ export async function mcpScopes(): Promise<string> {
   try {
     const res = await fetch(METADATA_URL, { headers: { Accept: "application/json" } });
     if (!res.ok) return MCP_SCOPES;
-    const meta = (await res.json()) as { scopes_supported?: string[] };
-    const base = MCP_SCOPES.split(" ");
-    const operations = (meta.scopes_supported ?? []).filter((sc) => /operation/i.test(sc) && !base.includes(sc));
-    scopesCache = [...base, ...operations].join(" ");
+    const meta = (await res.json()) as { scopes_supported?: unknown[] };
+    scopesCache = scopesDemandes(meta.scopes_supported);
     return scopesCache;
   } catch {
     return MCP_SCOPES;
@@ -48,6 +37,7 @@ type Secrets = {
   refresh_token?: string | undefined;
   expires_at?: number; // ms
   scopes?: string; // scopes requested when this token was granted
+  granted?: string | undefined; // scopes Pennylane says it granted (token response), for diagnosis
 };
 
 const db = async () => (await import("@/integrations/supabase/client.server")).supabaseAdmin;
@@ -101,6 +91,14 @@ export async function getMcpPublicStatus() {
     needsReauth = !!secrets && secrets.scopes !== (await mcpScopes());
   }
   return { status: data?.status ?? "disconnected", error: data?.last_error ?? null, updatedAt: data?.updated_at ?? null, needsReauth };
+}
+
+// Keeps the detail of a failed MCP call on the connection row (last_error), without changing its status, so the
+// cause can be read in the database. The scopes asked and granted are added: they are not secret.
+export async function noterErreurMcp(contexte: string, detail: string) {
+  const { secrets } = await loadSecrets().catch(() => ({ secrets: null }));
+  const scopes = secrets ? ` | scopes demandés : ${secrets.scopes ?? "?"} | accordés : ${secrets.granted ?? "non indiqués"}` : "";
+  await (await db()).from("mcp_connection").update({ last_error: `${contexte} : ${detail}${scopes}`.slice(0, 1000), updated_at: new Date().toISOString() }).eq("id", 1);
 }
 
 // ---------- OAuth: start (DCR + PKCE) ----------
@@ -159,7 +157,7 @@ async function tokenRequest(params: Record<string, string>, client_secret?: stri
     body,
   });
   if (!res.ok) throw new Error(`token ${res.status}`);
-  return (await res.json()) as { access_token: string; refresh_token?: string; expires_in?: number };
+  return (await res.json()) as { access_token: string; refresh_token?: string; expires_in?: number; scope?: string };
 }
 
 // ---------- OAuth: callback ----------
@@ -183,6 +181,7 @@ export async function finishOAuth(state: string, code: string) {
       refresh_token: tok.refresh_token,
       expires_at: Date.now() + (tok.expires_in ?? 3600) * 1000,
       scopes: s.scopes ?? MCP_SCOPES,
+      granted: tok.scope,
     },
     "connected",
     null,
@@ -212,6 +211,7 @@ async function accessToken(force = false): Promise<string> {
         access_token: tok.access_token,
         refresh_token: tok.refresh_token ?? secrets.refresh_token,
         expires_at: Date.now() + (tok.expires_in ?? 3600) * 1000,
+        granted: tok.scope ?? secrets.granted,
       },
       "connected",
       null,
