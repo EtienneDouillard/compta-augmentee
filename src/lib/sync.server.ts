@@ -184,14 +184,24 @@ export async function syncDossier(dossierId: string) {
     // 3. Upsert into the database, reapplying cabinet supplier corrections
     const { data: aliases } = await db.from("supplier_aliases").select("detected_name, display_name").eq("dossier_id", dossierId);
     const aliasMap = new Map((aliases ?? []).map((a) => [a.detected_name, a.display_name]));
-    const { data: existing } = await db
-      .from("transactions")
-      .select("id, pennylane_id, is_open, review_state, status")
-      .eq("dossier_id", dossierId);
-    const byPl = new Map((existing ?? []).map((e) => [e.pennylane_id, e]));
+    // PostgREST returns at most 1000 rows per call: page through, or lines beyond 1000 look new and are inserted twice.
+    const existing: { id: string; pennylane_id: string; is_open: boolean; review_state: string; status: string }[] = [];
+    for (let from = 0; ; from += 1000) {
+      const { data, error } = await db
+        .from("transactions")
+        .select("id, pennylane_id, is_open, review_state, status")
+        .eq("dossier_id", dossierId)
+        .order("id")
+        .range(from, from + 999);
+      if (error) throw error;
+      existing.push(...(data ?? []));
+      if (!data || data.length < 1000) break;
+    }
+    const byPl = new Map(existing.map((e) => [e.pennylane_id, e]));
     const neededIds = new Set(needed.map((t) => String(t.id)));
 
-    const inserts = needed
+    // A paginated source can return the same transaction twice: keep one row per Pennylane id.
+    const inserts = [...new Map(needed.map((t) => [String(t.id), t])).values()]
       .filter((t) => !byPl.has(String(t.id)))
       .map((t) => {
         const detected = normalizeSupplier(t.label ?? "");
@@ -209,13 +219,14 @@ export async function syncDossier(dossierId: string) {
         };
       });
     if (inserts.length) {
-      const { error } = await db.from("transactions").insert(inserts);
+      // ignoreDuplicates: a concurrent sync (scheduled run + button) may have inserted the same line meanwhile.
+      const { error } = await db.from("transactions").upsert(inserts, { onConflict: "dossier_id,pennylane_id", ignoreDuplicates: true });
       if (error) throw error;
     }
-    const reopen = (existing ?? []).filter((e) => !e.is_open && neededIds.has(e.pennylane_id)).map((e) => e.id);
+    const reopen = existing.filter((e) => !e.is_open && neededIds.has(e.pennylane_id)).map((e) => e.id);
     if (reopen.length) await db.from("transactions").update({ is_open: true }).in("id", reopen);
     // Excluded only by the account filter (still unlettered): keep payments already sent with a client answer.
-    const close = (existing ?? [])
+    const close = existing
       .filter((e) => e.is_open && !neededIds.has(e.pennylane_id))
       .filter((e) => !(unletteredElsewhere.has(e.pennylane_id) && e.review_state === "sent" && e.status !== "a_faire"))
       .map((e) => e.id);
