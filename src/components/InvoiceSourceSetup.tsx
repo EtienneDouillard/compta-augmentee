@@ -10,6 +10,11 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { getInvoiceSource, saveInvoiceSource } from '@/lib/invoice-sources.functions';
 import { sourceGuidance } from '@/lib/invoice-sources';
 import { researchInvoiceSource, type SourceResearch } from '@/lib/invoice-research.functions';
+import { checkInvoiceCollection } from '@/lib/invoice-collect.functions';
+import type { CollectResult } from '@/lib/invoice-sources';
+
+type CheckData = { results: CollectResult[]; steps: string[] };
+const STATUS: Record<CollectResult['status'], string> = { conforme: '✓ Pièce reçue et conforme', recu_pennylane: '✓ Pièce dans Pennylane', non_conforme: '✗ Pièce non conforme', manquant: '• Pièce manquante', email_annonce: '… Envoi annoncé' };
 
 export function InvoiceSourceSetup({ dossierId, supplier }: { dossierId: string; supplier: string }) {
   const load = useServerFn(getInvoiceSource);
@@ -31,7 +36,7 @@ export function InvoiceSourceSetup({ dossierId, supplier }: { dossierId: string;
   async function runResearch() {
     try { const u = new URL(url); if (u.protocol !== 'https:') throw new Error(); } catch { toast.error('Renseignez une URL HTTPS valide.'); return; }
     setSearching(true); setFound(null); setGuidance(sourceGuidance(url));
-    try { setFound(await research({ data: { supplier, sourceUrl: url } })); }
+    try { setFound(await research({ data: { dossierId, supplier, sourceUrl: url } })); await qc.invalidateQueries({ queryKey }); }
     catch (e) { toast.error(e instanceof Error ? e.message : 'Recherche impossible.'); }
     finally { setSearching(false); }
   }
@@ -39,6 +44,15 @@ export function InvoiceSourceSetup({ dossierId, supplier }: { dossierId: string;
     setMethod(r.recommended); setConfigured(false);
     setPath([r.billingPath, ...r.options.map(o => `• ${o.title} : ${o.detail}${o.source ? ` (${o.source})` : ''}`)].filter(Boolean).join('\n'));
     toast.success('Recommandation appliquée. Vérifiez puis enregistrez.');
+  }
+  const runCheck = useServerFn(checkInvoiceCollection);
+  const [check, setCheck] = useState<CheckData | null>(null);
+  const [checking, setChecking] = useState(false);
+  async function verify() {
+    setChecking(true);
+    try { const r = await runCheck({ data: { dossierId, supplier } }); setCheck(r); await qc.invalidateQueries({ queryKey }); toast.success(r.state === 'active' ? 'Collecte vérifiée : tout est en ordre.' : 'Contrôle terminé : des pièces demandent votre attention.'); }
+    catch (e) { toast.error(e instanceof Error ? e.message : 'Contrôle impossible.'); }
+    finally { setChecking(false); }
   }
   const methodLabel = { email: 'E-mail vers Pennylane', browser: 'Chemin dans le navigateur', api: 'API', mcp: 'MCP' } as const;
   useEffect(() => {
@@ -49,6 +63,8 @@ export function InvoiceSourceSetup({ dossierId, supplier }: { dossierId: string;
     setUrl(s.source_url); setPath(s.billing_path); setMethod(s.method as typeof method);
     setConfigured(s.state === 'awaiting_first_invoice'); setAutoSend(s.auto_send_documents);
     setGuidance(sourceGuidance(s.source_url));
+    if (s.research) setFound(s.research as unknown as SourceResearch);
+    if (s.last_check) setCheck(s.last_check as unknown as CheckData);
   }, [query.data]);
   async function submit() {
     setBusy(true);
@@ -86,10 +102,21 @@ export function InvoiceSourceSetup({ dossierId, supplier }: { dossierId: string;
       <div className="flex gap-2"><Input id="invoice-receipt-email" type="email" value={email} onChange={e => setEmail(e.target.value)} /><Button variant="outline" size="icon" aria-label="Copier l’adresse de réception" disabled={!email} onClick={async () => { await navigator.clipboard.writeText(email); toast.success('Adresse copiée'); }}><Copy /></Button></div>
       <p className="text-sm text-muted-foreground">À renseigner dans la facturation du fournisseur, s’il permet l’envoi des factures à cette adresse. Pennylane reçoit les pièces directement ; Claude ne les contrôle pas avant cet envoi.</p>
       <label className="flex items-start gap-3 text-sm"><Checkbox checked={configured} onCheckedChange={v => setConfigured(v === true)} />J’ai configuré cette adresse chez le fournisseur.</label>
-    </div> : <p className="text-sm text-muted-foreground">Le chemin sera conservé. Aucun robot, accès API ou MCP fournisseur n’est connecté ici. Aucun mot de passe ni cookie ne doit être renseigné.</p>}
+    </div> : method === 'browser' ? <div className="space-y-2 text-sm text-muted-foreground">
+      <p>Chaque mois : ouvrez le chemin ci-dessous (vous êtes déjà connecté dans votre navigateur), téléchargez le PDF et déposez-le sur le paiement plus haut. CA+ le contrôle ensuite avec Claude.</p>
+      {url && <a href={url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-primary underline">Ouvrir {supplier} <ExternalLink className="h-3 w-3" /></a>}
+    </div> : <p className="text-sm text-muted-foreground">Ce fournisseur doit d’abord ouvrir un accès {method.toUpperCase()} officiel aux factures (voir la préconisation). En attendant, la collecte se fait par e-mail ou par dépôt, et le contrôle ci-dessous fonctionne déjà. Aucun mot de passe ni cookie n’est conservé.</p>}
     <div className="space-y-2"><label htmlFor="invoice-billing-path" className="font-semibold">Chemin de facturation / notes</label><Textarea id="invoice-billing-path" placeholder="Paramètres → Facturation → Factures → Télécharger le PDF" value={path} onChange={e => setPath(e.target.value)} /></div>
-    <label className="flex items-start gap-3 text-sm"><Checkbox checked={autoSend} onCheckedChange={v => setAutoSend(v === true)} />Autoriser l’envoi automatique des pièces après contrôle Claude, lorsque la collecte CA+ sera connectée.</label>
-    <p className="text-sm text-muted-foreground">Contrôle CA+ par Claude Sonnet 5.5 : facture, fournisseur, entreprise, période, montant et devise. Contrôle préalable et récupération mensuelle CA+ non actifs à ce stade. Aucune modification d’écriture comptable.</p>
     <Button disabled={busy || !url} onClick={submit}>{busy ? <Loader2 className="animate-spin" /> : <Save />}Enregistrer la source</Button>
+    {query.data.source && <div className="space-y-3 border-t pt-5">
+      <p className="font-semibold">Contrôle de la collecte</p>
+      <p className="text-sm text-muted-foreground">Actualise Pennylane, puis Claude Sonnet 5.5 vérifie chaque pièce reçue : facture, fournisseur, montant TTC et date. Aucune écriture comptable n’est modifiée.</p>
+      <Button variant="outline" disabled={checking} onClick={verify}>{checking ? <><Loader2 className="animate-spin" />Contrôle en cours…</> : 'Vérifier la collecte maintenant'}</Button>
+      {query.data.source.last_check_at && <p className="text-xs text-muted-foreground">Dernier contrôle : {new Date(query.data.source.last_check_at).toLocaleString('fr-FR')}</p>}
+      {check && <div className="space-y-2 text-sm">
+        {check.steps.map((s, i) => <p key={i} className="text-muted-foreground">{s}</p>)}
+        {check.results.length === 0 ? <p>Aucun paiement à justifier pour ce fournisseur.</p> : <ul className="divide-y rounded-md border">{check.results.map(r => <li key={r.transactionId} className="p-3"><div className="flex justify-between gap-3"><span className={r.status === 'conforme' || r.status === 'recu_pennylane' ? 'font-semibold text-primary' : r.status === 'non_conforme' ? 'font-semibold text-destructive' : 'font-semibold'}>{STATUS[r.status]}</span><span className="text-muted-foreground">{new Date(r.date).toLocaleDateString('fr-FR')} · {Math.abs(r.amount).toFixed(2)} €</span></div><p className="text-muted-foreground">{r.reason}</p></li>)}</ul>}
+      </div>}
+    </div>}
   </div>;
 }
