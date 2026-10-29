@@ -5,7 +5,7 @@ import { InvoiceSourceSetup } from "@/components/InvoiceSourceSetup";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import {
-  AlertTriangle, ArrowLeft, ArrowRight, Camera, Check,  CloudUpload, Copy, FileX, FolderOpen, Info, Mail, MailPlus, PartyPopper, Sparkles, Upload,
+  AlertTriangle, ArrowLeft, ArrowRight, Camera, Check,  CloudUpload, Copy, FolderOpen, Info, Mail, MailPlus, PartyPopper, Sparkles, Upload,
   type LucideIcon,
 } from "lucide-react";
 import { AppHeader } from "@/components/AppHeader";
