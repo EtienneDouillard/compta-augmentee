@@ -39,4 +39,4 @@
 - [x] Robot CA+ : URL préremplie modifiable avec sauvegarde
 - [x] Infobulle (i) : remplacer le survol natif par une vraie infobulle
 - [x] Déployer en prod (demandé 29/10 11:41)
-- [ ] Intégrer PR Julien #6–#9 (compta-augmentee) : migrations #7 #8 #9, code, puis fermer les PR
+- [x] Intégrer PR Julien #6–#9 (compta-augmentee) : migrations #7 #8 #9, code, puis fermer les PR
