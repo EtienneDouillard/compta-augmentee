@@ -74,7 +74,7 @@ function AppPage() {
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setEmail(data.user?.email ?? ""));
-    supabase.from("dossiers").select("id, nom, client_nom, client_token").order("created_at").then(({ data }) => {
+    supabase.from("dossiers").select("id, nom:name, client_nom, client_token").order("created_at").then(({ data }) => {
       setDossiers(data ?? []);
       if (data?.[0]) setDossierId(data[0].id);
     });
