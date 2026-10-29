@@ -36,7 +36,7 @@ if(!d)return;
 var ext=m==="application/pdf"?".pdf":m==="image/png"?".png":".jpg";
 var name=((a.textContent||"facture").trim().replace(/[^\\w.-]+/g,"_").slice(0,60)||"facture")+ext;
 return fetch(A,{method:"POST",headers:{Authorization:"Bearer "+T,"Content-Type":"application/json"},body:JSON.stringify({sourceId:src.id,fileName:name,mime:m,base64:String(d).split(",")[1]||""})}).then(function(r){return r.json()}).then(function(j){if(j&&j.attached)ok++;if(j&&j.message)msgs.push(j.message)});
-}).catch(function(){}))).then(function(){
+}).catch(function(){})}))).then(function(){
 if(ok){say("✅ "+ok+" envoyée(s) à CA+");end()}
 else if(msgs.length){say("⚠️ "+msgs[0]);end()}
 else{say("⚠️ Rien envoyé — vérifie que les factures sont des PDF");end()}
