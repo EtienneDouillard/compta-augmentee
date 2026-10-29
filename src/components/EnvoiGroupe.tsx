@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { AlertTriangle, CheckCircle2, Send, XCircle } from "lucide-react";
+import { AlertTriangle, CheckCircle2, FileText, Send, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { MAX_ENVOI_GROUPE } from "@/lib/envoi-groupe";
@@ -13,7 +13,15 @@ const plural = (n: number, w: string) => `${n} ${w}${n > 1 ? "s" : ""}`;
 
 // Envoi groupé (demande de Julien) : le cabinet valide et envoie dans Pennylane, en une seule confirmation,
 // toutes les factures lues par Claude qui sont prêtes. Les autres restent à ouvrir une par une.
-export function EnvoiGroupe({ dossierId, onDone }: { dossierId: string; onDone: () => void }) {
+export function EnvoiGroupe({
+  dossierId,
+  onDone,
+  onOpen,
+}: {
+  dossierId: string;
+  onDone: () => void;
+  onOpen: (uploadId: string) => void;
+}) {
   const q = useQuery({
     queryKey: ["envoi-groupe", dossierId],
     queryFn: () => listerEnvoiGroupe({ data: { dossierId } }),
@@ -77,8 +85,8 @@ export function EnvoiGroupe({ dossierId, onDone }: { dossierId: string; onDone: 
       </h2>
       <p className="mt-1 text-sm text-muted-foreground">
         Les factures lues par Claude, sans écart, sont validées telles que proposées puis envoyées
-        avec leur PDF, en une seule confirmation. Celles qui demandent un regard sont listées à part
-        : ouvrez-les depuis le tableau des paiements.
+        avec leur PDF, en une seule confirmation. Celles qui demandent un regard sont listées à
+        part. Cliquez sur une facture pour l'ouvrir et voir l'affectation comptable proposée.
       </p>
 
       {!demo ? (
@@ -101,6 +109,7 @@ export function EnvoiGroupe({ dossierId, onDone }: { dossierId: string; onDone: 
                 checked={chosen.has(l.id)}
                 disabled={!actif || busy}
                 onToggle={(on) => toggle(l.id, on)}
+                onOpen={() => onOpen(l.uploadId)}
               />
             ))}
           </ul>
@@ -167,15 +176,22 @@ export function EnvoiGroupe({ dossierId, onDone }: { dossierId: string; onDone: 
           </p>
           <ul className="mt-2 divide-y rounded-lg border text-sm">
             {aRevoir.map((l) => (
-              <li key={l.id} className="px-3 py-2">
-                <span className="font-semibold">
-                  {l.fournisseur}
-                  {l.numero ? ` n° ${l.numero}` : ""}
-                </span>
-                <span className="text-muted-foreground">
-                  {" "}
-                  · {formatEUR(l.totalTtc)} · {!l.etat.pret && l.etat.raison}
-                </span>
+              <li key={l.id}>
+                <button
+                  type="button"
+                  onClick={() => onOpen(l.uploadId)}
+                  className="w-full px-3 py-2 text-left hover:bg-muted/50"
+                >
+                  <FileText className="mr-1.5 inline h-4 w-4 text-muted-foreground" aria-hidden />
+                  <span className="font-semibold underline-offset-2 hover:underline">
+                    {l.fournisseur}
+                    {l.numero ? ` n° ${l.numero}` : ""}
+                  </span>
+                  <span className="text-muted-foreground">
+                    {" "}
+                    · {formatEUR(l.totalTtc)} · {!l.etat.pret && l.etat.raison}
+                  </span>
+                </button>
               </li>
             ))}
           </ul>
@@ -190,11 +206,13 @@ function EnvoiRow({
   checked,
   disabled,
   onToggle,
+  onOpen,
 }: {
   l: LigneEnvoi;
   checked: boolean;
   disabled: boolean;
   onToggle: (on: boolean) => void;
+  onOpen: () => void;
 }) {
   const label = `${l.fournisseur}${l.numero ? ` n° ${l.numero}` : ""}`;
   return (
@@ -205,10 +223,16 @@ function EnvoiRow({
         onCheckedChange={(v) => onToggle(v === true)}
         aria-label={`Sélectionner ${label}`}
       />
-      <span className="min-w-0 flex-1 truncate">
-        <span className="font-semibold">{label}</span>
+      <button
+        type="button"
+        onClick={onOpen}
+        title="Ouvrir la facture et son affectation"
+        className="min-w-0 flex-1 truncate text-left"
+      >
+        <FileText className="mr-1.5 inline h-4 w-4 text-muted-foreground" aria-hidden />
+        <span className="font-semibold underline-offset-2 hover:underline">{label}</span>
         {l.date && <span className="text-muted-foreground"> · {formatDate(l.date)}</span>}
-      </span>
+      </button>
       <span className="text-xs text-muted-foreground">
         {l.etat.pret && l.etat.aValider ? "à valider et envoyer" : "validée, à envoyer"}
       </span>

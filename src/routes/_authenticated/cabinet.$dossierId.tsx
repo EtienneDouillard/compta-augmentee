@@ -169,7 +169,7 @@ function DossierPage() {
           <LinesTable key={vue ?? "defaut"} txs={txs} uploads={uploads} onChanged={reload} onRename={rename} onDownload={download} onSaisie={setSaisie} initialTab={vue} />
         </div>
         <SaisieAugmentee uploadId={saisie} onClose={() => { setSaisie(null); qc.invalidateQueries({ queryKey: ["envoi-groupe", dossierId] }); }} />
-        <EnvoiGroupe dossierId={dossierId} onDone={reload} />
+        <EnvoiGroupe dossierId={dossierId} onDone={reload} onOpen={setSaisie} />
         <SkipRulesPanel dossierId={dossierId} txs={txs} onChanged={reload} />
 
         <div className="grid gap-5 lg:grid-cols-2">
