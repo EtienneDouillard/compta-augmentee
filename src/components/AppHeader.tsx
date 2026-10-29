@@ -87,7 +87,9 @@ export function CabinetContact({ className }: { className?: string | undefined }
 function CabinetBar({ onSignOut }: { onSignOut: () => void }) {
   const me = useQuery(meQuery);
   const email = me.data?.email ?? "";
-  const onSettings = useRouterState({ select: (st) => st.location.pathname.startsWith("/cabinet/parametres") });
+  const path = useRouterState({ select: (st) => st.location.pathname });
+  const onSettings = path.startsWith("/cabinet/parametres");
+  const onApp = path === "/app";
   return (
     <header className="bg-primary text-primary-foreground">
       <div className="mx-auto flex max-w-7xl items-center gap-6 px-4">
@@ -98,8 +100,8 @@ function CabinetBar({ onSignOut }: { onSignOut: () => void }) {
           </span>
         </Link>
         <nav className="hidden self-stretch sm:flex">
-          <NavTab to="/cabinet" active={!onSettings}><FolderOpen className="h-4 w-4" /> Dossiers clients</NavTab>
-          <NavTab to="/app" active={false}><BookOpen className="h-4 w-4" /> Ventilation & livre</NavTab>
+          <NavTab to="/cabinet" active={!onSettings && !onApp}><FolderOpen className="h-4 w-4" /> Dossiers clients</NavTab>
+          <NavTab to="/app" active={onApp}><BookOpen className="h-4 w-4" /> Ventilation & livre</NavTab>
           <NavTab to="/cabinet/parametres" active={onSettings}><Settings className="h-4 w-4" /> Paramètres</NavTab>
         </nav>
         <div className="ml-auto flex items-center gap-3 py-2">
