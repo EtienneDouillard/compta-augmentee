@@ -6,7 +6,8 @@
 - [x] Contrôle de collecte : actualisation Pennylane + vérification Claude de chaque pièce déposée, état actif/attention
 - [ ] Contrôle mensuel automatique (planification) — à brancher ensuite
 - [ ] Collecte mensuelle et envoi des pièces contrôlées — fournisseur réel et méthode de téléchargement à connecter ; aucune collecte active
-- [ ] Compagnon Chrome — installation utilisateur nécessaire, sans export des cookies ni mots de passe fournisseur
+- [x] Compagnon Chrome — installation utilisateur nécessaire, sans export des cookies ni mots de passe fournisseur
+- [x] Robot 2 clics : favori bookmarklet sans installation (extension gardée en option repliée)
 - [x] Corriger la configuration Claude et vérifier une conversation réelle
 - [x] Relier l'assistant aux actions du dossier avec confirmation et contrôle des droits
 - [x] Prototype : ventilation, livre de lecture, échange client
