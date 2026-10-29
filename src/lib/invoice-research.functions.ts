@@ -109,14 +109,3 @@ export const guessSupplierSite = createServerFn({ method: 'POST' })
     }
     return { url };
   });
-    if (!res.ok) return { url: null };
-    const json = await res.json() as { content: { type: string; text?: string }[] };
-    const text = json.content.filter(c => c.type === 'text').map(c => c.text ?? '').join('').trim();
-    const m = text.match(/https:\/\/[^\s"'<>)]+/);
-    if (!m) return { url: null };
-    try {
-      const u = new URL(m[0]);
-      const r = await fetch(u.origin, { method: 'GET', redirect: 'follow', headers: { 'user-agent': 'Mozilla/5.0 CA+ link check' }, signal: AbortSignal.timeout(6000) }).catch(() => null);
-      return { url: r && r.status < 500 ? u.href : u.origin };
-    } catch { return { url: null }; }
-  });
