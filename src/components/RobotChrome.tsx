@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { createCollectorToken } from '@/lib/collector.functions';
 import { buildBookmarklet } from '@/lib/bookmarklet';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 function download() {
   fetch('/ca-plus-robot.zip')
@@ -16,7 +16,8 @@ function download() {
 }
 
 const Tip = ({ text }: { text: string }) => (
-  <Tooltip delayDuration={0}>
+  <TooltipProvider delayDuration={0}>
+    <Tooltip>
     <TooltipTrigger asChild>
       <button type="button" aria-label={text} className="ml-1 inline-flex align-middle text-muted-foreground"><Info className="h-3.5 w-3.5" /></button>
     </TooltipTrigger>
