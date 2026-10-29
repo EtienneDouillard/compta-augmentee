@@ -179,14 +179,14 @@ async function lire(db: any, upload: any, tx: any, userId: string) {
   const source = { type: "base64" as const, media_type: media, data: btoa(bin) };
   const piece = media === "application/pdf" ? { type: "document" as const, source } : { type: "image" as const, source };
 
-  const apiKey = process.env["ANTHROPIC_API_KEY"];
+  const { apiKey, model } = await (await import("./claude-config.server")).claudeFor(userId);
   if (!apiKey) throw new Error("La saisie augmentée n'est pas encore configurée : la clé ANTHROPIC_API_KEY manque.");
   const { default: Anthropic } = await import("@anthropic-ai/sdk");
   const client = new Anthropic({ apiKey, maxRetries: 1 });
   let final: any;
   try {
     final = await client.messages.stream({
-      model: ANALYSIS_MODEL,
+      model,
       max_tokens: 16000,
       system: SYSTEM_LECTURE,
       messages: [{ role: "user", content: [piece, { type: "text", text: "Lis cette facture." }] }],
@@ -199,7 +199,7 @@ async function lire(db: any, upload: any, tx: any, userId: string) {
   const cost = costUsd(final.usage);
   // Logged with the analyses so the monthly cap covers both.
   await db.from("ai_analysis_runs").insert({
-    dossier_id: upload.dossier_id, user_id: userId, model: ANALYSIS_MODEL, kind: "saisie", lines_analyzed: 0,
+    dossier_id: upload.dossier_id, user_id: userId, model, kind: "saisie", lines_analyzed: 0,
     input_tokens: final.usage.input_tokens, output_tokens: final.usage.output_tokens, cost_usd: Number(cost.toFixed(4)),
   });
 
@@ -207,7 +207,7 @@ async function lire(db: any, upload: any, tx: any, userId: string) {
   const lecture = parseLecture(text);
   const base = {
     dossier_id: upload.dossier_id, upload_id: upload.id, transaction_id: tx.id, tiers: tx.supplier,
-    model: ANALYSIS_MODEL, cost_usd: Number((Number(prev?.cost_usd ?? 0) + cost).toFixed(4)),
+    model, cost_usd: Number((Number(prev?.cost_usd ?? 0) + cost).toFixed(4)),
     lu_par: userId, lu_le: new Date().toISOString(), decided_by: null, decided_at: null,
   };
   if (!lecture) {

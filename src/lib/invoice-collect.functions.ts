@@ -5,7 +5,7 @@ import { collectionState, type CollectResult } from './invoice-sources';
 
 type Verdict = { pertinent: boolean; fournisseur: string; montantTtc: number | null; date: string | null; raison: string };
 
-async function verifyWithClaude(apiKey: string, file: Blob, path: string, expected: { supplier: string; amount: number; date: string; label: string }): Promise<Verdict> {
+async function verifyWithClaude(apiKey: string, model: string, file: Blob, path: string, expected: { supplier: string; amount: number; date: string; label: string }): Promise<Verdict> {
   const bytes = new Uint8Array(await file.arrayBuffer());
   let bin = '';
   for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
@@ -14,7 +14,7 @@ async function verifyWithClaude(apiKey: string, file: Blob, path: string, expect
     method: 'POST',
     headers: { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
     body: JSON.stringify({
-      model: 'claude-sonnet-5-5', max_tokens: 2000,
+      model, max_tokens: 2000,
       system: 'Tu contrôles des pièces justificatives pour un cabinet comptable français. Tu vérifies que le document est bien une facture (pas un reçu de consommation ni un devis), du bon fournisseur, d’un montant TTC cohérent avec le paiement (écart toléré : change, quelques centimes) et d’une date proche. Réponds avec l’outil verdict.',
       messages: [{ role: 'user', content: [
         { type: mime === 'application/pdf' ? 'document' : 'image', source: { type: 'base64', media_type: mime, data: btoa(bin) } },
@@ -53,7 +53,7 @@ export const checkInvoiceCollection = createServerFn({ method: 'POST' })
     const ids = (txs ?? []).map(t => t.id);
     const { data: ups } = ids.length ? await db.from('uploads').select('id, transaction_id, storage_path, created_at').in('transaction_id', ids).order('created_at', { ascending: false }) : { data: [] };
     const previous = new Map(((source.last_check as { results?: CollectResult[] } | null)?.results ?? []).filter(r => r.uploadId).map(r => [r.uploadId!, r]));
-    const apiKey = process.env['ANTHROPIC_API_KEY'];
+    const { apiKey, model } = await (await import("./claude-config.server")).claudeFor(context.userId);
     let claudeCalls = 0;
     const results: CollectResult[] = [];
     for (const t of txs ?? []) {
@@ -68,7 +68,7 @@ export const checkInvoiceCollection = createServerFn({ method: 'POST' })
       try {
         const { data: file, error: dl } = await db.storage.from('factures').download(up.storage_path);
         if (dl || !file) throw new Error('Pièce illisible dans le stockage.');
-        const v = await verifyWithClaude(apiKey, file, up.storage_path, { supplier: data.supplier, amount: Number(t.amount), date: t.date, label: t.label });
+        const v = await verifyWithClaude(apiKey, model, file, up.storage_path, { supplier: data.supplier, amount: Number(t.amount), date: t.date, label: t.label });
         results.push({ ...base, status: v.pertinent ? 'conforme' : 'non_conforme', uploadId: up.id, reason: `${v.raison}${v.montantTtc != null ? ` (lu : ${v.montantTtc} € TTC${v.date ? `, ${v.date}` : ''})` : ''}` });
       } catch (e) { results.push({ ...base, status: 'manquant', uploadId: up.id, reason: e instanceof Error ? e.message : 'Contrôle impossible.' }); }
     }

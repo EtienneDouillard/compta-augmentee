@@ -48,15 +48,15 @@ async function prepare(db: any, dossierId: string) {
   return { fresh, waiting: pending.length - fresh.length, prompt: buildPrompt(fresh, older, known) };
 }
 
-async function client() {
-  const apiKey = process.env["ANTHROPIC_API_KEY"];
+async function client(userId: string) {
+  const { apiKey, model } = await (await import("./claude-config.server")).claudeFor(userId, "cabinet");
   if (!apiKey) throw new Error("L'analyse n'est pas encore configurée : la clé ANTHROPIC_API_KEY manque.");
   const { default: Anthropic } = await import("@anthropic-ai/sdk");
-  return new Anthropic({ apiKey, maxRetries: 1 });
+  return { c: new Anthropic({ apiKey, maxRetries: 1 }), model };
 }
 
-const request = (text: string) => ({
-  model: ANALYSIS_MODEL,
+const request = (text: string, model: string) => ({
+  model,
   system: SYSTEM,
   messages: [{ role: "user" as const, content: text }],
   output_config: { effort: "low" as const, format: { type: "json_schema" as const, schema: OUTPUT_SCHEMA as unknown as Record<string, unknown> } },
@@ -110,8 +110,8 @@ export const estimateAnalysis = createServerFn({ method: "POST" })
     if (fresh.length === 0) return { lines: 0, waiting, low: 0, high: 0, ...b };
     let inputTokens: number;
     try {
-      const c = await client();
-      inputTokens = (await c.messages.countTokens(request(prompt.text) as any)).input_tokens;
+      const { c, model } = await client(context.userId);
+      inputTokens = (await c.messages.countTokens(request(prompt.text, model) as any)).input_tokens;
     } catch (err: any) {
       if (err instanceof Error && err.message.includes("ANTHROPIC_API_KEY")) throw err;
       console.error("analysis-count-tokens", err?.status, err?.message);
@@ -137,17 +137,17 @@ export const runAnalysis = createServerFn({ method: "POST" })
     if (spent + Math.max(data.maxCostUsd, rough) > cap)
       throw new Error(`Plafond mensuel atteint : ${spent.toFixed(2)} $ dépensés sur ${cap.toFixed(2)} $. Vous pouvez relever le plafond dans le panneau.`);
 
-    const c = await client();
+    const { c, model } = await client(context.userId);
     let final: any;
     try {
-      final = await c.messages.stream({ ...request(prompt.text), max_tokens: 32000 } as any).finalMessage();
+      final = await c.messages.stream({ ...request(prompt.text, model), max_tokens: 32000 } as any).finalMessage();
     } catch (err: any) {
       console.error("analysis-run", err?.status, err?.message);
       throw new Error("Claude est momentanément indisponible. Réessayez plus tard.");
     }
     const cost = costUsd(final.usage);
     const { data: run, error: e1 } = await db.from("ai_analysis_runs").insert({
-      dossier_id: data.dossierId, user_id: context.userId, model: ANALYSIS_MODEL, lines_analyzed: fresh.length,
+      dossier_id: data.dossierId, user_id: context.userId, model, lines_analyzed: fresh.length,
       input_tokens: final.usage.input_tokens, output_tokens: final.usage.output_tokens, cost_usd: Number(cost.toFixed(4)),
     }).select("id").single();
     if (e1) throw new Error("Impossible d'enregistrer l'analyse.");

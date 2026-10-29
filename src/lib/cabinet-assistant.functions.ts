@@ -144,7 +144,7 @@ export const sendCabinetChatMessage = createServerFn({ method: "POST" })
 
     if ((await usedToday(supabase, userId)) >= CABINET_DAILY_LIMIT) throw new Error(LIMIT_REACHED);
 
-    const apiKey = process.env["ANTHROPIC_API_KEY"];
+    const { apiKey, model } = await (await import("./claude-config.server")).claudeFor(userId, "cabinet");
     if (!apiKey) throw new Error("L'assistant n'est pas encore configuré : la clé ANTHROPIC_API_KEY manque.");
 
     const contextTxt = data.dossierId ? await dossierContext(supabase, data.dossierId) : await portfolioContext(supabase);
@@ -169,7 +169,7 @@ export const sendCabinetChatMessage = createServerFn({ method: "POST" })
     const actions: AssistantActionInput[] = [];
     try {
       const stream = client.messages.stream({
-        model: "claude-sonnet-5-5",
+        model,
         max_tokens: 2000,
         system: SYSTEM,
         messages,

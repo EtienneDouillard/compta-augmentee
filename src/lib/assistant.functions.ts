@@ -53,7 +53,7 @@ export const sendChatMessage = createServerFn({ method: "POST" })
 
     if ((await usedToday(supabase, userId)) >= DAILY_LIMIT) throw new Error(LIMIT_REACHED);
 
-    const apiKey = process.env["ANTHROPIC_API_KEY"];
+    const { apiKey, model } = await (await import("./claude-config.server")).claudeFor(userId, "client");
     if (!apiKey) throw new Error("L'assistant n'est pas encore configuré par le cabinet.");
 
     // Context: only this client's dossier, only payments sent to the client, no bank details.
@@ -98,7 +98,7 @@ ${lines.join("\n") || "(aucun)"}`;
     let text = "";
     try {
       const stream = client.messages.stream({
-        model: "claude-sonnet-5-5",
+        model,
         max_tokens: 2000,
         system: SYSTEM,
         messages,

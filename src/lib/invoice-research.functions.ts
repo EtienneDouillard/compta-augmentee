@@ -23,7 +23,7 @@ export const researchInvoiceSource = createServerFn({ method: 'POST' })
   .middleware([requireSupabaseAuth])
   .inputValidator(d => z.object({ dossierId: z.string().uuid(), supplier: z.string().trim().min(1).max(200), sourceUrl: z.string().url().max(2000) }).parse(d))
   .handler(async ({ data, context }): Promise<SourceResearch> => {
-    const apiKey = process.env['ANTHROPIC_API_KEY'];
+    const { apiKey, model } = await (await import("./claude-config.server")).claudeFor(context.userId);
     if (!apiKey) throw new Error('La clé ANTHROPIC_API_KEY manque.');
     const prompt = `Fournisseur : ${data.supplier} (${data.sourceUrl}).
 Mission : trouver comment un cabinet comptable peut récupérer chaque mois, automatiquement si possible, les factures PDF de ce fournisseur.
@@ -35,7 +35,7 @@ Termine par UN SEUL bloc JSON (rien après), en français :
       method: 'POST',
       headers: { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'anthropic-beta': 'web-fetch-2025-09-10', 'content-type': 'application/json' },
       body: JSON.stringify({
-        model: 'claude-sonnet-5-5', max_tokens: 4000,
+        model, max_tokens: 4000,
         tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: 5 }, { type: 'web_fetch_20250910', name: 'web_fetch', max_uses: 3 }],
         messages: [{ role: 'user', content: prompt }],
       }),
