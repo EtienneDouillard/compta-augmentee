@@ -43,11 +43,18 @@ export const Route = createFileRoute("/api/public/collector")({
         const { data: sources } = await a.db.from("invoice_sources").select("id, supplier, source_url, robot_url")
           .eq("dossier_id", a.dossierId).eq("method", "browser");
         // Only sources that still have a missing invoice: the robot never visits a supplier for nothing.
-        const { data: open } = await a.db.from("transactions").select("supplier")
+        const { data: open } = await a.db.from("transactions").select("supplier, date, amount, label")
           .eq("dossier_id", a.dossierId).eq("is_open", true).eq("status", "a_faire").eq("direction", "out");
         const missing = new Set((open ?? []).map((t: any) => t.supplier));
         const todo = (sources ?? []).filter((s: any) => missing.has(s.supplier));
-        return json({ dossier: d?.name ?? "", sources: todo.map((s: any) => ({ id: s.id, supplier: s.supplier, url: s.robot_url || s.source_url })) });
+        // Amounts the robot looks for in the invoice rows: bank amount in EUR and, for card payments
+        // in another currency, the foreign amount written in the bank label ("486.52 USD").
+        const wantedFor = (sup: string) => (open ?? []).filter((t: any) => t.supplier === sup).map((t: any) => {
+          const eur = Math.abs(Number(t.amount)).toFixed(2);
+          const fx = String(t.label ?? "").match(/(\d[\d\s.,]*[.,]\d\d)\s?(USD|GBP|CHF|CAD|\$|£)/i)?.[1];
+          return { date: t.date, amounts: [fx, eur, eur.replace(".", ",")].filter(Boolean) };
+        });
+        return json({ dossier: d?.name ?? "", sources: todo.map((s: any) => ({ id: s.id, supplier: s.supplier, url: s.robot_url || s.source_url, wanted: wantedFor(s.supplier) })) });
       },
       POST: async ({ request }) => {
         const a = await auth(request);

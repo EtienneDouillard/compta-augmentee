@@ -8,6 +8,8 @@ window.addEventListener("message", (e) => {
   if (m.type === "ping") window.postMessage({ source: "caplus-robot", type: "ready", version: V }, location.origin);
   if (m.type === "connect") chrome.storage.local.set({ base: location.origin, token: m.token }, () =>
     window.postMessage({ source: "caplus-robot", type: "connected" }, location.origin));
+  if (m.type === "teach") chrome.runtime.sendMessage({ type: "teach", url: m.url }, (r) =>
+    window.postMessage({ source: "caplus-robot", type: "done", log: r?.log || "Terminé" }, location.origin));
   if (m.type === "run") chrome.storage.local.set(m.token ? { base: location.origin, token: m.token } : {}, () => chrome.runtime.sendMessage({ type: "run", url: m.url }, (r) =>
     window.postMessage({ source: "caplus-robot", type: "done", log: r?.log || "Terminé" }, location.origin)));
 });
