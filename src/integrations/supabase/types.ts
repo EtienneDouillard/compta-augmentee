@@ -61,19 +61,46 @@ export type Database = {
           },
         ]
       }
+      ai_key: {
+        Row: {
+          id: number
+          secret_blob: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          id?: number
+          secret_blob: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          id?: number
+          secret_blob?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       ai_settings: {
         Row: {
           id: number
+          model_cabinet: string
+          model_client: string
           monthly_cap_usd: number
           updated_at: string
         }
         Insert: {
           id?: number
+          model_cabinet?: string
+          model_client?: string
           monthly_cap_usd?: number
           updated_at?: string
         }
         Update: {
           id?: number
+          model_cabinet?: string
+          model_client?: string
           monthly_cap_usd?: number
           updated_at?: string
         }
