@@ -217,7 +217,7 @@ function Espace() {
             {(dossierId || all.length > 0) && (
               <div className="mt-6 grid items-stretch gap-4 lg:grid-cols-2">
                 {dossierId && <SourcesSummary dossierId={dossierId} suppliers={[...new Set(all.filter((t) => t.direction === "out").map((t) => t.supplier))]} />}
-                <MonthlyChart txs={all} />
+                <MonthlyChart txs={all} className="h-full" />
               </div>
             )}
 
