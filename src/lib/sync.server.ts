@@ -255,6 +255,8 @@ export async function syncDossier(dossierId: string) {
     if (close.length) await db.from("transactions").update({ is_open: false }).in("id", close);
     if (close.length && hasOperations) await db.from("transactions").update({ is_open: false }).in("parent_id", close);
     const skipped = await applySkipRules(dossierId);
+    // Supplier sites are found once, as soon as a request exists, so the setup screen is pre-filled.
+    await (await import("./supplier-site.server")).prefillSupplierSites(dossierId).catch(() => 0);
 
     await db
       .from("dossiers")

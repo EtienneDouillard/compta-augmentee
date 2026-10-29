@@ -60,7 +60,7 @@ export function InvoiceSourceSetup({ dossierId, supplier, onFiles, guessUrl, lab
       if (guessUrl) { setUrl(u => u || guessUrl); return; }
       // Nothing in the bank label: Claude finds the supplier's site to pre-fill the field.
       setGuessing(true);
-      guessSite({ data: { supplier, labels: labels ?? [] } }).then(r => { if (r.url) setUrl(u => u || r.url!); }).catch(() => {}).finally(() => setGuessing(false));
+      guessSite({ data: { dossierId, supplier, labels: labels ?? [] } }).then(r => { if (r.url) setUrl(u => u || r.url!); }).catch(() => {}).finally(() => setGuessing(false));
       return;
     }
     setUrl(s.source_url);
