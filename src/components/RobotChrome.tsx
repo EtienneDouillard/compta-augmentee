@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { createCollectorToken } from '@/lib/collector.functions';
 import { buildBookmarklet } from '@/lib/bookmarklet';
+import chromeGuide from '@/assets/chrome-extensions-guide.png.asset.json';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 const ROBOT_VERSION = '1.3.0';
@@ -151,7 +152,7 @@ function InstallSteps({ url, robotUrl, saveUrl, download }: { url: string; robot
       action: <Button size="sm" variant="outline" onClick={() => mark(4)}>Fait</Button> },
     { label: null, action: <Button size="sm" onClick={() => location.reload()}>✅ C'est installé</Button> },
   ];
-  return <ol className="space-y-2">
+  return <div className="space-y-2"><ol className="space-y-2">
     {steps.map((s, i) => {
       const ok = i < done, locked = i > done;
       return <li key={i} aria-disabled={locked} className={`flex flex-wrap items-center gap-2 transition-opacity ${locked ? 'pointer-events-none opacity-40' : ''}`}>
@@ -160,5 +161,7 @@ function InstallSteps({ url, robotUrl, saveUrl, download }: { url: string; robot
         {s.label}
       </li>;
     })}
-  </ol>;
+  </ol>
+  {done >= 3 && done < 5 && <img src={chromeGuide.url} alt="Page chrome://extensions : Mode développeur en haut à droite, Charger l'extension non empaquetée en haut à gauche" className="w-full rounded-md border" />}
+  </div>;
 }
